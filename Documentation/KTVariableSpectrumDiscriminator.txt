@@ -1,0 +1,43 @@
+KTVariableSpectrumDiscriminator summary:
+
+This processor takes as its slot input individual power spectra, aka single time slices. These spectra can have any number of "commponents", which is a more general way of saying data channels. As we only have the one ROACH output, our data has a depth of 1. It can take any of the following dtata types as slots:
+
+KTFrequencySpectrumDataPolar <-complex reps of frequency spec
+KTFrequencySpectrumDataFFTW <-complex reps of frequency spec
+KTConvolvedPowerSpectrumData <- also ps type object
+KTNormalizedFSDataPolar <-flatten based on gain and variance, but manipulates the data more than KTPowerSpectrumData
+KTNormalizedFSDataFFTW
+KTCorrelationData <- Cross and autocorrelation between channels
+KTWignerVilleData <- output of a Wigner Ville transform, has some nice properties (for a single track sharper? but adds distrotions at ends! No good for initial frequency!) but if there are multiple lines it introduces artifacts.
+KTPowerSpectrumData <- using this!
+KTPSCollectionData <- Something about sidebands.
+
+It can also optionally take a slot for KTGainVariationData. This datatype is the signal of a previous processor for the SAME power spectra and has two key methods:
+KTGainVariationData::GetSpline()
+KTGainVariationData::GetVarianceSpline()
+Which return the mean and variation of the data in the power spectrum at each frequency. The spline was used to wash out the effects of tracks in the data so that this can be understood and the mean and variance of the noise.
+
+Each of these power spectrum data types has a method in the processor called Discriminate which takes it as an argument. (c/c++ has the ability to have multiple methods with the same name and the correct one will run depending on the arguments it is given.)
+            bool Discriminate(KTConvolvedPowerSpectrumData& data);
+            bool Discriminate(KTPowerSpectrumData& data);
+            bool Discriminate(KTPSCollectionData& data);
+
+            bool Discriminate(KTFrequencySpectrumDataPolar& data, KTGainVariationData& gvData);
+            bool Discriminate(KTFrequencySpectrumDataFFTW& data, KTGainVariationData& gvData);
+            bool Discriminate(KTConvolvedPowerSpectrumData& data, KTGainVariationData& gvData);
+            bool Discriminate(KTNormalizedFSDataPolar& data, KTGainVariationData& gvData);
+            bool Discriminate(KTNormalizedFSDataFFTW& data, KTGainVariationData& gvData);
+            bool Discriminate(KTCorrelationData& data, KTGainVariationData& gvData);
+            bool Discriminate(KTWignerVilleData& data, KTGainVariationData& gvData);
+            bool Discriminate(KTPowerSpectrumData& data, KTGainVariationData& gvData);
+            bool Discriminate(KTPSCollectionData& data, KTGainVariationData& gvData);
+            
+Allocates memory for a new, empty "power spectrum" like datatype of the same size as what is is given. The pointer to this momory is called "newData" and will be filled with points above threshold.
+
+Each of these data types is a subclass of one of thre "core" data types:
+KTFrequencySpectrumDataPolarCore
+KTFrequencySpectrumDataFFTWCore
+KTPowerSpectrumDataCore
+
+Rather than write a seperate method to discriminate each of these datatypes, the processor has three methods, called CoreDiscriminate, that each act differently on one of the core types.
+Each CoreDiscriminate method loops over all components and calls DiscriminateSpectrum passing as arguments pointers to the power or frequency spectrum data, the mean spline and variance spline from the gain variation processor, "newData", and the component number. The correct DiscriminateSpectrum method will be run depending on which core data type is input as an argument.

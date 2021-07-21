@@ -43,7 +43,7 @@ namespace Katydid
 
      Slots:
      - "swfc": void (KTDataPr) -- [what it does]; Requires KTSparseWaterfallCandidateData; Adds KTProcessedTrackData; Emits signal "track"
-     - "seqc": void (KTDataPr) -- [what it does]; Requires KTSequentialLineData; Adds KTProcessedTrackData; Emits signal "track"
+     - "seq-cand": void (KTDataPr) -- [what it does]; Requires KTSequentialLineData; Adds KTProcessedTrackData; Emits signal "track"
 
      Signals:
      - "track": void (Nymph::KTDataPtr) -- Emitted when a track has been processed; Guarantees KTProcessedTrackData.

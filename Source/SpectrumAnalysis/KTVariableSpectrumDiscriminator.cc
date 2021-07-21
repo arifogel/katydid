@@ -215,10 +215,10 @@ namespace Katydid
         return CoreDiscriminate(data, gvData, newData);
     }
 
-    bool KTVariableSpectrumDiscriminator::Discriminate(KTPowerSpectrumData& data, KTGainVariationData& gvData)
+    bool KTVariableSpectrumDiscriminator::Discriminate(KTPowerSpectrumData& data, KTGainVariationData& gvData) //We are using this one. Makes variables data and gvData that are in the scope of this function. These refer to whatever object is at the end of the pointer given.
     {
-        KTDiscriminatedPoints1DData& newData = data.Of< KTDiscriminatedPoints1DData >().SetNComponents(data.GetNComponents());
-        return CoreDiscriminate(data, gvData, newData);
+        KTDiscriminatedPoints1DData& newData = data.Of< KTDiscriminatedPoints1DData >().SetNComponents(data.GetNComponents()); //allocates space for this data structure (newData) but doesn't fill it.
+        return CoreDiscriminate(data, gvData, newData); //Calls CoreDiscriminate and passes it these three things. The correct CoreDiscriminate funtion will run depending on the which of the core formats is passed to it.
     }
 
     bool KTVariableSpectrumDiscriminator::Discriminate(KTPSCollectionData& data, KTGainVariationData& gvData)
@@ -362,7 +362,7 @@ namespace Katydid
     {
         if (fCalculateMinBin)
         {
-            SetMinBin(data.GetSpectrum(0)->FindBin(fMinFrequency));
+            SetMinBin(data.GetSpectrum(0)->FindBin(fMinFrequency)); //data.__ uses a member function. GetSpectrum(0) is the 0th comotnent of the data object
             KTDEBUG(sdlog, "Minimum bin set to " << fMinBin);
         }
         if (fCalculateMaxBin)
@@ -597,6 +597,7 @@ namespace Katydid
         return true;
     }
 
+    //We are using this one for now. 
     bool KTVariableSpectrumDiscriminator::DiscriminateSpectrum(const KTPowerSpectrum* spectrum, const KTSpline* spline, const KTSpline* varSpline, KTDiscriminatedPoints1DData& newData, unsigned component)
     {
         if (spectrum == NULL)
@@ -604,8 +605,9 @@ namespace Katydid
             KTERROR(sdlog, "Frequency spectrum pointer (component " << component << ") is NULL!");
             return false;
         }
-
-        unsigned nBins = fMaxBin - fMinBin + 1;
+        //Declare these unsigned ints and doubles.
+        unsigned nBins = fMaxBin - fMinBin + 1; 
+        //Initialize
         double binWidth = spectrum->GetBinWidth();
         double freqMin = spectrum->GetBinLowEdge(fMinBin);
         double freqMax = spectrum->GetBinLowEdge(fMaxBin) + spectrum->GetBinWidth();
@@ -617,11 +619,14 @@ namespace Katydid
         double normalizedVariance = varSplineImp->GetMean();
 
         //************
-        // SNR mode
+        // SNR mode: SNR = P_signal / P_noise
         //************
+        // If the threshold entered in the config file is either a SNR Amplitude or a SNR Power, do this
         if (fThresholdMode == eSNR_Amplitude || fThresholdMode == eSNR_Power)
         {
+            //Declare and initialize variable thresholdMult. This is a value the threshold will be multiplied by to ___
             double thresholdMult = 0.;
+            //If a SNR Amplitude was given as the threshold
             if (fThresholdMode == eSNR_Amplitude)
             {
                 // SNR = P_signal / P_noise = (A_signal / A_noise)^2, A_noise = mean
@@ -668,6 +673,7 @@ namespace Katydid
         // Sigma mode
         //**************
         else if (fThresholdMode == eSigma)
+        //If sigma mode was selected
         {
 #pragma omp parallel for private(value)
             for (unsigned iBin=fMinBin; iBin<=fMaxBin; ++iBin)

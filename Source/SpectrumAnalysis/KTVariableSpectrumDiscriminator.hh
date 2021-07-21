@@ -94,8 +94,9 @@ namespace Katydid
      - "disc-1d": void (Nymph::KTDataPtr) Emitted upon performance of a discrimination; Guarantees KTDiscriminatedPoints1DData
      - "disc-2d": void (Nymph::KTDataPtr) Emitted upon performance of a discrimination; Guarantees KTDiscriminatedPoints2DData
     */
-    class KTVariableSpectrumDiscriminator : public Nymph::KTProcessor
+    class KTVariableSpectrumDiscriminator : public Nymph::KTProcessor // class name
     {
+        // class data members
         private:
             enum ThresholdMode
             {
@@ -190,7 +191,7 @@ namespace Katydid
             Nymph::KTSlotDataTwoTypes< KTNormalizedFSDataFFTW, KTGainVariationData > fNormFSFFTWSlot;
             Nymph::KTSlotDataTwoTypes< KTCorrelationData, KTGainVariationData > fCorrSlot;
             Nymph::KTSlotDataTwoTypes< KTWignerVilleData, KTGainVariationData > fWVSlot;
-            Nymph::KTSlotDataTwoTypes< KTPowerSpectrumData, KTGainVariationData > fPSSlot;
+            Nymph::KTSlotDataTwoTypes< KTPowerSpectrumData, KTGainVariationData > fPSSlot; //This is the one we are using for now. Just discriminating Power Spectra.
             Nymph::KTSlotDataTwoTypes< KTPSCollectionData, KTGainVariationData > fSpecSlot;
 
             Nymph::KTSlotDataOneType< KTGainVariationData > fPreCalcSlot;

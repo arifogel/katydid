@@ -1,3 +1,4 @@
+
 /**
  @file KTTrackProcessingWeightedSlope.cc
  @brief Contains KTTrackProcessingWeightedSlope
@@ -215,6 +216,11 @@ namespace Katydid
         procTrack->SetIntercept(intercept);
         procTrack->SetTotalPower(amplitudeSum);
 
+        if ((nTrackBins < fProcTrackMinPoints))
+        {
+            procTrack->SetIsCut(true);
+            KTDEBUG(tlog, "Number of bins <:" << fProcTrackMinPoints << "\t Cutting track!");
+        }
         procTrack->SetNTrackBins(nTrackBins);
         procTrack->SetTotalTrackSNR(std::accumulate(trackSNR.begin(),trackSNR.end(),0.));
         procTrack->SetMaxTrackSNR(*std::max_element(trackSNR.begin(), trackSNR.end()));

@@ -1,0 +1,161 @@
+processor-toolbox:
+
+    processors:
+        - { type: "long-spec-processor",             name: "spec1" }
+        - { type: "long-spec-processor",             name: "spec2" }
+        - { type: "data-accumulator",                name: "acc" }
+        - { type: "gain-variation",                  name: "gainvar" }
+        - { type: "variable-spectrum-discriminator", name: "discrim" }
+        - { type: "sequential-track-finder",         name: "seq-tr-find"}
+        - { type: "iterative-track-clustering",      name: "tr-clust"}
+        - { type: "track-proc-ws",                   name: "tr-proc-ws"}
+        - { type: "basic-root-writer",               name: "brw" }
+        - { type: "root-spectrogram-writer",         name: "rsw"}
+        - { type: "root-tree-writer",                name: "rtw"}
+   
+    connections:
+              # Take the power spectra from the input file and send them to accumulator
+            - signal: "spec1:ps"         
+              slot: "acc:ps"
+
+              # Copy the accumulated power spectra to gain variation
+            - signal: "acc:ps-finished"  
+              slot: "gainvar:ps-var"
+
+              # Write the accumulated power spectra to ROOT file
+            - signal: "acc:ps-finished"  
+              slot: "brw:ps"
+
+              # Write the gain-var histogram to ROOT file 
+            - signal: "gainvar:gain-var" 
+              slot: "brw:gain-var"
+
+              # Copy the gain-var histogram to the discriminator
+            - signal: "gainvar:gain-var"
+              slot: "discrim:gv"
+
+              # Take the power spectra from the second input file and write them to a ROOT file
+            - signal: "spec2:ps"
+              slot: "rsw:ps"
+
+              # Copy the power spectra from the second input file to the discriminator
+            - signal: "spec2:ps"
+              slot: "discrim:ps-pre"
+ 
+              # Write the spectrogram of points that are above discrim. threshold to ROOT file 
+            - signal: "discrim:disc-1d"
+              slot: "rtw:disc-1d"
+
+              # Pass sparse spectrogram to clustering algorithm for event ID
+            - signal: "discrim:disc-1d"
+              slot: "seq-tr-find:disc-1d"
+
+              # Send signal to clustering algorithm at end of input to check remaining clusters
+            - signal: "spec2:spec-done"
+              slot: "seq-tr-find:done"
+              
+              # Start merging collinear track segments when sequential track finder is complete
+            - signal: "seq-tr-find:clustering-done"
+              slot: "tr-clust:do-clustering"
+
+              # Merges collinear track segments. Outputs a KTSequentialLineData object.
+            - signal: "seq-tr-find:seq-cand"
+              slot: "tr-clust:seq-cand"
+              
+              # Process tracks
+            - signal: "tr-clust:seq-cand"
+              slot: "tr-proc-ws:seq-cand"
+
+              # Write processed tracks to a ROOT tree
+            - signal: "tr-proc-ws:track"
+              slot: "rtw:proc-track"          
+
+              # Make sure to send the spec-done signal so the ROOT file gets written
+            - signal: "spec2:spec-done"
+              slot: "rsw:write-file"
+ 
+    run-queue:
+        - spec1
+        - spec2
+
+spec1:
+    filename: "/media/heather/MediaDrive/SpecFiles/Freq_data_2021-04-30-13-12-12.spec"
+    spectra: 170
+    packets-per-spec: 4
+    header-bytes: 32
+    ROACH-spect-avg: 2
+    freq-bins-per-packet: 8192
+    min-freq: 0.0e6
+    max-freq: 1200.0e6
+    time-slice-avg: 2
+    freq-bin-avg: 1   #must be a power of 2  -- adjust discrim and gainvar accordingly!
+
+spec2:
+    filename: "/media/heather/MediaDrive/SpecFiles/Freq_data_2021-04-30-13-12-12.spec"
+    spectra: 3000
+    packets-per-spec: 4
+    header-bytes: 32
+    ROACH-spect-avg: 2
+    freq-bins-per-packet: 8192
+    min-freq: 0.0e6
+    max-freq: 1200.0e6
+    time-slice-avg: 2 #Time slice width = 109 usec (two 27.3 usec slices averaged by the ROACH = 54.6 usec, then averaging two of these in the spect processor ) Thus 1 freq bin/1 time bin = 3.352×10^8
+    freq-bin-avg: 1   #must be a power of 2  -- adjust discrim and gainvar accordingly!
+
+
+brw:
+    output-file: "/home/heather/outputs/KrTest_2021-04-30-13-12-12_clst2.root"
+    file-flag: "recreate"
+
+rsw:
+    output-file: "/home/heather/outputs/KrTest_2021-04-30-13-12-12_clst2.root"
+    file-flag: recreate
+    mode: single
+    min-time: 0.0
+    max-time: 0.055
+    min-freq: 0.0e6
+    max-freq: 1200.0e6
+
+rtw:
+    output-file: "/home/heather/outputs/KrTest_2021-04-30-13-12-12_clst2.root"
+    file-flag: recreate
+
+acc:
+    number-to-average: 2
+    signal-interval: 2
+
+gainvar:
+    normalize: false
+    min-bin: 3000
+    max-bin: 32000
+    fit-points: 100
+
+discrim:
+    min-bin: 3000
+    max-bin: 32000
+    snr-threshold-power: 4.2
+
+seq-tr-find:
+    min-frequency: 100.0e6 # minimum frequency (in Hz)
+    max-frequency: 1195.0e6 # maximum frequency (in Hz)
+    initial-slope : 3.0e8 # slope of a track with 1 point (in Hz/s)
+    slope-method: weighted-first-point-ref # method to update line slope after point collection
+    n-slope-points: 20 # max points to include in the slope calculation
+    time-gap-tolerance: 7.0e-4 # max gap between points in a line (in sec.) one time slice is 1.09×10^-4 seconds
+    frequency-acceptance: 4.0e4 # max freq gap between point and extrapolated line (in Hz) Each frequency bin is 3.6e4, so it needs to be more than that or all tracks will have a slope of 1 freq bin/1 time bin = 3.352×10^8
+    trimming-threshold: 1  # snr threshold for the first and last point of a candidate
+    min-points: 2 # line is converted to a track iff it has >= this # of points
+    min-slope: 0 # line is converted to a track iff line slope is > than this (in Hz/s)
+    
+tr-clust:
+    time-gap-tolerance: 9.0e-4 # max gap between points in a line (in sec.)
+    frequency-acceptance: 1.0e5 # max freq gap between point and extrapolated line (in Hz)
+    max-track-width: 2.0e5 # if the start- or end point of a track is closer than this value (in frequency) the tracks are combined to one
+
+tr-proc-ws:
+    min-slope: 0 # min slope (Hz/s)
+    min-points: 3 # min points required to keep a processed track (fixed -H)
+
+
+
+

@@ -290,15 +290,17 @@ EventAnalysis
 
     Description: 
 
-    Configuration type: ``track-processing-weighted-slope``
+    Configuration type: ``track-proc-ws``
+     
 
     Signals:
 
-        * 
+        * ``track``: ``void (Nymph::KTDataPtr)`` -- Emitted when a track has been processed; Guarantees KTProcessedTrackData.
 
     Slots:
 
-        * 
+        *  ``swfc``: ``void (KTDataPr)`` -- [what it does]; Requires KTSparseWaterfallCandidateData; Adds KTProcessedTrackData; Emits signal "track"
+        *  ``seq-cand``: ``void (KTDataPr)`` -- [what it does]; Requires KTSequentialLineData; Adds KTProcessedTrackData; Emits signal "track"
 
 
 IO
