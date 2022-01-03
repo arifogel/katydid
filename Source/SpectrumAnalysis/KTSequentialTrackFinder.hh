@@ -54,6 +54,7 @@ namespace Katydid
      - "frequency-acceptance": maximum allowed frequency distance of point to an extrapolated line (in Hz)
      - "slope-method": method to update the line slope after point collection (see options below)
      - "initial-frequency-acceptance": if the line that a point is being compared to, only has a single point so far, this is the accepted frequency acceptance. Default isfrequency_acceptance
+     - "initial-time-acceptance": if the line that a point is being compared to, only has a single point so far, this is the accepted time window. Default isfrequency_acceptance
      - "initial-slope": if a line has only one point, this is the line's slope
      - "n-slope-points": maximum number of points to include in the slope calculation
      - "min-points": a line only gets converted to a track if it has collected more than this many number of points
@@ -138,6 +139,7 @@ namespace Katydid
             MEMBERVARIABLE(signed, NSlopePoints);
             MEMBERVARIABLE(double, FrequencyAcceptance);
             MEMBERVARIABLE(double, InitialFrequencyAcceptance);
+            MEMBERVARIABLE(double, InitialTimeAcceptance);
             MEMBERVARIABLE(double, TimeGapTolerance);
 
             // Parameters for line post-processing
