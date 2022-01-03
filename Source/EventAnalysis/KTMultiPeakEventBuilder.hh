@@ -47,6 +47,7 @@ namespace Katydid
         units match the units of start time and end time of the input track object, should be seconds
      - "jump-time-tol": double -- Given two multi-peak track objects, if the start of the second is within jump-time-tol of the first, they are grouped into an event.
         units match the units of start time and end time of the input track object, should be seconds
+     - "jump-freq-tol": double -- Given two multi-peak track objects, if the start of the second is within jump-freq-tol of the first, they are grouped into an event.
 
      Slots:
      - "mpt": void (KTDataPtr) -- If this is a new acquisition; Adds group of tracks to the internally-stored set of points; Requires KTMultiPeakTrackData; Adds nothing
@@ -67,6 +68,7 @@ namespace Katydid
             bool Configure(const scarab::param_node* node);
 
             MEMBERVARIABLE(double, JumpTimeTolerance);
+            MEMBERVARIABLE(double, JumpFreqTolerance);
 
         public:
             // Store point information locally
