@@ -112,6 +112,10 @@ namespace Katydid
         Double_t fSumStartTimeInRunC;
         Double_t fMeanEndTimeInRunC;
         Double_t fSumEndTimeInRunC;
+        Double_t fSumStartFrequency;
+        Double_t fSumEndFrequency;
+        Double_t fMeanStartFrequency;
+        Double_t fMeanEndFrequency;
         UInt_t fAcquisitionID;
         UInt_t fUnknownEventTopology;
     };
