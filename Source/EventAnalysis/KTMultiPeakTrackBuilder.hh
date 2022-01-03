@@ -39,6 +39,7 @@ namespace Katydid
 
      Available configuration values:
      - "sideband-time-tol": maximum difference in timestamps to treat as parallel tracks
+     - "minimum-sideband-freq-gap": minimum frequency difference between two parallel tracks for them to be matched as sidebands
 
      Slots:
      - "track": void (shared_ptr<KTData>) -- If this is a new acquisition; Adds tracks to the internally-stored set of points; Requires KTProcessedTrackData.
@@ -58,6 +59,7 @@ namespace Katydid
             bool Configure(const scarab::param_node* node);
 
             MEMBERVARIABLE(double, SidebandTimeTolerance);
+            MEMBERVARIABLE(double, MinimumSidebandFreqGap);
 
         public:
             // Store point information locally
