@@ -32,6 +32,7 @@ namespace Katydid
     KTMultiPeakTrackBuilder::KTMultiPeakTrackBuilder(const std::string& name) :
             KTPrimaryProcessor(name),
             fSidebandTimeTolerance(0.),
+            fMinimumSidebandFreqGap(0.),
             fTimeBinWidth(1),
             fFreqBinWidth(1.),
             fCurrentAcquisitionID(std::numeric_limits<uint64_t>::max()),
@@ -53,6 +54,7 @@ namespace Katydid
         if (node == NULL) return false;
 
         SetSidebandTimeTolerance(node->get_value("sideband-time-tol", GetSidebandTimeTolerance()));
+        SetMinimumSidebandFreqGap(node->get_value("minimum-sideband-freq-gap", GetMinimumSidebandFreqGap()));
 
         return true;
     }
@@ -179,10 +181,11 @@ namespace Katydid
                     else
                     {
                         double deltaEndT = trackIt->fProcTrack.GetEndTimeInRunC() - mptrIt->fMeanEndTimeInRunC;
+                        double deltaFreq = trackIt->fProcTrack.GetStartFrequency() - mptrIt->fMeanStartFrequency;
                         // check if this track should be added to this track ref
-                        if ( !trackHasBeenAdded &&
-                             (fabs(deltaStartT) <= fSidebandTimeTolerance || fabs(deltaEndT) < fSidebandTimeTolerance)
-                           )
+                        if ( !trackHasBeenAdded && fabs(deltaStartT) <= fSidebandTimeTolerance && fabs(deltaEndT) < fSidebandTimeTolerance && fabs(deltaFreq) > fMinimumSidebandFreqGap) 
+                        // I'm saying it needs to align both at the start AND end for it to be grouped together... for now
+                        //Also must be seperated by more than the fMinimumSidebandFreqGap
                         {
                             // then this track matches this track ref
                             mptrIt->InsertTrack(trackIt);
