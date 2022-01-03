@@ -377,7 +377,11 @@ namespace Katydid
             fMeanEndTimeInRunC(0.),
             fSumEndTimeInRunC(0.),
             fAcquisitionID(0),
-            fUnknownEventTopology(false)
+            fUnknownEventTopology(false),
+            fSumStartFrequency(0.),
+            fSumEndFrequency(0.),
+            fMeanStartFrequency(0.),
+            fMeanEndFrequency(0.)
     {}
 
     bool MultiPeakTrackRef::InsertTrack(const TrackSetCIt& trackRef)
@@ -387,9 +391,13 @@ namespace Katydid
         fTrackRefs.insert(trackRef);
         fSumStartTimeInRunC += trackRef->fProcTrack.GetStartTimeInRunC();
         fSumEndTimeInRunC += trackRef->fProcTrack.GetEndTimeInRunC();
+        fSumStartFrequency += trackRef->fProcTrack.GetStartFrequency();
+        fSumEndFrequency += trackRef->fProcTrack.GetEndFrequency();
         double currentSize = (double)fTrackRefs.size();
         fMeanStartTimeInRunC = fSumStartTimeInRunC / currentSize;
         fMeanEndTimeInRunC = fSumEndTimeInRunC / currentSize;
+        fMeanStartFrequency = fSumStartFrequency / currentSize;
+        fMeanEndFrequency = fSumEndFrequency / currentSize;
         return true;
     }
 
