@@ -709,6 +709,10 @@ namespace Katydid
         fMultiPeakTrackData.fMeanEndTimeInRunC = mptData.GetMeanEndTimeInRunC();
         fMultiPeakTrackData.fSumEndTimeInRunC = mptData.GetSumEndTimeInRunC();
         fMultiPeakTrackData.fAcquisitionID = mptData.GetAcquisitionID();
+        fMultiPeakTrackData.fSumStartFrequency = mptData.GetSumStartFrequency();
+        fMultiPeakTrackData.fSumEndFrequency = mptData.GetSumEndFrequency();
+        fMultiPeakTrackData.fMeanStartFrequency = mptData.GetMeanStartFrequency();
+        fMultiPeakTrackData.fMeanEndFrequency = mptData.GetMeanEndFrequency();
 
         if( mptData.GetUnknownEventTopology() )
         {
@@ -743,13 +747,17 @@ namespace Katydid
                 fMultiPeakTrackTree->SetBranchAddress( "MeanEndTimeInRunC", &fMultiPeakTrackData.fMeanEndTimeInRunC );
                 fMultiPeakTrackTree->SetBranchAddress( "SumEndTimeInRunC", &fMultiPeakTrackData.fSumEndTimeInRunC );
                 fMultiPeakTrackTree->SetBranchAddress( "AcquisitionID", &fMultiPeakTrackData.fAcquisitionID );
+                fMultiPeakTrackTree->SetBranchAddress( "SumStartFrequency", &fMultiPeakTrackData.fSumStartFrequency );
+                fMultiPeakTrackTree->SetBranchAddress( "SumEndFrequency", &fMultiPeakTrackData.fSumEndFrequency );
+                fMultiPeakTrackTree->SetBranchAddress( "MeanStartFrequency", &fMultiPeakTrackData.fMeanStartFrequency );
+                fMultiPeakTrackTree->SetBranchAddress( "MeanEndFrequency", &fMultiPeakTrackData.fMeanEndFrequency );
                 fMultiPeakTrackTree->SetBranchAddress( "UnknownEventTopology", &fMultiPeakTrackData.fUnknownEventTopology );
 
                 return true;
             }
         }
 
-        fMultiPeakTrackTree = new TTree("mp-track", "Multi-Peak Track");
+        fMultiPeakTrackTree = new TTree("mpTrack", "Multi-Peak Track");
         if( fMultiPeakTrackTree == NULL )
         {
             KTERROR( publog, "Tree was not created!" );
@@ -765,6 +773,10 @@ namespace Katydid
         fMultiPeakTrackTree->Branch( "MeanEndTimeInRunC", &fMultiPeakTrackData.fMeanEndTimeInRunC, "fMeanEndTimeInRunC/d" );
         fMultiPeakTrackTree->Branch( "SumEndTimeInRunC", &fMultiPeakTrackData.fSumEndTimeInRunC, "fSumEndTimeInRunC/d" );
         fMultiPeakTrackTree->Branch( "AcquisitionID", &fMultiPeakTrackData.fAcquisitionID, "fAcquisitionID/i" );
+        fMultiPeakTrackTree->Branch( "SumStartFrequency", &fMultiPeakTrackData.fSumStartFrequency, "fSumStartFrequency/d" );
+        fMultiPeakTrackTree->Branch( "SumEndFrequency", &fMultiPeakTrackData.fSumEndFrequency, "fSumEndFrequency/d" );
+        fMultiPeakTrackTree->Branch( "MeanStartFrequency", &fMultiPeakTrackData.fMeanStartFrequency, "fMeanStartFrequency/d" );
+        fMultiPeakTrackTree->Branch( "MeanEndFrequency", &fMultiPeakTrackData.fMeanEndFrequency, "fMeanEndFrequency/d" );
         fMultiPeakTrackTree->Branch( "UnknownEventTopology", &fMultiPeakTrackData.fUnknownEventTopology, "fUnknownEventTopology/i" );
 
         return true;
