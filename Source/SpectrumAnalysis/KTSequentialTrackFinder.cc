@@ -50,6 +50,7 @@ namespace Katydid
                     fTimeGapTolerance(0.0005),
                     fFrequencyAcceptance(56166.0528183),
                     fInitialFrequencyAcceptance(0.0),
+                    fInitialTimeAcceptance(0.0),
                     fSearchRadius(6),
                     fConvergeDelta(1.5),
                     fMinPoints(3),
@@ -140,6 +141,14 @@ namespace Katydid
         else
         {
             SetInitialFrequencyAcceptance(node->get_value("frequency-acceptance", GetInitialFrequencyAcceptance()));
+        }
+        if (node->has("initial-time-acceptance"))
+        {
+            SetInitialTimeAcceptance(node->get_value("initial-time-acceptance", GetInitialTimeAcceptance()));
+        }
+        else
+        {
+            SetInitialTimeAcceptance(node->get_value("time-gap-tolerance", GetInitialTimeAcceptance()));
         }
         if (node->has("apply-power-cut"))
         {
@@ -483,20 +492,23 @@ namespace Katydid
                         // Under these conditions a point will be added to a line
                         bool timeCondition = tempPoint.fTimeInRunC > lineIt->GetEndTimeInRunC();
                         bool anyPointCondition = std::abs(tempPoint.fFrequency - (lineIt->GetEndFrequency() + lineIt->GetSlope()*(pointIt->fTimeInAcq - lineIt->GetEndTimeInAcq()))) < fFrequencyAcceptance;
-                        bool secondPointCondition = std::abs(tempPoint.fFrequency - (lineIt->GetEndFrequency() + lineIt->GetSlope()*(pointIt->fTimeInAcq - lineIt->GetEndTimeInAcq()))) < fInitialFrequencyAcceptance;
+                        bool secondPointFreqCondition = std::abs(tempPoint.fFrequency - (lineIt->GetEndFrequency() + lineIt->GetSlope()*(pointIt->fTimeInAcq - lineIt->GetEndTimeInAcq()))) < fInitialFrequencyAcceptance;
+                        bool secondPointTimeCondition = std::abs(tempPoint.fTimeInRunC - lineIt->GetEndTimeInRunC()) < fInitialTimeAcceptance;
 
-                        // if point matches this line: insert
-                        if (timeCondition and anyPointCondition)
+                        //if line is only one point so far you can apply more strict time gap tollerance:
+                        if (lineIt->GetNPoints() == 1 and timeCondition and secondPointTimeCondition and secondPointFreqCondition)
                         {
+                            KTDEBUG(stflog, "Met initial-time-acceptance "<<fInitialTimeAcceptance);
+                            KTDEBUG(stflog, "Met initial-frequency-acceptance "<<fInitialFrequencyAcceptance);
                             lineIt->AddPoint(tempPoint);
                             (this->*fCalcSlope)(*lineIt);
                             match = true;
                             break;
                         }
-                        // if this line consists of only one point so far, try again with different radius
-                        else if (lineIt->GetNPoints() == 1 and timeCondition and secondPointCondition)
+
+                        // if point matches this line: insert
+                        else if (lineIt->GetNPoints() > 1 and timeCondition and anyPointCondition)
                         {
-                            KTDEBUG(stflog, "Trying initial-frequency-acceptance "<<fInitialFrequencyAcceptance);
                             lineIt->AddPoint(tempPoint);
                             (this->*fCalcSlope)(*lineIt);
                             match = true;
@@ -598,25 +610,24 @@ namespace Katydid
                     {
                         // Under these conditions a point will be added to a line
                         bool timeCondition = pointIt->fTimeInRunC > lineIt->GetEndTimeInRunC();
-                        //KTWARN(stflog, "time condition: " << timeCondition << " = " << pointIt->fTimeInRunC << " > " << lineIt->GetEndTimeInRunC() );
                         bool anyPointCondition = std::abs(pointIt->fFrequency - (lineIt->GetEndFrequency() + lineIt->GetSlope()*(pointIt->fTimeInAcq - lineIt->GetEndTimeInAcq()))) < fFrequencyAcceptance;
-                        //KTWARN(stflog, "any point condition: " << anyPointCondition << " = | " << pointIt->fFrequency << " - ( " << lineIt->GetEndFrequency() << " + " << lineIt->GetSlope() << " * ( " << pointIt->fTimeInAcq << " - " << lineIt->GetEndTimeInAcq() << " ))| < " << fFrequencyAcceptance);
-                        bool secondPointCondition = std::abs(pointIt->fFrequency - (lineIt->GetEndFrequency() + lineIt->GetSlope()*(pointIt->fTimeInAcq - lineIt->GetEndTimeInAcq()))) < fInitialFrequencyAcceptance;
-                        //KTWARN(stflog, "second point condition: " << secondPointCondition << " = |" << pointIt->fFrequency << " - ( " << lineIt->GetEndFrequency() << " + " << lineIt->GetSlope() << " * ( " << pointIt->fTimeInAcq << " - " << lineIt->GetEndTimeInAcq() << " ))| < " << fInitialFrequencyAcceptance);
+                        bool secondPointFreqCondition = std::abs(pointIt->fFrequency - (lineIt->GetEndFrequency() + lineIt->GetSlope()*(pointIt->fTimeInAcq - lineIt->GetEndTimeInAcq()))) < fInitialFrequencyAcceptance;
+                        bool secondPointTimeCondition = std::abs(pointIt->fTimeInRunC - lineIt->GetEndTimeInRunC()) < fInitialTimeAcceptance;
 
-                        // if point matches this line: insert
-                        if (timeCondition and anyPointCondition)
+                        //if line is only one point so far you can apply more strict time gap tollerance:
+                        if (lineIt->GetNPoints() == 1 and timeCondition and secondPointTimeCondition and secondPointFreqCondition)
                         {
-                            KTDEBUG(stflog, "Matching conditions fulfilled, line has " << lineIt->GetNPoints() << " points");
+                            KTDEBUG(stflog, "Met initial-time-acceptance "<<fInitialTimeAcceptance);
+                            KTDEBUG(stflog, "Met initial-frequency-acceptance "<<fInitialFrequencyAcceptance);
                             lineIt->AddPoint(*pointIt);
                             (this->*fCalcSlope)(*lineIt);
                             match = true;
                             break;
                         }
-                        // if this line consists of only one point so far, try again with different radius
-                        else if (lineIt->GetNPoints() == 1 and timeCondition and secondPointCondition)
+
+                        // if point matches this line: insert
+                        else if (lineIt->GetNPoints() > 1 and timeCondition and anyPointCondition)
                         {
-                            KTDEBUG(stflog, "Trying initial-frequency-acceptance "<<fInitialFrequencyAcceptance);
                             lineIt->AddPoint(*pointIt);
                             (this->*fCalcSlope)(*lineIt);
                             match = true;
