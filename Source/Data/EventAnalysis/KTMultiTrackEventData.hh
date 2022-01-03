@@ -151,6 +151,10 @@ namespace Katydid
         double fSumStartTimeInRunC;
         double fMeanEndTimeInRunC;
         double fSumEndTimeInRunC;
+        double fSumStartFrequency;
+        double fSumEndFrequency;
+        double fMeanStartFrequency;
+        double fMeanEndFrequency;
         uint64_t fAcquisitionID;
         bool fUnknownEventTopology;
 
@@ -206,6 +210,14 @@ namespace Katydid
             double GetMeanEndTimeInRunC() const;
 
             double GetSumEndTimeInRunC() const;
+
+            double GetSumStartFrequency() const;
+
+            double GetSumEndFrequency() const;
+
+            double GetMeanStartFrequency() const;
+
+            double GetMeanEndFrequency() const;
 
             uint64_t GetAcquisitionID() const;
             void SetAcquisitionID(uint64_t acqID);
@@ -277,6 +289,26 @@ namespace Katydid
     inline double KTMultiPeakTrackData::GetSumEndTimeInRunC() const
     {
         return fMPTrack.fSumEndTimeInRunC;
+    }
+
+    inline double KTMultiPeakTrackData::GetSumStartFrequency() const
+    {
+        return fMPTrack.fSumStartFrequency;
+    }
+
+    inline double KTMultiPeakTrackData::GetSumEndFrequency() const
+    {
+        return fMPTrack.fSumEndFrequency;
+    }
+
+    inline double KTMultiPeakTrackData::GetMeanStartFrequency() const
+    {
+        return fMPTrack.fMeanStartFrequency;
+    }
+
+    inline double KTMultiPeakTrackData::GetMeanEndFrequency() const
+    {
+        return fMPTrack.fMeanEndFrequency;
     }
 
     inline uint64_t KTMultiPeakTrackData::GetAcquisitionID() const
