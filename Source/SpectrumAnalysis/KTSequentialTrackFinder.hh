@@ -53,11 +53,12 @@ namespace Katydid
      - "converge-delta": for disc1d-ps slot: defines when convergence has been reached (in bins)
      - "frequency-acceptance": maximum allowed frequency distance of point to an extrapolated line (in Hz)
      - "slope-method": method to update the line slope after point collection (see options below)
-     - "initial-frequency-acceptance": if the line that a point is being compared to, only has a single point so far, this is the accepted frequency acceptance. Default isfrequency_acceptance
-     - "initial-time-acceptance": if the line that a point is being compared to, only has a single point so far, this is the accepted time window. Default isfrequency_acceptance
+     - "initial-frequency-acceptance": if the line that a point is being compared to, only has a single point so far, this is the accepted frequency acceptance. Default is frequency_acceptance
+     - "initial-time-acceptance": if the line that a point is being compared to, only has a single point so far, this is the accepted time window. Default is time-gap-tolerance
      - "initial-slope": if a line has only one point, this is the line's slope
      - "n-slope-points": maximum number of points to include in the slope calculation
      - "min-points": a line only gets converted to a track if it has collected more than this many number of points
+     - "max-points": lines will be terminated after this many points. Good for curved tracks/resonances.
      - "min-slope": a line only gets converted to a track if its slope is > than this slope (in Hz/s)
      - "apply-power-cut": default false; if true, the summed-power has to be > total-power-threshold; uses fNeighborhoodAmplitude
      - "apply-point-density-cut": default false; if true, the summed-power/time-length has to be > average-power-threshold; uses fNeighborhoodAmplitude
@@ -146,6 +147,7 @@ namespace Katydid
             //MEMBERVARIABLE(double, TrimmingFactor);
             MEMBERVARIABLE(double, TrimmingThreshold);
             MEMBERVARIABLE(unsigned, MinPoints);
+            MEMBERVARIABLE(unsigned, MaxPoints);
             MEMBERVARIABLE(double, MinSlope);
             MEMBERVARIABLE(bool, ApplyTotalPowerCut);
             MEMBERVARIABLE(bool, ApplyAveragePowerCut);

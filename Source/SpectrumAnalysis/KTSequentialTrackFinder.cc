@@ -54,6 +54,7 @@ namespace Katydid
                     fSearchRadius(6),
                     fConvergeDelta(1.5),
                     fMinPoints(3),
+                    fMaxPoints(100),
                     fMinSlope(0.0),
                     fInitialSlope(3.0*pow(10,8)),
                     fNSlopePoints(10),
@@ -105,6 +106,7 @@ namespace Katydid
         SetTrimmingThreshold(node->get_value("trimming-threshold", GetTrimmingThreshold()));
         SetLinePowerRadius(node->get_value("line-power-radius", GetLinePowerRadius()));
         SetMinPoints(node->get_value("min-points", GetMinPoints()));
+        SetMaxPoints(node->get_value("max-points", GetMaxPoints()));
         SetMinSlope(node->get_value("min-slope", GetMinSlope()));
 
         SetTimeGapTolerance(node->get_value("time-gap-tolerance", GetTimeGapTolerance()));
@@ -471,7 +473,7 @@ namespace Katydid
                 while( lineIt != fActiveLines.end())
                 {
                     // Check whether line should still be active. If not then check whether the line is a valid new track candidate.
-                    if (lineIt->GetEndTimeInRunC() <pointIt->fTimeInRunC-fTimeGapTolerance)
+                    if (lineIt->GetEndTimeInRunC() <pointIt->fTimeInRunC-fTimeGapTolerance or lineIt->GetNPoints() >= fMaxPoints)
                     {
                         if (lineIt->GetNPoints() >= fMinPoints)
                         {
@@ -579,7 +581,7 @@ namespace Katydid
                 while( lineIt != fActiveLines.end())
                 {
                     // Check whether line should still be active. If not then check whether the line is a valid new track candidate.
-                    if (lineIt->GetEndTimeInRunC() < pointIt->fTimeInRunC - fTimeGapTolerance)
+                    if (lineIt->GetEndTimeInRunC() < pointIt->fTimeInRunC - fTimeGapTolerance or lineIt->GetNPoints() >= fMaxPoints)
                     {
                         //KTWARN(stflog, "Gap between end of a line and the current time-in-run (" << pointIt->fTimeInRunC - lineIt->GetEndTimeInRunC()  << ") is larger than the gap tolerance; evaluating line");
                         if (lineIt->GetNPoints() >= fMinPoints)
@@ -865,12 +867,16 @@ namespace Katydid
         {
             if (lineIt->GetNPoints() >= fMinPoints)
             {
-                lineIt->LineSNRTrimming(fTrimmingThreshold, fMinPoints);
-
-                if (lineIt->GetNPoints() >= fMinPoints and lineIt->GetSlope() > fMinSlope)
+                if (lineIt->GetNPoints() <= fMaxPoints)
                 {
-                    this->EmitPreCandidate(*lineIt);
+                    lineIt->LineSNRTrimming(fTrimmingThreshold, fMinPoints);
+
+                    if (lineIt->GetNPoints() >= fMinPoints and lineIt->GetSlope() > fMinSlope and lineIt->GetNPoints() <= fMaxPoints)
+                    {
+                        this->EmitPreCandidate(*lineIt);
+                    }
                 }
+                lineIt = fActiveLines.erase(lineIt);
             }
             lineIt = fActiveLines.erase(lineIt);
         }
