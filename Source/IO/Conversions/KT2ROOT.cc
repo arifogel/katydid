@@ -661,6 +661,7 @@ namespace Katydid
         rootPTData.SetEndFrequency(ptData.GetEndFrequency());
         rootPTData.SetFrequencyWidth(ptData.GetFrequencyWidth());
         rootPTData.SetSlope(ptData.GetSlope());
+        rootPTData.SetSlopeChange(ptData.GetSlopeChange());
         rootPTData.SetIntercept(ptData.GetIntercept());
         rootPTData.SetTotalPower(ptData.GetTotalPower());
         rootPTData.SetNTrackBins(ptData.GetNTrackBins());
@@ -699,6 +700,7 @@ namespace Katydid
         ptData.SetEndFrequency(rootPTData.GetEndFrequency());
         ptData.SetFrequencyWidth(rootPTData.GetFrequencyWidth());
         ptData.SetSlope(rootPTData.GetSlope());
+        ptData.SetSlopeChange(rootPTData.GetSlopeChange());
         ptData.SetIntercept(rootPTData.GetIntercept());
         ptData.SetTotalPower(rootPTData.GetTotalPower());
         ptData.SetNTrackBins(rootPTData.GetNTrackBins());

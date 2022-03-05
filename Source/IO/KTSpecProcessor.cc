@@ -23,7 +23,7 @@ namespace Katydid
             KTPrimaryProcessor(name),
             fProgressReportInterval(1),
             fFilenames(),
-            fFreqBins(8192),
+            fFreqBins(4096),
             fNSpectra(0),
             fFreqMin(0.),
             fFreqMax(1600000000),
@@ -164,6 +164,7 @@ namespace Katydid
 
                 //assume for now that all runs start at time t=0
                 sliceHeader.SetTimeInRun(i*fFreqBins*fSpectraAvg/fFreqMax);
+                KTDEBUG(speclog, "TimeInRun = "<<(i*fFreqBins*fSpectraAvg/fFreqMax));
 
                 //assume for now that there is 1 acq per run, all runs start at t=0
                 sliceHeader.SetTimeInAcq(i*fFreqBins*fSpectraAvg/fFreqMax);
@@ -182,10 +183,15 @@ namespace Katydid
                 newSpec[0] = new KTPowerSpectrum(slice, fFreqBins, fFreqMin, fFreqMax);
                 KTPowerSpectrumData& psData = data->Of< KTPowerSpectrumData >().SetNComponents(1);
                 psData.SetSpectrum(newSpec[0], comp);
-                psData.GetArray(comp)->GetAxis().SetBinsRange(0.0, 1.6e9, 8192);
+                psData.GetArray(comp)->GetAxis().SetBinsRange(fFreqMin, fFreqMax, fFreqBins);
 
                 if (i == 0)
                 {
+                	KTINFO(speclog, "Set first spectrum object")
+                	
+                	sliceHeader.SetIsNewAcquisition(1);
+                    KTINFO(speclog, "Set New Acquisition!");
+                    
                     double min = psData.GetArray(comp)->GetAxis().GetRangeMin();
                     KTINFO(speclog, "First spectrum min freq = " << min);
 
@@ -195,9 +201,7 @@ namespace Katydid
                     double width = psData.GetArray(comp)->GetAxis().GetBinWidth();
                     KTINFO(speclog, "First spectrum bin width = " << width);
                 }
-
-
-                if (i == 0) KTINFO(speclog, "Set first spectrum object");
+				else sliceHeader.SetIsNewAcquisition(0);
 
                 if(i == fNSpectra -1)
                 {

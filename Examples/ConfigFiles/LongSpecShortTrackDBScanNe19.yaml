@@ -8,6 +8,7 @@ processor-toolbox:
         - { type: "variable-spectrum-discriminator", name: "discrim" }
         - { type: "sequential-track-finder",         name: "seq-tr-find"}
         - { type: "track-proc-ws",                   name: "tr-proc-ws"}
+        - { type: "dbscan-event-clustering",         name: "dbscan"}
         - { type: "basic-root-writer",               name: "brw" }
         - { type: "root-spectrogram-writer",         name: "rsw"}
         - { type: "root-tree-writer",                name: "rtw"}
@@ -61,6 +62,18 @@ processor-toolbox:
             - signal: "tr-proc-ws:track"
               slot: "rtw:proc-track"
               
+              # Start merging collinear track segments when sequential track finder is complete
+            - signal: "seq-tr-find:clustering-done"
+              slot: "dbscan:do-clustering"
+              
+              #Cluster short track segments with the dbscan algorithm
+            - signal: "tr-proc-ws:track"
+              slot: "dbscan:track"
+              
+              # Writing the Events to a ROOT file (you can use rtw for all datatypes. Look for slot names in .cc files)
+            - signal: "dbscan:event"
+              slot: "rtw:mt-event"
+              
               # Make sure to send the spec-done signal so the ROOT file gets written
             - signal: "spec2:spec-done"
               slot: "rsw:write-file"
@@ -70,7 +83,7 @@ processor-toolbox:
         - spec2
 
 spec1:
-    filename: "/media/heather/T7/SpecFiles/NeTest_11242021/Freq_data_2021-11-24-13-43-07.spec" #U side noise
+    filename: "/media/heather/T7/SpecFiles/KrTest_02232022/Freq_data_2022-03-01-14-23-49.spec" #U side noise
     spectra: 170   #number of OUTPUT specs after averaging
     packets-per-spec: 4
     header-bytes: 32
@@ -82,7 +95,7 @@ spec1:
     freq-bin-avg: 10   #must be a power of 2  -- adjust discrim and gainvar accordingly!
 
 spec2:
-    filename: "/media/heather/T7/SpecFiles/NeTest_11242021/B2.0T/Freq_data_2021-11-24-13-46-29.spec"
+    filename: "/media/heather/T7/SpecFiles/KrTest_02232022/Freq_data_2022-03-01-14-23-49.spec"
     spectra: 18000 #number of OUTPUT specs after averaging 18000 max
     packets-per-spec: 4
     header-bytes: 32
@@ -95,11 +108,11 @@ spec2:
 
 
 brw:
-    output-file: "/media/heather/T7/KatydidOutput/NeTest_11242021/B2.0T/Freq_data_2021-11-24-13-46-29_short.root"
+    output-file: "/media/heather/T7/KatydidOutput/KrTest_02232022/Freq_data_2022-03-01-14-23-49.root"
     file-flag: "recreate"
 
 rsw:
-    output-file: "/media/heather/T7/KatydidOutput/NeTest_11242021/B2.0T/Freq_data_2021-11-24-13-46-29_short.root"
+    output-file: "/media/heather/T7/KatydidOutput/KrTest_02232022/Freq_data_2022-03-01-14-23-49.root"
     file-flag: recreate
     mode: single
     min-time: 0.0
@@ -108,7 +121,7 @@ rsw:
     max-freq: 1200.0e6
 
 rtw:
-    output-file: "/media/heather/T7/KatydidOutput/NeTest_11242021/B2.0T/Freq_data_2021-11-24-13-46-29_short.root"
+    output-file: "/media/heather/T7/KatydidOutput/KrTest_02232022/Freq_data_2022-03-01-14-23-49.root"
     file-flag: recreate
 
 acc:
@@ -124,14 +137,14 @@ gainvar:
 discrim:
     min-bin: 273
     max-bin: 3275
-    snr-threshold-power: 2.5 # 4.2
+    snr-threshold-power: 2.2 # Kr 4.2
 
 seq-tr-find:
     min-frequency: 100.0e6 # minimum frequency (in Hz)
     max-frequency: 1195.0e6 # maximum frequency (in Hz)
     initial-slope : 8.0e9 # slope of a track with 1 point (in Hz/s)
     slope-method: weighted-first-point-ref # method to update line slope after point collection
-    n-slope-points: 20 # max points to include in the slope calculation
+    n-slope-points: 10 # max points to include in the slope calculation
     time-gap-tolerance: 6.0e-4 # max gap between points in a line (in sec.) one time slice is 5.46×10^-5 seconds
     frequency-acceptance: 9.0e5 # max freq gap between point and extrapolated line (in Hz) Each frequency bin is 3.6e4, so it needs to be more than that or all tracks will have a slope of 1 freq bin/1 time bin = 3.352×10^8
     trimming-threshold: 1  # snr threshold for the first and last point of a candidate
@@ -142,6 +155,10 @@ seq-tr-find:
 tr-proc-ws:
     min-slope: 0 # min slope (Hz/s)
     min-points: 3 # min points required to keep a processed track (fixed -H)
+    
+dbscan:
+    radii: [1.0e-3,2.0e6] #double[2] -- array used to describe the distances that will be used to cluster tracks together; [time, frequency] [1.0e-3,2.0e6]
+    min-points: 2 #minimum number of tracks required to have a cluster
 
 
 

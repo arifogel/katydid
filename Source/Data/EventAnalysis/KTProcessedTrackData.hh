@@ -44,6 +44,7 @@ namespace Katydid
             MEMBERVARIABLE(double, EndFrequency);
             MEMBERVARIABLE(double, FrequencyWidth);
             MEMBERVARIABLE(double, Slope);
+            MEMBERVARIABLE(double, SlopeChange);
             MEMBERVARIABLE(double, Intercept);
             MEMBERVARIABLE(double, TotalPower);
             MEMBERVARIABLE(unsigned, NTrackBins);
@@ -108,6 +109,11 @@ namespace Katydid
     };
 
     typedef std::set< TrackSetCIt, TrackSetCItComp > TrackSetCItSet;
+
+    //inline void KTProcessedTrackData::SetSlopeChange(double change)
+    //{
+    //    fProcTrack.SlopeChange = change;
+    //}
 
 } /* namespace Katydid */
 #endif /* KTPROCESSEDTRACKDATA_HH_ */

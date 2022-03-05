@@ -29,6 +29,7 @@ namespace Katydid
             fEndFrequency(0.),
             fFrequencyWidth(0.),
             fSlope(0.),
+            fSlopeChange(0.),
             fIntercept(0.),
             fTotalPower(0.),
             fNTrackBins(0.),
@@ -68,6 +69,7 @@ namespace Katydid
             fEndFrequency(orig.fEndFrequency),
             fFrequencyWidth(orig.fFrequencyWidth),
             fSlope(orig.fSlope),
+            fSlopeChange(orig.fSlopeChange),
             fIntercept(orig.fIntercept),
             fTotalPower(orig.fTotalPower),
             fNTrackBins(orig.fNTrackBins),
@@ -110,6 +112,7 @@ namespace Katydid
         fEndFrequency = rhs.fEndFrequency;
         fFrequencyWidth = rhs.fFrequencyWidth;
         fSlope = rhs.fSlope;
+        fSlopeChange = rhs.fSlopeChange;
         fIntercept = rhs.fIntercept;
         fTotalPower = rhs.fTotalPower;
         fNTrackBins = rhs.fNTrackBins,

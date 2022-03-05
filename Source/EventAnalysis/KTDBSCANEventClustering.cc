@@ -211,6 +211,7 @@ namespace Katydid
 
                 for (KTDBSCAN< DistanceMatrix >::Cluster::const_iterator pointIdIt = clustIt->begin(); pointIdIt != clustIt->end(); ++pointIdIt)
                 {
+                	KTDEBUG(tclog, "eventData.AddTrack(fCompTracks[iComponent][*pointIdIt])");
                     eventData.AddTrack(fCompTracks[iComponent][*pointIdIt]);
                 }
 

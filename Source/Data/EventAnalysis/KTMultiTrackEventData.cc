@@ -186,13 +186,14 @@ namespace Katydid
     void KTMultiTrackEventData::AddTrack(const AllTrackData& track)
     {
         //fTracks.insert(Tracks::value_type(track.GetTrackID(), track));
+        //KTDEBUG(evlog, "Adding track");
         fTracks.insert(track);
         return;
     }
 
     void KTMultiTrackEventData::AddTrack(const KTProcessedTrackData& track)
     {
-        Nymph::KTDataPtr data;
+        Nymph::KTDataPtr data(new Nymph::KTData());
         KTProcessedTrackData& newTrack = data->Of< KTProcessedTrackData >();
         newTrack = track;
 
@@ -240,7 +241,9 @@ namespace Katydid
     void KTMultiTrackEventData::ProcessTracks()
     {
         KTDEBUG(evlog, "Processing tracks");
+        double lastSlope;
 
+        //start by assigning all event values to those of first track
         TrackSetCIt trackIt = fTracks.begin();
 
         fStartTimeInAcq = trackIt->fProcTrack.GetStartTimeInAcq();
@@ -275,6 +278,7 @@ namespace Katydid
         fFirstTrackTotalWideSNR = trackIt->fProcTrack.GetTotalWideTrackSNR();
         fFirstTrackTotalWideNUP = trackIt->fProcTrack.GetTotalWideTrackNUP();
 
+        //Loop over all tracks in event
         for (++trackIt; trackIt != fTracks.end(); ++trackIt)
         {
             KTDEBUG(evlog, "Track " << trackIt->fProcTrack.GetTrackID());
@@ -309,6 +313,10 @@ namespace Katydid
                 fEndFrequency = trackIt->fProcTrack.GetEndFrequency();
                 fEndFrequencySigma = trackIt->fProcTrack.GetEndFrequencySigma();
                 KTDEBUG(evlog, "End time (freq) is now " << fEndTimeInRunC << "(" << fEndFrequency << ")");
+
+                //set change in slope variable for that track based on change relative to previous track.
+                trackIt->fProcTrack.SetSlopeChange(trackIt->fProcTrack.GetSlope()-lastSlope);
+                lastSlope = trackIt->fProcTrack.GetSlope();
             }
 
             double minFreq = std::min(trackIt->fProcTrack.GetStartFrequency(), trackIt->fProcTrack.GetEndFrequency());
@@ -324,6 +332,7 @@ namespace Katydid
                 fMaximumFrequency = maxFreq;
                 KTDEBUG(evlog, "Maximum frequency is now " << fMaximumFrequency);
             }
+
         }
 
         fTimeLength = fEndTimeInRunC - fStartTimeInRunC;
