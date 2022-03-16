@@ -282,6 +282,7 @@ namespace Katydid
         for (++trackIt; trackIt != fTracks.end(); ++trackIt)
         {
             KTDEBUG(evlog, "Track " << trackIt->fProcTrack.GetTrackID());
+            trackIt->fProcTrack.SetEventID(fEventID);
 
             if (trackIt->fProcTrack.GetStartTimeInRunC() < fStartTimeInRunC)
             {
@@ -304,6 +305,7 @@ namespace Katydid
                 fFirstTrackMaxNUP = trackIt->fProcTrack.GetMaxTrackNUP();
                 fFirstTrackTotalWideSNR = trackIt->fProcTrack.GetTotalWideTrackSNR();
                 fFirstTrackTotalWideNUP = trackIt->fProcTrack.GetTotalWideTrackNUP();
+                
             }
 
             if (trackIt->fProcTrack.GetEndTimeInRunC() > fEndTimeInRunC)
