@@ -245,6 +245,7 @@ namespace Katydid
 
         //start by assigning all event values to those of first track
         TrackSetCIt trackIt = fTracks.begin();
+        trackIt->fProcTrack.SetEventID(fEventID);
 
         fStartTimeInAcq = trackIt->fProcTrack.GetStartTimeInAcq();
         fStartTimeInRunC = trackIt->fProcTrack.GetStartTimeInRunC();

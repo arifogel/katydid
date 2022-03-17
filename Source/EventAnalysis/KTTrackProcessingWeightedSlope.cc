@@ -213,7 +213,7 @@ namespace Katydid
         procTrack->SetEndFrequency((procTrack->GetStartTimeInAcq() + procTrack->GetTimeLength()) * slope + intercept);
         procTrack->SetFrequencyWidth(std::abs(procTrack->GetEndFrequency() - procTrack->GetStartFrequency()));
         procTrack->SetSlope(slope);
-        procTrack->SetSlopeChange(slope);
+        procTrack->SetSlopeChange(-100.);
         procTrack->SetIntercept(intercept);
         procTrack->SetTotalPower(amplitudeSum);
 
