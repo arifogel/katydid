@@ -135,6 +135,10 @@ namespace Katydid
 
             MEMBERVARIABLE(bool, Normalize);
             MEMBERVARIABLE(int, NeighborhoodRadius);
+            MEMBERVARIABLE(bool, Modulate);
+            MEMBERVARIABLE(double, Amp);
+            MEMBERVARIABLE(double, Period);
+            MEMBERVARIABLE(double, Phase);
 
         public:
             bool CheckGVData();

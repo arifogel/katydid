@@ -45,6 +45,10 @@ namespace Katydid
             fSNRThreshold(10.),
             fSigmaThreshold(5.),
             fThresholdMode(eSigma),
+            fModulate(false),
+            fAmp(0.),
+            fPeriod(1.),
+            fPhase(0.),
             fMinFrequency(0.),
             fMaxFrequency(1.),
             fMinBin(0),
@@ -86,6 +90,34 @@ namespace Katydid
         {
             SetNeighborhoodRadius(node->get_value< int >("neighborhood-radius"));
         }
+
+        if (node->has("modulate"))
+        {
+            SetModulate(node->get_value< bool >("modulate"));
+
+            if (node->has("amp"))
+            {
+                SetAmp(node->get_value< double > ("amp"));
+            }
+            else{
+                KTERROR(sdlog, "I need an amplitude to modulate. Enter one and try again.");
+            }
+            if (node->has("period"))
+            {
+                SetPeriod(node->get_value< double >("period"));
+            }            
+            else{
+                KTERROR(sdlog, "I need a period to modulate. Enter one and try again.");
+            }
+            if (node->has("phase"))
+            {
+                SetPhase(node->get_value< double >("phase"));
+            }
+            else{
+                KTERROR(sdlog, "I need a phase to modulate. Enter one and try again.");
+            }
+        }
+
 
         // These Set[whatever] functions also change the threshold mode, 
         // so we only want to call them if we are setting the value, and not just keeping the existing value.
@@ -644,9 +676,17 @@ namespace Katydid
 #pragma omp parallel for private(value)
             for (unsigned iBin=fMinBin; iBin<=fMaxBin; ++iBin)
             {
+                double mod = 0.;
+
+                if (fModulate == true)
+                {
+                    mod = ( -fAmp/freqMax *binWidth*iBin + fAmp) * sin(2*M_PI/fPeriod * binWidth * (iBin) + fPhase * M_PI);
+                    //KTDEBUG(sdlog, "2*pi/Period " << 2*M_PI/fPeriod << ", freq " << binWidth * (iBin) << ", mod " << mod);
+                }
+
                 double value = (*spectrum)(iBin);
                 double mean = (*splineImp)(iBin - fMinBin);
-                double threshold = thresholdMult * mean;
+                double threshold = thresholdMult * mean + mod;
                 double variance = (*varSplineImp)(iBin - fMinBin);
                 if (value >= threshold)
                 {

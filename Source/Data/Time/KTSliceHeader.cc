@@ -18,6 +18,7 @@ namespace Katydid
             fTimeInRun(0.),
             fTimeInAcq(0.),
             fSliceNumber(0),
+            fPacketNumber(0),
             fNSlicesIncluded(1),
             fIsNewAcquisition(true),
             fRawSliceSize(1),
@@ -41,6 +42,7 @@ namespace Katydid
             fTimeInRun(orig.fTimeInRun),
             fTimeInAcq(orig.fTimeInAcq),
             fSliceNumber(orig.fSliceNumber),
+            fPacketNumber(orig.fPacketNumber),
             fNSlicesIncluded(orig.fNSlicesIncluded),
             fIsNewAcquisition(orig.fIsNewAcquisition),
             fRawSliceSize(orig.fRawSliceSize),
@@ -76,6 +78,7 @@ namespace Katydid
         fTimeInRun = rhs.fTimeInRun;
         fTimeInAcq = rhs.fTimeInAcq;
         fSliceNumber = rhs.fSliceNumber;
+        fPacketNumber = rhs.fPacketNumber;
         fNSlicesIncluded = rhs.fNSlicesIncluded;
         fRawSliceSize = rhs.fRawSliceSize;
         fSliceSize = rhs.fSliceSize;
@@ -97,6 +100,7 @@ namespace Katydid
     {
         out << "Slice Header Contents:\n" <<
                 "\tSlice number: " << hdr.GetSliceNumber() << '\n' <<
+                "\tPacket number: " << hdr.GetPacketNumber() << '\n' <<
                 "\tIncludes " << hdr.GetNSlicesIncluded() << " slices\n" <<
                 "\tRaw slice size: " << hdr.GetRawSliceSize() << '\n' <<
                 "\tSlice size: " << hdr.GetSliceSize() << '\n' <<

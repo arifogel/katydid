@@ -30,6 +30,7 @@ namespace Katydid
     struct TDiscriminatedPoints1DData
     {
         UInt_t fSlice;
+        UInt_t fPacket;
         Double_t fTimeInRunC; // bin center on the time axis
         UInt_t fComponent;
         UInt_t fBin;

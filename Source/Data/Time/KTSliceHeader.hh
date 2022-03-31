@@ -37,6 +37,7 @@ namespace Katydid
             MEMBERVARIABLE(double, TimeInRun); // in sec
             MEMBERVARIABLE(double, TimeInAcq); // in sec
             MEMBERVARIABLE(uint64_t, SliceNumber);
+            MEMBERVARIABLE(uint64_t, PacketNumber);
             MEMBERVARIABLE(unsigned, NSlicesIncluded); // for meta-slices
             MEMBERVARIABLE(bool, IsNewAcquisition);
 

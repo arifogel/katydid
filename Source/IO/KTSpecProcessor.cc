@@ -6,6 +6,7 @@
 #include "KTSliceHeader.hh"
 #include "KTPowerSpectrum.hh"
 #include "KTPowerSpectrumData.hh"
+#include <bitset>
 
 using std::string;
 using namespace std;
@@ -119,16 +120,37 @@ namespace Katydid
 
             //declare array of 1-byte chars to read from binary file
             char memblock [blockSize];
+            char headerblock [fPacketHeaderSize]; //declare array to read header of 1st packet in file
+            
+            //The header of each packet is divided into 4 words of 64 bits (8 bytes) each.
+            //Information on the packet offset is located in the first 3 bits of the final word.
+            //The 0th bit of the last word should always be 1 to indicate freq-domain data.
+            //Bits 1 and 2 of the last word indicate which part of the spectrum a packet
+            //corresponds to. All trailing bits should be zero.
+
 
             vector <KTPowerSpectrum*> newSpec(1);
+            int pkt_num [fNSpectra];
 
             //loop over # of spectra to be read
             for(int i = 0; i < fNSpectra; i++)
             {
                 if (i == 0) KTINFO(speclog, "Preparing to read first spectrum");
                 position = i*(blockSize);
+                KTINFO(speclog, "position = " << position);
+                file.seekg (position, ios::beg); //set read pointer location
+                file.read (headerblock, fPacketHeaderSize); //read header first
+
+                //Check if sequential spectra have correct packet numbers
+                pkt_num[i] =bitset<8>(memblock[1]).to_ulong()*pow(2,16)+bitset<8>(memblock[2]).to_ulong()*pow(2,8)+bitset<8>(memblock[3]).to_ulong();
+                KTINFO(speclog, "Decimal pkt_num = " << pkt_num[i]);
+                if (i>0 && pkt_num[i]-pkt_num[i-1]!=1){
+                    KTWARN(speclog, "WARNING: " << pkt_num[i]-pkt_num[i-1] << " packets dropped!");
+                }
+
                 file.seekg (position, ios::beg); //set read pointer location
                 file.read (memblock, blockSize); //read 1 spectrum of data
+                KTINFO(speclog, "memblock[24] = " << bitset<8>(memblock[24]));
 
 
                 for (int x = 0; x < fFreqBins; x++)
@@ -145,6 +167,8 @@ namespace Katydid
                 KTSliceHeader& sliceHeader = data->Of< KTSliceHeader >().SetNComponents(1);
 
                 sliceHeader.SetSliceNumber(i);
+
+                sliceHeader.SetPacketNumber(pkt_num[i]);
 
                 //slice size in bytes = # of bins (given 8-bit resolution)
                 sliceHeader.SetRawSliceSize(fFreqBins);

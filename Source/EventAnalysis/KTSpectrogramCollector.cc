@@ -134,12 +134,14 @@ namespace Katydid
         // Add to fWaterfallSets
         KTDEBUG(evlog, "fNSpectrograms = " << fNSpectrograms);
         newWaterfall->SetSpectrogramCounter(fNSpectrograms);
+        KTWARN(evlog, "##### use count: " << ptr.use_count());
         fWaterfallSets[component].insert( std::make_pair( ptr, newWaterfall ) );
+        KTWARN(evlog, "##### use count: " << ptr.use_count());
         fNSpectrograms +=1;
         KTINFO(evlog, "Added track to component " << component << ". Now listening to a total of " << fWaterfallSets[component].size() << " tracks");
         KTINFO(evlog, "Track length: " << trackData.GetEndTimeInRunC() - trackData.GetStartTimeInRunC());
         KTINFO(evlog, "Track slope: " << trackData.GetSlope());
-
+        KTWARN(evlog, "##### use count: " << ptr.use_count());
         return true;
     }
 
