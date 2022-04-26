@@ -36,6 +36,7 @@ namespace Katydid
      It then loops over the number of bins, subtracts the mean1-mean2 and adds var1+var2.
      These arrays are then fit to new splines used to buid a new KTGainVariationData object.
      The spline fit is performed between fMinBin and fMaxBin, inclusive.
+     fMinBin and fMaxBin are only used to define nBins
 
      Configuration name: "gain-variation-difference"
 
@@ -74,17 +75,17 @@ namespace Katydid
             unsigned fMaxBin;
             unsigned fNFitPoints;
 
-            KTGainVariationData fGVData;
             KTGainVariationData fGVData1;
             KTGainVariationData fGVData2;
 
+            int NumGVDataArrived;
+
   
         public:
-            bool Run();
             bool SetPreCalcGainVarOne(KTGainVariationData& gvData1);
             bool SetPreCalcGainVarTwo(KTGainVariationData& gvData2);
 
-            bool CalculateDifference(KTGainVariationData& gvData1, KTGainVariationData& gvData2);
+            bool CalculateDifference();
 
         //***************
         // Signals

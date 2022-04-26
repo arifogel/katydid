@@ -9,10 +9,8 @@
 
 #include "KTGainVariationData.hh"
 #include "KTSpline.hh"
-#include "KTStdComplexFuncs.hh"
 
 #include <cmath>
-#include <complex>
 #include <vector>
 
 #ifdef USE_OPENMP
@@ -34,6 +32,7 @@ namespace Katydid
             fMinBin(0),
             fMaxBin(1),
             fNFitPoints(5),
+            NumGVDataArrived(0),
             fGainVarSignal("gain-var", this),
 
             fPreCalcSlotOne("gv1", this, &KTGainVariationDiffProcessor::SetPreCalcGainVarOne),
@@ -67,44 +66,48 @@ namespace Katydid
     bool KTGainVariationDiffProcessor::SetPreCalcGainVarOne(KTGainVariationData& gvData1)
     {
         fGVData1 = gvData1;
-        return true;
+        if (NumGVDataArrived == 0 ){
+            NumGVDataArrived = 1;
+            return true;
+        }
+        
+        return CalculateDifference();
     }
 
     bool KTGainVariationDiffProcessor::SetPreCalcGainVarTwo(KTGainVariationData& gvData2)
     {
         fGVData2 = gvData2;
-        return true;
+        if (NumGVDataArrived == 0 ){
+            NumGVDataArrived = 1;
+            return true;
+        }
+        
+        return CalculateDifference();
     }
 
-    bool KTGainVariationDiffProcessor::Run()
+    bool KTGainVariationDiffProcessor::CalculateDifference()
     {
-        return CalculateDifference(fGVData1, fGVData2);
-    }
+        Nymph::KTDataPtr data( new Nymph::KTData() );
+        KTGainVariationData& newData = data->Of< KTGainVariationData >().SetNComponents(fGVData1.GetNComponents());
 
-    bool KTGainVariationDiffProcessor::CalculateDifference(KTGainVariationData& gvData1, KTGainVariationData& gvData2)
-    {
-
-        unsigned nComponents = gvData1.GetNComponents();
+        unsigned nComponents = fGVData1.GetNComponents();
         for (unsigned iComponent=0; iComponent<nComponents; ++iComponent)
         {
-
-            Nymph::KTDataPtr data( new Nymph::KTData() );
-            KTGainVariationData& newData = data->Of< KTGainVariationData >().SetNComponents(gvData1.GetNComponents());
 
             //KTGainVariationData newData = new KTGainVariationData();
 
             unsigned nBins = fMaxBin - fMinBin + 1;
             //unsigned nBinsPerFitPoint = nTotalBins / fNFitPoints; // integer division rounds down; there may be bins leftover unused
 
-            KTSpline* meanSpline1 = gvData1.GetSpline(iComponent);
-            KTSpline* meanSpline2 = gvData2.GetSpline(iComponent);
-            KTSpline* varSpline1 = gvData1.GetVarianceSpline(iComponent);
-            KTSpline* varSpline2 = gvData2.GetVarianceSpline(iComponent);
+            KTSpline* meanSpline1 = fGVData1.GetSpline(iComponent);
+            KTSpline* meanSpline2 = fGVData2.GetSpline(iComponent);
+            KTSpline* varSpline1 = fGVData1.GetVarianceSpline(iComponent);
+            KTSpline* varSpline2 = fGVData2.GetVarianceSpline(iComponent);
 
-            double freqMin1 = gvData1.GetSpline()->GetXMin(); 
-            double freqMin2 = gvData2.GetSpline()->GetXMin();
-            double freqMax1 = gvData1.GetSpline()->GetXMax(); 
-            double freqMax2 = gvData2.GetSpline()->GetXMax();
+            double freqMin1 = fGVData1.GetSpline()->GetXMin(); 
+            double freqMin2 = fGVData2.GetSpline()->GetXMin();
+            double freqMax1 = fGVData1.GetSpline()->GetXMax(); 
+            double freqMax2 = fGVData2.GetSpline()->GetXMax();
 
             double xmin = std::max(freqMin1,freqMin2);
             double xmax = std::min(freqMax1,freqMax1);
@@ -126,19 +129,19 @@ namespace Katydid
             std::shared_ptr< KTSpline::Implementation > varSpline1Imp = varSpline1->Implement(nBins, xmin, xmax);
             std::shared_ptr< KTSpline::Implementation > varSpline2Imp = varSpline2->Implement(nBins, xmin, xmax);
             
-            double* xVals = new double[nBins];
-            double* yValsMean = new double[nBins];
-            double* yValsVar = new double[nBins];
+            vector<double> xVals(nBins);
+            vector<double> yValsMean(nBins);
+            vector<double> yValsVar(nBins);
 
             KTDEBUG(gvlog, "Subtracting two splines. ");
             // loop over bins, subtract implementations
     #pragma omp parallel for private(value)
                 for (unsigned iBin=0; iBin<=nBins; ++iBin)
                 {
-                    double mean1 = (*meanspline1Imp)(iBin - fMinBin);
-                    double mean2 = (*meanspline2Imp)(iBin - fMinBin);
-                    double variance1 = (*varSpline1Imp)(iBin - fMinBin);
-                    double variance2 = (*varSpline2Imp)(iBin - fMinBin);
+                    double mean1 = (*meanspline1Imp)(iBin);
+                    double mean2 = (*meanspline2Imp)(iBin);
+                    double variance1 = (*varSpline1Imp)(iBin);
+                    double variance2 = (*varSpline2Imp)(iBin);
 
                     yValsMean[iBin] = mean1-mean2;
                     yValsVar[iBin] = variance1+variance2;
@@ -146,23 +149,21 @@ namespace Katydid
                 }
 
             // Calculate new splines
-            KTSpline* newMeanSpline = new KTSpline(xVals, yValsMean, fNFitPoints);
+            KTSpline* newMeanSpline = new KTSpline(xVals.data(), yValsMean.data(), fNFitPoints);
             newMeanSpline->SetXMin(xmin);
             newMeanSpline->SetXMax(xmax);
 
-            KTSpline* newVarSpline = new KTSpline(xVals, yValsVar, fNFitPoints);
+            KTSpline* newVarSpline = new KTSpline(xVals.data(), yValsVar.data(), fNFitPoints);
             newVarSpline->SetXMin(xmin);
             newVarSpline->SetXMax(xmax);
-
-            delete [] xVals;
-            delete [] yValsMean;
-            delete [] yValsVar;
 
             newData.SetSpline(newMeanSpline, iComponent);
             newData.SetVarianceSpline(newVarSpline, iComponent);
         }
         KTINFO(gvlog, "Completed gain variation differencce calculation for " << nComponents);
 
+        fGainVarSignal(data);
+        NumGVDataArrived = 0;
         return true;
     }
 
