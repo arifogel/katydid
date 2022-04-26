@@ -150,7 +150,10 @@ namespace Katydid
 
                 file.seekg (position, ios::beg); //set read pointer location
                 file.read (memblock, blockSize); //read 1 spectrum of data
-                KTINFO(speclog, "memblock[24] = " << bitset<8>(memblock[24]));
+                //KTINFO(speclog, "memblock[0] = " << bitset<8>(memblock[0]));
+                //KTINFO(speclog, "memblock[1] = " << bitset<8>(memblock[1]));
+                //KTINFO(speclog, "memblock[2] = " << bitset<8>(memblock[2]));
+                //KTINFO(speclog, "memblock[3] = " << bitset<8>(memblock[3]));
 
 
                 for (int x = 0; x < fFreqBins; x++)

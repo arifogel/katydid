@@ -15,6 +15,7 @@ set (SPECTRUMANALYSIS_HEADERFILES
     KTDistanceClustering.hh
 #    KTGainVarChi2Test.hh
     KTGainVariationProcessor.hh
+    KTGainVariationDiffProcessor.hh
     KTHoughTransform.hh
     KTMergeKDTree.hh
     KTNNFilter.hh
@@ -40,6 +41,7 @@ set (SPECTRUMANALYSIS_SOURCEFILES
     KTDistanceClustering.cc
 #    KTGainVarChi2Test.cc
     KTGainVariationProcessor.cc
+    KTGainVariationDiffProcessor.cc
     KTHoughTransform.cc
     KTMergeKDTree.cc
     KTNNFilter.cc
