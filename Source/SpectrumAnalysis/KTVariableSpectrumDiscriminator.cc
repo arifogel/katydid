@@ -95,26 +95,29 @@ namespace Katydid
         {
             SetModulate(node->get_value< bool >("modulate"));
 
-            if (node->has("amp"))
-            {
-                SetAmp(node->get_value< double > ("amp"));
-            }
-            else{
-                KTERROR(sdlog, "I need an amplitude to modulate. Enter one and try again.");
-            }
-            if (node->has("period"))
-            {
-                SetPeriod(node->get_value< double >("period"));
-            }            
-            else{
-                KTERROR(sdlog, "I need a period to modulate. Enter one and try again.");
-            }
-            if (node->has("phase"))
-            {
-                SetPhase(node->get_value< double >("phase"));
-            }
-            else{
-                KTERROR(sdlog, "I need a phase to modulate. Enter one and try again.");
+            if (GetModulate() == true){
+
+                if (node->has("amp"))
+                {
+                    SetAmp(node->get_value< double > ("amp"));
+                }
+                else{
+                    KTERROR(sdlog, "I need an amplitude to modulate. Enter one and try again.");
+                }
+                if (node->has("period"))
+                {
+                    SetPeriod(node->get_value< double >("period"));
+                }            
+                else{
+                    KTERROR(sdlog, "I need a period to modulate. Enter one and try again.");
+                }
+                if (node->has("phase"))
+                {
+                    SetPhase(node->get_value< double >("phase"));
+                }
+                else{
+                    KTERROR(sdlog, "I need a phase to modulate. Enter one and try again.");
+                }
             }
         }
 
