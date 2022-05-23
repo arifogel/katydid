@@ -31,7 +31,7 @@ namespace Katydid
             KTProcessor(name),
             fMinBin(0),
             fMaxBin(1),
-            fNFitPoints(100),
+            fGainCoeff(1),
             NumGVDataArrived(0),
             fGainVarSignal("gain-var", this),
 
@@ -59,7 +59,7 @@ namespace Katydid
             SetMaxBin(node->get_value< unsigned >("max-bin"));
         }
 
-        SetNFitPoints(node->get_value< unsigned >("fit-points", fNFitPoints));
+        SetGainCoeff(node->get_value< int >("gain-coeff", fGainCoeff));
 
         return true;
     }
@@ -131,13 +131,9 @@ namespace Katydid
             std::shared_ptr< KTSpline::Implementation > varSpline1Imp = varSpline1->Implement(nBins, xmin, xmax);
             std::shared_ptr< KTSpline::Implementation > varSpline2Imp = varSpline2->Implement(nBins, xmin, xmax);
             
-            //vector<double> xVals(nBins);
-            //vector<double> yValsMean(nBins);
-            //vector<double> yValsVar(nBins);
-
-            double* xVals = new double[nBins];
-            double* yValsMean = new double[nBins];
-            double* yValsVar = new double[nBins];
+            vector<double> xVals(nBins);
+            vector<double> yValsMean(nBins);
+            vector<double> yValsVar(nBins);
 
             KTDEBUG(gvlog, "Subtracting two splines. ");
             // loop over bins, subtract implementations
@@ -151,7 +147,7 @@ namespace Katydid
 
                     //KTDEBUG(gvlog, "mean1: " << mean1 << " mean2: " << mean2 );
 
-                    yValsMean[iBin] = mean1-mean2;
+                    yValsMean[iBin] = mean1-fGainCoeff*mean2;
                     //KTDEBUG(gvlog, "yValsMean: " << yValsMean[iBin] );
                     yValsVar[iBin] = variance1+variance2;
                     xVals[iBin] = xmin+iBin*freqBinWidth;
@@ -159,18 +155,17 @@ namespace Katydid
                 }
 
             // Calculate new splines
-            KTDEBUG(gvlog, "Fitting new spline with " << fNFitPoints << " fit points." );
-            KTSpline* newMeanSpline = new KTSpline(xVals, yValsMean, fNFitPoints);
+            KTDEBUG(gvlog, "Fitting new spline with " << nBins << " fit points." );
+            KTSpline* newMeanSpline = new KTSpline(xVals.data(), yValsMean.data(), nBins);
             newMeanSpline->SetXMin(xmin);
             newMeanSpline->SetXMax(xmax);
 
-            KTSpline* newVarSpline = new KTSpline(xVals, yValsVar, fNFitPoints);
+            KTSpline* newVarSpline = new KTSpline(xVals.data(), yValsVar.data(), nBins);
             newVarSpline->SetXMin(xmin);
             newVarSpline->SetXMax(xmax);
 
-            delete [] xVals;
-            delete [] yValsMean;
-            delete [] yValsVar;
+            //make implementation of spline to check
+            //std::shared_ptr< KTSpline::Implementation > newMeanSplineImp = newMeanSpline->Implement(12, 0, nBins);
 
             newData.SetSpline(newMeanSpline, iComponent);
             newData.SetVarianceSpline(newVarSpline, iComponent);

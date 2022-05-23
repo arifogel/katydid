@@ -43,7 +43,10 @@ namespace Katydid
      Available configuration values:
      - "min-bin": unsigned -- minimum bin for the fit
      - "max-bin": unsigned -- maximum bin for the fit
-     - "fit-points": unsigned -- number of bins to use to make the new spline
+     - "gain-coeff": signed int -- allows user to set a coefficient to multiply second spline by. 
+        Can be negative to turn this processor into addition. ex gain-coeff = -1 will add.
+        gain-coeff = -2 will give you gv1-(-2)*gv2
+        default is gain-coeff=1
 
      Slots:
      - "gv1": void (Nymph::KTDataPtr) -- Sets the first pre-calculated gain-variation data; Requires KTGainVariationData
@@ -67,13 +70,13 @@ namespace Katydid
             unsigned GetMaxBin() const;
             void SetMaxBin(unsigned bin);
 
-            unsigned GetNFitPoints() const;
-            void SetNFitPoints(unsigned nPoints);
+            int GetGainCoeff() const;
+            void SetGainCoeff(int n);
 
         private:
             unsigned fMinBin;
             unsigned fMaxBin;
-            unsigned fNFitPoints;
+            int fGainCoeff;
 
             KTGainVariationData fGVData1;
             KTGainVariationData fGVData2;
@@ -127,14 +130,14 @@ namespace Katydid
         return;
     }
 
-    inline unsigned KTGainVariationDiffProcessor::GetNFitPoints() const
+    inline int KTGainVariationDiffProcessor::GetGainCoeff() const
     {
-        return fNFitPoints;
+        return fGainCoeff;
     }
 
-    inline void KTGainVariationDiffProcessor::SetNFitPoints(unsigned nPoints)
+    inline void KTGainVariationDiffProcessor::SetGainCoeff(int n)
     {
-        fNFitPoints = nPoints;
+        fGainCoeff = n;
     }
 
 
