@@ -60,9 +60,7 @@ namespace Katydid
     /*!
      @class KTDBSCANEventClustering
      @author N.S. Oblath
-
      @brief Clustering for finding events using the DBSCAN algorithm
-
      @details
      Normalization of the axes:
      The DBSCAN algorithm expects expects that all of the dimensions that describe a points will have the same scale,
@@ -71,17 +69,13 @@ namespace Katydid
      For clustering, a scaling factor is calculated for each axis such that the ellipse formed by the two radii is
      scaled to a unit circle.  Those scaling factors are applied to every point before the data is passed to the
      DBSCAN algorithm.
-
      Configuration name: "dbscan-event-clustering"
-
      Available configuration values:
      - "radii": double[2] -- array used to describe the distances that will be used to cluster tracks together; [time, frequency]
      - "min-points": unsigned int -- minimum number of tracks required to have a cluster
-
      Slots:
      - "track": void (shared_ptr<KTData>) -- If this is a new acquisition; Adds tracks to the internally-stored set of points; Requires KTSliceHeader and KTDiscriminatedPoints1DData.
      - "do-clustering": void () -- Triggers clustering algorithm
-
      Signals:
      - "event": void (shared_ptr<KTData>) -- Emitted for each cluster found; Guarantees KT???Data.
      - "clustering-done": void () -- Emitted when track clustering is complete

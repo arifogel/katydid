@@ -1,0 +1,158 @@
+processor-toolbox:
+
+    processors:
+        - { type: "spec-processor",                  name: "spec1" }
+        - { type: "spec-processor",                  name: "spec2" }
+        - { type: "data-accumulator",                name: "acc" }
+        - { type: "gain-variation",                  name: "gainvar" }
+        - { type: "variable-spectrum-discriminator", name: "discrim" }
+        - { type: "sequential-track-finder",         name: "seq-tr-find"}
+        - { type: "track-proc-ws",                   name: "tr-proc-ws"}
+        - { type: "dbscan-event-SID-clustering",     name: "dbscan"}
+        - { type: "basic-root-writer",               name: "brw" }
+        - { type: "root-spectrogram-writer",         name: "rsw"}
+        - { type: "root-tree-writer",                name: "rtw"}
+   
+    connections:
+              # Take the power spectra from the input file and send them to accumulator
+            - signal: "spec1:ps"
+              slot: "acc:ps"
+
+              # Copy the accumulated power spectra to gain variation
+            - signal: "acc:ps-finished"  
+              slot: "gainvar:ps-var"
+
+              # Write the accumulated power spectra to ROOT file
+            - signal: "acc:ps-finished"  
+              slot: "brw:ps"
+
+              # Write the gain-var histogram to ROOT file 
+            - signal: "gainvar:gain-var" 
+              slot: "brw:gain-var"
+
+              # Copy the gain-var histogram to the discriminator
+            - signal: "gainvar:gain-var"
+              slot: "discrim:gv"
+
+              # Take the power spectra from the second input file and write them to a ROOT file
+            - signal: "spec2:ps"
+              slot: "rsw:ps"
+
+              # Copy the power spectra from the second input file to the discriminator
+            - signal: "spec2:ps"
+              slot: "discrim:ps-pre"
+ 
+              # Write the spectrogram of points that are above discrim. threshold to ROOT file 
+            - signal: "discrim:disc-1d"
+              slot: "rtw:disc-1d"
+
+              # Pass sparse spectrogram to clustering algorithm for event ID
+            - signal: "discrim:disc-1d"
+              slot: "seq-tr-find:disc-1d"
+
+              # Send signal to clustering algorithm at end of input to check remaining clusters
+            - signal: "spec2:spec-done"
+              slot: "seq-tr-find:done"
+              
+              # Process tracks
+            - signal: "seq-tr-find:seq-cand"
+              slot: "tr-proc-ws:seq-cand"
+                            
+              # Start merging collinear track segments when sequential track finder is complete
+            - signal: "seq-tr-find:clustering-done"
+              slot: "dbscan:do-clustering"
+              
+              #Cluster short track segments with the dbscan algorithm
+            - signal: "tr-proc-ws:track"
+              slot: "dbscan:track"
+              
+              # Writing the Events to a ROOT file (you can use rtw for all datatypes. Look for slot names in .cc files)
+            - signal: "dbscan:event"
+              slot: "rtw:mt-event"
+              
+              # Write processed tracks to a ROOT tree
+            - signal: "tr-proc-ws:track"
+              slot: "rtw:proc-track"
+              
+              # Make sure to send the spec-done signal so the ROOT file gets written
+            - signal: "spec2:spec-done"
+              slot: "rsw:write-file"
+ 
+    run-queue:
+        - spec1
+        - spec2
+
+spec1:
+    filename: "/media/heather/T7/SpecFiles/NeTest_05122022/Freq_data_2022-05-12-13-36-07.spec"
+    spectra: 1000
+    header-bytes: 32
+    ROACH-spect-avg: 2
+    freq-bins: 4096
+    min-freq: 0.0e6
+    max-freq: 1200.0e6
+    
+spec2:
+    filename: "/media/heather/T7/SpecFiles/NeTest_05122022/2.50T/Freq_data_2022-05-12-20-31-13.spec"
+    spectra: 146484 #146484=1s
+    header-bytes: 32
+    ROACH-spect-avg: 2
+    freq-bins: 4096 # 
+    min-freq: 0.0e6
+    max-freq: 1200.0e6 #
+
+brw:
+    output-file: "/media/heather/T7/KatydidOutput/NeTest_05122022/2.50T/Freq_data_2022-05-12-20-31-13_shortDB_SID.root"
+    file-flag: "recreate"
+
+rsw:
+    output-file: "/media/heather/T7/KatydidOutput/NeTest_05122022/2.50T/Freq_data_2022-05-12-20-31-13_shortDB_SID.root"
+    file-flag: recreate
+    mode: single
+    min-time: 0.05
+    max-time: 0.1
+    min-freq: 0.0e6
+    max-freq: 1200.0e6
+
+rtw:
+    output-file: "/media/heather/T7/KatydidOutput/NeTest_05122022/2.50T/Freq_data_2022-05-12-20-31-13_shortDB_SID.root"
+    file-flag: recreate
+
+acc:
+    number-to-average: 0
+    signal-interval: 0
+
+gainvar:
+    normalize: false
+    min-bin: 342
+    max-bin: 4095
+    fit-points: 151
+
+discrim:
+    min-bin: 342 #100MHz HPF
+    max-bin: 4095
+    snr-threshold-power: 9.0 # 4.2
+    modulate: false
+
+seq-tr-find:
+    min-frequency: 100.0e6 # minimum frequency (in Hz)
+    max-frequency: 1200.0e6 # maximum frequency (in Hz)
+    initial-slope : 8.0e10 # slope of a track with 1 point (in Hz/s)
+    slope-method: unweighted # method to update line slope after point collection
+    n-slope-points: 10 # max points to include in the slope calculation
+    time-gap-tolerance: 3.0e-4 # max gap between points in a line (in sec.) one time slice is 5.46×10^-5 seconds
+    frequency-acceptance: 4.0e5 # max freq gap between point and extrapolated line (in Hz) Each frequency bin is 3.6e4, so it needs to be more than that or all tracks will have a slope of 1 freq bin/1 time bin = 3.352×10^8
+    trimming-threshold: 1  # snr threshold for the first and last point of a candidate
+    min-points: 2 # line is converted to a track iff it has >= this # of points
+    max-points: 5 # longest track allowed. Use for curved tracks!
+    min-slope: 0 # line is converted to a track iff line slope is > than this (in Hz/s)
+
+tr-proc-ws:
+    min-slope: 0 # min slope (Hz/s)
+    min-points: 3 # min points required to keep a processed track (fixed -H)
+
+dbscan:
+    radii: [1.0e-3,80.0e6,9.0e9,2] #double[4] -- array used to describe the distances that will be used to cluster tracks together; [time, frequency, slope,x_intercept] [5.0e-4,40.0e6,9.0e9,1]
+    min-points: 2 #minimum number of tracks required to have a cluster
+
+
+

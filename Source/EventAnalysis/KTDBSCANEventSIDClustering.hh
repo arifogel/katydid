@@ -2,7 +2,7 @@
  @file KTDBSCANEventSIDClustering.hh
  @brief Contains KTDBSCANEventSIDClustering
  @details Clusters tracks into events
- @author: N.S. Oblath
+ @author: H.S. Harrington
  @date: Aug 4, 2014
  */
 
@@ -27,13 +27,13 @@ namespace Katydid
     
     class KTProcessedTrackData;
 
-    // Track distance
+    // Track distance SID
     // Vector format for representing tracks: (tstart, fstart, tend, fend, slope, x_intScale)
     // Dimension t: for tstart_1 < tstart_2, Dt = max(0, tstart_2 - tend_1)
     // Dimension f: Df = fstart_2 - fend_1
     // Dist = sqrt(Dt^2 + Df^2)
     template < typename VEC_T >
-    class TrackDistance
+    class TrackDistanceSID
     {
         protected:
             typedef VEC_T vector_type;

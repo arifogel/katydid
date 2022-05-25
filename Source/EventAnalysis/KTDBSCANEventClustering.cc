@@ -99,14 +99,11 @@ namespace Katydid
         {
             SetNComponents(component + 1);
         }
-
         KTDBSCAN::Point newPoint(fNDimensions);
         newPoint(0) = time;
         newPoint(1) = frequency;
         fCompPoints[component].push_back(newPoint);
-
         KTDEBUG(tclog, "Point " << fCompPoints[component].size()-1 << " is now " << fCompPoints[component].back());
-
         return true;
     }
     */
@@ -211,7 +208,7 @@ namespace Katydid
 
                 for (KTDBSCAN< DistanceMatrix >::Cluster::const_iterator pointIdIt = clustIt->begin(); pointIdIt != clustIt->end(); ++pointIdIt)
                 {
-                	KTDEBUG(tclog, "eventData.AddTrack(fCompTracks[iComponent][*pointIdIt])");
+                    KTDEBUG(tclog, "eventData.AddTrack(fCompTracks[iComponent][*pointIdIt])");
                     eventData.AddTrack(fCompTracks[iComponent][*pointIdIt]);
                 }
 

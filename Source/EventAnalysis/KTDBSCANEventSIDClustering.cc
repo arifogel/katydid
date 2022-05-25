@@ -155,19 +155,20 @@ namespace Katydid
                 newPoint(4) = pIt->GetSlope()  * scale(2);    // track slope
 
                 double scaledSlope = (newPoint(3)-newPoint(1))/(newPoint(2)-newPoint(0)); //Scaled change in frequency over change in time for this track
+                KTDEBUG(tclog, ptStr.str() << "scaled slope: " << scaledSlope);
 
-                newPoint(5) = newPoint(0) - (newPoint(1)/scaledSlope) * scale(3);    // x_int
+                newPoint(5) = (newPoint(0) - (newPoint(1)/scaledSlope)) * scale(3);    // x_int
 
 #ifndef NDEBUG
                 std::stringstream ptStr;
                 //ptStr << "Point -- before: (" << newPoint(0) << ", " << newPoint(1) << ", " << newPoint(2) << ", " << newPoint(3) <<  "," << newPoint(4) <<  "," << newPoint(5) << ")";
 #endif
-                KTDEBUG(tclog, ptStr.str() << " -- after: " << newPoint);
+                KTDEBUG(tclog, ptStr.str() << " -- after scaling: " << newPoint);
                 normPoints[iPoint++] = newPoint;
             }
 
             DistanceMatrix distMat;
-            distMat.ComputeDistances< TrackDistance< Point > >(normPoints);
+            distMat.ComputeDistances< TrackDistanceSID< Point > >(normPoints);
 
             // do the clustering!
             KTINFO(tclog, "Starting DBSCAN");
