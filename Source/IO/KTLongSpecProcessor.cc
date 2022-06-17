@@ -155,7 +155,7 @@ namespace Katydid
             char specFlagA, specFlagB, specFlagC, specFlagD;
 
             bool packetDrop =  false;
-            unsigned int pkt_num [fNSpectra];
+            int pkt_num [fNSpectra];
 
             for(int i = 0; i < fNSpectra; i++) //loop over # of spectra to be output
             {
@@ -192,9 +192,10 @@ namespace Katydid
                 file.read (memblock, blockSize); //read 1 time-averaged spectrum of data
 
                 //Check if sequential spectra have correct packet numbers
-                pkt_num[i] =bitset<8>(memblock[1]).to_ulong()*pow(2,16)+bitset<8>(memblock[2]).to_ulong()*pow(2,8)+bitset<8>(memblock[3]).to_ulong();
+                pkt_num[i] = bitset<8>(memblock[1]).to_ulong()*pow(2,16)+bitset<8>(memblock[2]).to_ulong()*pow(2,8)+bitset<8>(memblock[3]).to_ulong();
+                pkt_num[i] = pkt_num[i] % 171872;
                 KTINFO(speclog, "Decimal pkt_num = " << pkt_num[i]);
-                if (i>0 && pkt_num[i]-pkt_num[i-1]!=4){
+                if (i>0 && pkt_num[i]-pkt_num[i-1]!=fPacketsPerSpectrum*fSpecTimeAvg){
                     KTWARN(speclog, "WARNING: " << pkt_num[i]-pkt_num[i-1] << " packets dropped!");
                 }
 
@@ -203,8 +204,8 @@ namespace Katydid
                 specFlagC = memblock[16472];
                 specFlagD = memblock[24696];
 
-                if (bitset<8>(specFlagA) != 128 || bitset<8>(specFlagB) != 160
-                || bitset<8>(specFlagC) != 192 || bitset<8>(specFlagD) != 224)
+                if ((bitset<8>(specFlagA) != 128 || bitset<8>(specFlagB) != 160
+                || bitset<8>(specFlagC) != 192 || bitset<8>(specFlagD) != 224) & fPacketsPerSpectrum == 4)
                 {
                   KTWARN(speclog, "WARNING: Packet dropped from spectrum # " << i << "!!");
                   packetDrop = true;
@@ -252,6 +253,8 @@ namespace Katydid
                 sliceHeader.SetTimeInAcq(i*fFreqBinsPerPkt*fPacketsPerSpectrum*fROACH_FFT_Avg*fSpecTimeAvg/fFreqMax);
 
                 sliceHeader.SetStartRecordNumber(0);
+
+                sliceHeader.SetPacketNumber(pkt_num[i]);
 
                 sliceHeader.SetStartSampleNumber(0);
 

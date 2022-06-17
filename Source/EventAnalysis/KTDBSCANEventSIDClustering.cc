@@ -155,7 +155,7 @@ namespace Katydid
                 newPoint(4) = pIt->GetSlope()  * scale(2);    // track slope
 
                 double scaledSlope = (newPoint(3)-newPoint(1))/(newPoint(2)-newPoint(0)); //Scaled change in frequency over change in time for this track
-                KTDEBUG(tclog, ptStr.str() << "scaled slope: " << scaledSlope);
+                //KTDEBUG(tclog, ptStr.str() << "scaled slope: " << scaledSlope);
 
                 newPoint(5) = (newPoint(0) - (newPoint(1)/scaledSlope)) * scale(3);    // x_int
 
