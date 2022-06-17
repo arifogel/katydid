@@ -43,12 +43,14 @@ namespace Katydid
                 double deltaT, deltaF;
                 if (v1(0) < v2(0))
                 {
-                    deltaT = std::max(0., v2(0) - v1(2));
+                    //deltaT = std::max(0., v2(0) - v1(2));
+                    deltaT = v2(0) - v1(2);
                     deltaF = v2(1) - v1(3);
                 }
                 else
                 {
-                    deltaT = std::max(0., v1(0) - v2(2));
+                    //deltaT = std::max(0., v1(0) - v2(2));
+                    deltaT = v1(0) - v2(2);
                     deltaF = v1(1) - v2(3);
                 }
                 return sqrt(deltaT * deltaT + deltaF * deltaF);
