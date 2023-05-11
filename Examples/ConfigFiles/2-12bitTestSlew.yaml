@@ -1,0 +1,121 @@
+processor-toolbox:
+
+    processors:
+        - { type: "long-spec-processor",             name: "spec1" }
+        - { type: "long-spec-processor",             name: "spec2" }
+        - { type: "data-accumulator",                name: "acc" }
+        - { type: "gain-variation",                  name: "gainvar" }
+        - { type: "rf-slew-to-vec",                  name: "stv" }
+        - { type: "variable-spectrum-discriminator", name: "discrim" }
+        - { type: "basic-root-writer",               name: "brw" }
+        - { type: "root-spectrogram-writer",         name: "rsw"}
+        - { type: "root-tree-writer",                name: "rtw"}
+   
+    connections:
+              # Take the power spectra from the input file and send them to accumulator
+            - signal: "spec1:ps"         
+              slot: "acc:ps"
+
+              # Copy the accumulated power spectra to gain variation
+            - signal: "acc:ps-finished"  
+              slot: "gainvar:ps-var"
+
+              # Write the accumulated power spectra to ROOT file
+            - signal: "acc:ps-finished"  
+              slot: "brw:ps"
+
+              # Write the gain-var histogram to ROOT file 
+            - signal: "gainvar:gain-var" 
+              slot: "brw:gain-var"
+
+              # Copy the gain-var histogram to the discriminator
+            - signal: "gainvar:gain-var"
+              slot: "discrim:gv"
+
+              # Take the headers from the second input file and get trap slew times
+            - signal: "spec2:ps"
+              slot: "stv:ps"
+
+              # Slew vector to be emmited at slew-times only after all spectra processed
+            - signal: "spec2:spec-done"
+              slot: "stv:done"
+
+              # Copy the power spectra from the second input file to the discriminator
+            - signal: "spec2:ps"
+              slot: "discrim:ps-pre"
+ 
+              # Write the spectrogram of points that are above discrim. threshold to ROOT file 
+            - signal: "discrim:disc-1d"
+              slot: "rtw:disc-1d"
+              
+              # Make sure to send the spec-done signal so the ROOT file gets written
+            - signal: "spec2:spec-done"
+              slot: "rsw:write-file"
+ 
+    run-queue:
+        - spec1
+        - spec2
+
+spec1:
+    filename: "/media/heather/T7/SpecFiles/VaunixInjectTrap/Freq_data_2023-04-24-17-19-59.spec"
+    spectra: 1000
+    packets-per-spec: 1
+    header-bytes: 32
+    ROACH-spect-avg: 2
+    freq-bins-per-packet: 4096 # 
+    min-freq: 0.0e6
+    max-freq: 1200.0e6 #
+    time-slice-avg: 1
+    freq-bin-avg: 1   #must be a power of 2  -- adjust discrim and gainvar accordingly!
+
+spec2:
+    filename: "/media/heather/T7/SpecFiles/VaunixInjectTrap/Freq_data_2023-04-24-17-19-59.spec"
+    spectra: 146484 #146484=1s
+    packets-per-spec: 1
+    header-bytes: 32
+    ROACH-spect-avg: 2
+    freq-bins-per-packet: 4096 # 
+    min-freq: 0.0e6
+    max-freq: 1200.0e6 #
+    time-slice-avg: 1
+    freq-bin-avg: 1   #must be a power of 2  -- adjust discrim and gainvar accordingly!
+    TOff-bin: 342
+    TOff-bin-pow: 7
+
+brw:
+    output-file: "/media/heather/T7/KatydidOutput/VaunixInjectTrap/Freq_data_2023-04-24-17-19-59.root"
+    file-flag: "recreate"
+
+rsw:
+    output-file: "/media/heather/T7/KatydidOutput/VaunixInjectTrap/Freq_data_2023-04-24-17-19-59.root"
+    file-flag: "recreate"
+    mode: single
+    min-time: 0.0
+    max-time: 0.4
+    min-freq: 560e6
+    max-freq: 700.0e6 #2000.0e6 for second file
+
+rtw:
+    output-file: "/media/heather/T7/KatydidOutput/VaunixInjectTrap/Freq_data_2023-04-24-17-19-59.root"
+    file-flag: "recreate"
+
+stv:
+    output-file: "/media/heather/T7/KatydidOutput/VaunixInjectTrap/Freq_data_2023-04-24-17-19-59_SlewTimes.txt"
+acc:
+    number-to-average: 0
+    signal-interval: 0
+
+gainvar:
+    normalize: false
+    min-bin: 342
+    max-bin: 4095
+    fit-points: 200
+
+discrim:
+    min-bin: 342 #100MHz HPF
+    max-bin: 4095
+    snr-threshold-power: 7
+    modulate: false
+
+
+

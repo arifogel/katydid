@@ -29,6 +29,8 @@ namespace Katydid
             fPacketsPerSpectrum(4), //the number of packets needed for the ROACH to output a complete spectrum
             fFreqMin(0.),           //the minimum DAQ frequency
             fFreqMax(1200000000),   //the DAQ Nyquist frequency
+            fBinTOff(342),          //the trap off signal frequency bin
+            fBinTOffPow(20),
             fROACH_FFT_Avg(2),      //the number of sequential FFTs averaged on the DAQ before output to *.spec
             fSpecTimeAvg(1),        //the number of sequential spectra from *.spec to average with this processor
             fSpecFreqAvg(2),        //the number of freq bins to average (for improving SNR with nonzero df/dt)
@@ -73,6 +75,8 @@ namespace Katydid
             fFreqBinsPerPkt = node->get_value< unsigned >("freq-bins-per-packet", fFreqBinsPerPkt);
             fFreqMin = node->get_value< double >("min-freq", fFreqMin);
             fFreqMax = node->get_value< double >("max-freq", fFreqMax);
+            fBinTOff = node->get_value< double >("TOff-bin", fBinTOff);
+            fBinTOffPow = node->get_value< double >("TOff-bin-pow", fBinTOffPow);
             KTINFO(speclog, "Maximum frequency = " << fFreqMax);
             fSpecTimeAvg = node->get_value< double >("time-slice-avg", fSpecTimeAvg);
             fSpecFreqAvg = node->get_value< double >("freq-bin-avg", fSpecFreqAvg);
@@ -245,6 +249,13 @@ namespace Katydid
                       }
                     }
                   }
+                //KTINFO(speclog, "Power at bin: " << fBinTOff << " : " << slice[fBinTOff]);
+                if (slice[fBinTOff] > fBinTOffPow)
+                {
+                    sliceHeader.SetIsTrapOff(1);
+                    //KTINFO(speclog, "Set trap off!");
+                }
+                else sliceHeader.SetIsTrapOff(0);
 
                 //assume for now that all runs start at time t=0
                 sliceHeader.SetTimeInRun(i*fFreqBinsPerPkt*fPacketsPerSpectrum*fROACH_FFT_Avg*fSpecTimeAvg/fFreqMax);
@@ -288,7 +299,7 @@ namespace Katydid
 
                 fDataSignal(data);
                 KTINFO(speclog, "Spectrum data signal output");
-              }
+                }
 
             }
             fSpecDoneSignal();

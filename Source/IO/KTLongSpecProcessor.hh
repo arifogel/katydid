@@ -14,7 +14,7 @@ namespace Katydid
 
     /*!
      @class KTLongSpecProcessor
-     @author B. Graner
+     @author B. Graner + Heather Harrington
 
      @brief reads a file with power spectrum data
 
@@ -33,7 +33,7 @@ namespace Katydid
 
      Signals:
      - "header": void (Nymph::KTDataPtr) -- emitted when the header is parsed.
-     - "psd": void (Nymph::KTDataPtr) -- emitted when the new power spectrum is
+     - "ps": void (Nymph::KTDataPtr) -- emitted when the new power spectrum is
         produced; Guarantees KTPowerSpectrumData
      - "spec-done": void () --  emitted when a file is finished.
      - "summary": void (const KTProcSummary*) -- emitted when a file is
@@ -66,6 +66,8 @@ namespace Katydid
             int fSpecFreqAvg;         //the number of freq bins to average (for improving SNR with nonzero df/dt)
             double fFreqMin;          //the minimum DAQ frequency
             double fFreqMax;          //the DAQ Nyquist frequency
+            int fBinTOff;             //Bin where trap off signal should be found
+            int fBinTOffPow;
 
             Nymph::KTSignalData fDataSignal;
             Nymph::KTSignalOneArg< void > fSpecDoneSignal;

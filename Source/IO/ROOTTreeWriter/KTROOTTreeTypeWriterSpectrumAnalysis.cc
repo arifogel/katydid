@@ -92,6 +92,7 @@ namespace Katydid
 
         fDiscPoints1DData.fSlice = header.GetSliceNumber();
         fDiscPoints1DData.fPacket = header.GetPacketNumber();
+        fDiscPoints1DData.fTrapOff = header.GetIsTrapOff();
         fDiscPoints1DData.fTimeInRunC = header.GetTimeInRun() + 0.5 * header.GetSliceLength();
 
         for (fDiscPoints1DData.fComponent = 0; fDiscPoints1DData.fComponent < fcData.GetNComponents(); fDiscPoints1DData.fComponent++)
@@ -127,6 +128,7 @@ namespace Katydid
 
                 fDiscPoints1DTree->SetBranchAddress("Slice", &fDiscPoints1DData.fSlice);
                 fDiscPoints1DTree->SetBranchAddress("Packet", &fDiscPoints1DData.fPacket);
+                fDiscPoints1DTree->SetBranchAddress("TrapOff", &fDiscPoints1DData.fTrapOff);
                 fDiscPoints1DTree->SetBranchAddress("TimeInRunC", &fDiscPoints1DData.fTimeInRunC);
                 fDiscPoints1DTree->SetBranchAddress("Component", &fDiscPoints1DData.fComponent);
                 fDiscPoints1DTree->SetBranchAddress("Bin", &fDiscPoints1DData.fBin);
@@ -153,6 +155,7 @@ namespace Katydid
 
         fDiscPoints1DTree->Branch("Slice", &fDiscPoints1DData.fSlice, "fSlice/i");
         fDiscPoints1DTree->Branch("Packet", &fDiscPoints1DData.fPacket, "fPacket/i");
+        fDiscPoints1DTree->Branch("TrapOff", &fDiscPoints1DData.fTrapOff, "fTrapOff/i");
         fDiscPoints1DTree->Branch("TimeInRunC", &fDiscPoints1DData.fTimeInRunC, "fTimeInRunC/d");
         fDiscPoints1DTree->Branch("Component", &fDiscPoints1DData.fComponent, "fComponent/i");
         fDiscPoints1DTree->Branch("Bin", &fDiscPoints1DData.fBin, "fBin/i");

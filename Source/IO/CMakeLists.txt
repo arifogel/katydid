@@ -16,6 +16,7 @@ set (IO_HEADERFILES
     KTSpecReader.hh
     KTSpecProcessor.hh
     KTLongSpecProcessor.hh
+    KTRFSlewtoVec.hh
     #KTMultiFileJSONReader.hh
 )
 
@@ -34,6 +35,7 @@ set (IO_SOURCEFILES
     KTSpecReader.cc
     KTSpecProcessor.cc
     KTLongSpecProcessor.cc
+    KTRFSlewtoVec.cc
     #KTMultiFileJSONReader.cc
 )
 

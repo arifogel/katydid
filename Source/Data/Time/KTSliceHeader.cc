@@ -21,6 +21,7 @@ namespace Katydid
             fPacketNumber(0),
             fNSlicesIncluded(1),
             fIsNewAcquisition(true),
+            fIsTrapOff(0),
             fRawSliceSize(1),
             fSliceSize(1),
             fSliceLength(0.),
@@ -45,6 +46,7 @@ namespace Katydid
             fPacketNumber(orig.fPacketNumber),
             fNSlicesIncluded(orig.fNSlicesIncluded),
             fIsNewAcquisition(orig.fIsNewAcquisition),
+            fIsTrapOff(orig.fIsTrapOff),
             fRawSliceSize(orig.fRawSliceSize),
             fSliceSize(orig.fSliceSize),
             fSliceLength(orig.fSliceLength),
@@ -75,6 +77,7 @@ namespace Katydid
     void KTSliceHeader::CopySliceHeaderOnly(const KTSliceHeader& rhs)
     {
         fIsNewAcquisition = rhs.fIsNewAcquisition;
+        fIsTrapOff = rhs.fIsTrapOff;
         fTimeInRun = rhs.fTimeInRun;
         fTimeInAcq = rhs.fTimeInAcq;
         fSliceNumber = rhs.fSliceNumber;
@@ -111,6 +114,7 @@ namespace Katydid
                 "\tTime in Run: " << hdr.GetTimeInRun() << " s\n" <<
                 "\tTime in Acq: " << hdr.GetTimeInAcq() << " s\n" <<
                 "\tIs New Acquisition?: " << hdr.GetIsNewAcquisition() << '\n' <<
+                "\tIs Trap Off?: " << hdr.GetIsTrapOff() << '\n' <<
                 "\tStart Record: " << hdr.GetStartRecordNumber() << '\n' <<
                 "\tStart Sample: " << hdr.GetStartSampleNumber() << '\n' <<
                 "\tEnd Record: " << hdr.GetEndRecordNumber() << '\n' <<

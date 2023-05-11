@@ -26,7 +26,8 @@ namespace Katydid
     }
 
     KTSpline::KTSpline(double* xVals, double* yVals, unsigned nVals) :
-            fSpline("spline", xVals, yVals, nVals),
+            fSpline("spline", xVals, yVals, nVals, "b1e2", 0, 0),
+            //fSpline("spline", xVals, yVals, nVals),
             fXMin(xVals[0]),
             fXMax(xVals[nVals-1]),
             fCache()

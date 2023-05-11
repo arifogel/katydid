@@ -40,6 +40,7 @@ namespace Katydid
             MEMBERVARIABLE(uint64_t, PacketNumber);
             MEMBERVARIABLE(unsigned, NSlicesIncluded); // for meta-slices
             MEMBERVARIABLE(bool, IsNewAcquisition);
+            MEMBERVARIABLE(uint64_t, IsTrapOff);
 
             MEMBERVARIABLE(unsigned, RawSliceSize); // number of bins before any modification
             MEMBERVARIABLE(unsigned, SliceSize); // number of bins
