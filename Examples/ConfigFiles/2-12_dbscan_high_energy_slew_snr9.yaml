@@ -7,6 +7,9 @@ processor-toolbox:
         - { type: "gain-variation",                  name: "gainvar" }
         - { type: "rf-slew-to-vec",                  name: "stv" }
         - { type: "variable-spectrum-discriminator", name: "discrim" }
+        - { type: "sequential-track-finder",         name: "seq-tr-find"}
+        - { type: "track-proc-ws",                   name: "tr-proc-ws"}
+        - { type: "dbscan-event-clustering",		 name: "dbscan"}
         - { type: "basic-root-writer",               name: "brw" }
         - { type: "root-spectrogram-writer",         name: "rsw"}
         - { type: "root-tree-writer",                name: "rtw"}
@@ -47,7 +50,34 @@ processor-toolbox:
               # Write the spectrogram of points that are above discrim. threshold to ROOT file 
             - signal: "discrim:disc-1d"
               slot: "rtw:disc-1d"
+            
+              # Pass sparse spectrogram to clustering algorithm for event ID
+            - signal: "discrim:disc-1d"
+              slot: "seq-tr-find:disc-1d"
+
+              # Send signal to clustering algorithm at end of input to check remaining clusters
+            - signal: "spec2:spec-done"
+              slot: "seq-tr-find:done"
               
+              # Process tracks
+            - signal: "seq-tr-find:seq-cand"
+              slot: "tr-proc-ws:seq-cand"
+                            
+              # Start merging collinear track segments when sequential track finder is complete
+            - signal: "seq-tr-find:clustering-done"
+              slot: "dbscan:do-clustering"
+              
+              #Cluster short track segments with the dbscan algorithm
+            - signal: "tr-proc-ws:track"
+              slot: "dbscan:track"
+              
+              # Writing the Events to a ROOT file (you can use rtw for all datatypes. Look for slot names in .cc files)
+            - signal: "dbscan:event"
+              slot: "rtw:mt-event"
+              
+              # Write processed tracks to a ROOT tree
+            - signal: "tr-proc-ws:track"
+              slot: "rtw:proc-track"
               # Make sure to send the spec-done signal so the ROOT file gets written
             - signal: "spec2:spec-done"
               slot: "rsw:write-file"
@@ -117,5 +147,25 @@ discrim:
     snr-threshold-power: 9
     modulate: false
 
+seq-tr-find:
+    min-frequency: 105.0e6 # minimum frequency (in Hz)
+    max-frequency: 1200.0e6 # maximum frequency (in Hz)
+    initial-slope : 3.05622e9 # slope of a track with 1 point (in Hz/s) [8.0e10]
+    slope-method: unweighted # method to update line slope after point collection
+    n-slope-points: 10 # max points to include in the slope calculation
+    time-gap-tolerance: 3.0e-4 # max gap between points in a line (in sec.) one time slice is 5.46×10^-5 seconds
+    frequency-acceptance: 4.0e5 # max freq gap between point and extrapolated line (in Hz) Each frequency bin is 3.6e4, so it needs to be more than that or all tracks will have a slope of 1 freq bin/1 time bin = 3.352×10^8
+    trimming-threshold: 1  # snr threshold for the first and last point of a candidate
+    min-points: 2 # line is converted to a track iff it has >= this # of points
+    max-points: 5 # longest track allowed. Use for curved tracks!
+    min-slope: 0 # line is converted to a track iff line slope is > than this (in Hz/s)
+
+tr-proc-ws:
+    min-slope: 0 # min slope (Hz/s)
+    min-points: 3 # min points required to keep a processed track (fixed -H)
+
+dbscan:
+    radii: [0.0130880504059738,1528111.47417886] #double[2] -- array used to describe the distances that will be used to cluster tracks together; [time, frequency] [1.0e-3,2.0e6] NOTE that frequency/time should equal slope [5.0e-4,40.0e6]
+    min-points: 2 #minimum number of tracks required to have a cluster
 
 
