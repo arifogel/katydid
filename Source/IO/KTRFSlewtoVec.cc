@@ -62,6 +62,7 @@ namespace Katydid
 
         if (mean != fPriorMean)
         {
+            fSlewStartEndTimes.push_back(isTrapOff);
             fSlewStartEndTimes.push_back(timeInRun);
             KTDEBUG(slewlog, "Slew break detected at " << timeInRun);
         }
@@ -77,7 +78,7 @@ namespace Katydid
         KTINFO(slewlog, "Writing to file" << fFilename);
         //temp: write vector to file for testing
         std::ofstream outFile(fFilename);
-        for (const auto &e : fSlewStartEndTimes) outFile << e << "\n";
+        for (const auto &e : fSlewStartEndTimes) outFile << e << ",";
 
         //return fSlewStartEndTimes;
     }
