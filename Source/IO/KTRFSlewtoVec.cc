@@ -24,9 +24,10 @@ namespace Katydid
 
     KTRFSlewtoVec::KTRFSlewtoVec(const std::string& name) :
             KTProcessor(name),
-            fPriorSlices({0.0,0.0,0.0,0.0,0.0,0.0,0.0}),
-            fPriorMean(0),
-            fSlewStartEndTimes(),
+            fPriorSlices({1.0,1.0,1.0,1.0,1.0,1.0,1.0}),
+            fPriorMean(1),
+            fSlewEndTimes(),
+            fSlewStartTimes(),
             fFilename("SlewTimes.txt"),
             //fVecSignal("slew-vec", this),
             fPSSlot("ps", this, &KTRFSlewtoVec::GetOnOffTimes),
@@ -62,8 +63,14 @@ namespace Katydid
 
         if (mean != fPriorMean)
         {
-            fSlewStartEndTimes.push_back(isTrapOff);
-            fSlewStartEndTimes.push_back(timeInRun);
+            if (isTrapOff == 0){
+                if (sliceNum <= count){
+                    fSlewStartTimes.push_back(0);
+                }
+                else fSlewStartTimes.push_back(timeInRun);
+            }
+            else fSlewEndTimes.push_back(timeInRun);
+
             KTDEBUG(slewlog, "Slew break detected at " << timeInRun);
         }
 
@@ -78,8 +85,10 @@ namespace Katydid
         KTINFO(slewlog, "Writing to file" << fFilename);
         //temp: write vector to file for testing
         std::ofstream outFile(fFilename);
-        for (const auto &e : fSlewStartEndTimes) outFile << e << ",";
-
+        outFile << "Time_On,Time_Off \n";
+        for (int i = 0; i < fSlewStartTimes.size(); i++){
+            outFile << fSlewStartTimes[i] << "," << fSlewEndTimes[i] << "\n";
+        }
         //return fSlewStartEndTimes;
     }
 

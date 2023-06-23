@@ -53,7 +53,8 @@ namespace Katydid
 
 
         private:
-            std::vector< double > fSlewStartEndTimes;
+            std::vector< double > fSlewStartTimes;
+            std::vector< double > fSlewEndTimes;
             std::vector< double > fPriorSlices;
             int fPriorMean;
 
