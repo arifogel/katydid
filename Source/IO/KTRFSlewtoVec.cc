@@ -13,6 +13,7 @@
 #include "KTLogger.hh"
 #include "KTSliceHeader.hh"
 #include "KTPowerSpectrumData.hh"
+#include <fstream>
 #include <numeric>
 
 namespace Katydid

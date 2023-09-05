@@ -1,6 +1,6 @@
-#include<iostream>
+#include <iostream>
 #include <fstream>
-#include "KTSpecProcessor.hh"
+#include "KTSpeckProcessor.hh"
 #include "KTCommandLineOption.hh"
 #include "KTData.hh"
 #include "KTSliceHeader.hh"
@@ -13,14 +13,13 @@ using namespace std;
 
 namespace Katydid
 {
-    static Nymph::KTCommandLineOption< string > sFilenameCLO("Spec Processor",
-    "Spec filename to open", "spec-file", 's');
+    static Nymph::KTCommandLineOption< string > sFilenameCLO("Speck Processor", "Speck filename to open", "speck-file", 'k');
 
-    KTLOGGER(speclog, "KTSpecProcessor");
+    KTLOGGER(specklog, "KTSpeckProcessor");
 
-    KT_REGISTER_PROCESSOR(KTSpecProcessor, "spec-processor");
+    KT_REGISTER_PROCESSOR(KTSpeckProcessor, "speck-processor");
 
-    KTSpecProcessor::KTSpecProcessor(const std::string& name) :
+    KTSpeckProcessor::KTSpeckProcessor(const std::string& name) :
             KTPrimaryProcessor(name),
             fProgressReportInterval(1),
             fFilenames(),
@@ -30,37 +29,38 @@ namespace Katydid
             fFreqMax(1600000000),
             fSpectraAvg(8),
             fDataSignal("ps", this),
-            fSpecDoneSignal("spec-done", this)
+            fSpeckDoneSignal("speck-done", this)
     {
     }
 
-    KTSpecProcessor::~KTSpecProcessor()
+    KTSpeckProcessor::~KTSpeckProcessor()
     {
     }
 
-    bool KTSpecProcessor::Configure(const scarab::param_node* node)
+    bool KTSpeckProcessor::Configure(const scarab::param_node* node)
     {
         // Config-file settings
         if (node != NULL)
         {
             if (node->has("filename"))
             {
-                KTDEBUG(speclog, "Adding single file to spec processor");
+                KTDEBUG(specklog, "Adding single file to speck processor");
                 fFilenames.clear();
                 fFilenames.push_back( std::move(scarab::expand_path(node->get_value( "filename" ))) );
-                KTINFO(speclog, "Added file to spec processor: <" << fFilenames.back() << ">");
+                KTINFO(specklog, "Added file to speck processor: <" << fFilenames.back() << ">");
             }
             else if (node->has("filenames"))
             {
-                KTDEBUG(speclog, "Adding multiple files to spec processor");
+                KTDEBUG(specklog, "Adding multiple files to speck processor");
                 fFilenames.clear();
                 const scarab::param_array* t_filenames = node->array_at("filenames");
                 for(scarab::param_array::const_iterator t_file_it = t_filenames->begin(); t_file_it != t_filenames->end(); ++t_file_it)
                 {
                     fFilenames.push_back( std::move(scarab::expand_path((*t_file_it)->as_value().as_string())) );
-                    KTINFO(speclog, "Added file to spec processor: <" << fFilenames.back() << ">");
+                    KTINFO(specklog, "Added file to speck processor: <" << fFilenames.back() << ">");
                 }
             }
+
             fNSpectra = node->get_value< unsigned >("spectra", fNSpectra);
             fPacketHeaderSize = node->get_value< unsigned >("header-bytes", fPacketHeaderSize);
             fSpectraAvg = node->get_value< unsigned >("ROACH-spect-avg", fSpectraAvg);
@@ -70,50 +70,55 @@ namespace Katydid
         }
 
         // Command-line settings
-        if (fCLHandler->IsCommandLineOptSet("spec-file"))
+        if (fCLHandler->IsCommandLineOptSet("speck-file"))
         {
-            KTDEBUG(speclog, "Adding single file to spec processor from the CL");
+            KTDEBUG(specklog, "Adding single file to speck processor from the CL");
             fFilenames.clear();
-            fFilenames.push_back( std::move(scarab::expand_path(fCLHandler->GetCommandLineValue< string >("spec-file"))));
-            KTINFO(speclog, "Added file to spec processor: <" << fFilenames.back() << ">");
+            fFilenames.push_back( std::move(scarab::expand_path(fCLHandler->GetCommandLineValue< string >("speck-file"))));
+            KTINFO(specklog, "Added file to speck processor: <" << fFilenames.back() << ">");
         }
 
         return true;
     }
+    std::pair<unsigned, char> KTSpeckProcessor::read_high_power_point(char *aBuffer)
+    {
+        // returns (index, power) from byte data in file
+        //aIndex (0 - 4095) is a 12-bit number, does not fit in a byte.
+        //Fit in 2 bytes via: index = 2^8 a[0] + a[1]
 
-    bool KTSpecProcessor::ProcessSpec()
+        uint8_t tens = *(aBuffer);
+        uint8_t ones = *(aBuffer + 1);
+        unsigned index = pow(2,8) * tens + ones;
+        char power = *(aBuffer + 2);
+
+        return std::pair<unsigned, char>(index, power);
+
+    }
+
+    bool KTSpeckProcessor::ProcessSpeck()
     {
         if (fFilenames.size() == 0)
         {
-            KTERROR(speclog, "No files have been specified");
+            KTERROR(specklog, "No files have been specified");
             return false;
         }
 
         // open the file and load its contents into memblock
-        KTINFO(speclog, "Opening spec file <" << fFilenames[0] << ">");
-        streampos size;
-        unsigned char * memblock;
+        KTINFO(specklog, "Opening speck file <" << fFilenames[0] << ">");
 
-        std::ifstream file(fFilenames[0].c_str(), ios::in|ios::binary|ios::ate);
+        std::ifstream file(fFilenames[0].c_str(), ios::in|ios::binary);
 
         if (file.is_open())
         {
-            KTINFO(speclog, "Spec file <" << fFilenames[0] << "> opened");
-            unsigned char a;
-            //uint a; //spectra must be treated as unsigned 8-bit values (0-255)
+            KTINFO(specklog, "Speck file <" << fFilenames[0] << "> opened");
+            vector<char> buffer(std::istreambuf_iterator<char>(file), {}); //read full (compressed) file into unsigned char vector
+            unsigned nMaxBufferEntry = buffer.size();
+
+            //spectra must be treated as unsigned 8-bit values (0-255)
             int slice[fFreqBins]; //holder array for spectrum data
             int position = 0; //variable for read position start
-            int blockSize = fPacketHeaderSize+fFreqBins; //add header length
-
-            //declare array of 1-byte chars to read from binary file
-            char memblock [blockSize];
-            char headerblock [fPacketHeaderSize]; //declare array to read header of 1st packet in file
-            
-            //The header of each packet is divided into 4 words of 64 bits (8 bytes) each.
-            //Information on the packet offset is located in the first 3 bits of the final word.
-            //The 0th bit of the last word should always be 1 to indicate freq-domain data.
-            //Bits 1 and 2 of the last word indicate which part of the spectrum a packet
-            //corresponds to. All trailing bits should be zero.
+            unsigned numHighPowerPoints; //number of above threshold points per slice
+            std::pair<unsigned, char> highPowerBin; //index, power for above threshold points
 
             vector <KTPowerSpectrum*> newSpec(1);
             int pkt_num [fNSpectra];
@@ -121,26 +126,39 @@ namespace Katydid
             //loop over # of spectra to be read
             for(int i = 0; i < fNSpectra; i++)
             {
-                if (i == 0) KTINFO(speclog, "Preparing to read first spectrum");
-                position = i*(blockSize);
-                KTINFO(speclog, "position = " << position);
-                file.seekg (position, ios::beg); //set read pointer location
-                file.read (headerblock, fPacketHeaderSize); //read header first
+                if (i == 0) KTINFO(specklog, "Preparing to read first spectrum");
+                KTINFO(specklog, "position = " << position);
 
                 //Check if sequential spectra have correct packet numbers
-                pkt_num[i] =bitset<8>(memblock[1]).to_ulong()*pow(2,16)+bitset<8>(memblock[2]).to_ulong()*pow(2,8)+bitset<8>(memblock[3]).to_ulong();
-                KTINFO(speclog, "Decimal pkt_num = " << pkt_num[i]);
+                pkt_num[i] = bitset<8>(uint8_t(buffer[position + 1])).to_ulong()*pow(2,16);
+                pkt_num[i] += bitset<8>(uint8_t(buffer[position + 2])).to_ulong()*pow(2,8);
+                pkt_num[i] += bitset<8>(uint8_t(buffer[position + 3])).to_ulong();
+                KTINFO(specklog, "Decimal pkt_num = " << pkt_num[i]);
                 if (i>0 && pkt_num[i]-pkt_num[i-1]!=1){
-                    KTWARN(speclog, "WARNING: " << pkt_num[i]-pkt_num[i-1] << " packets dropped!");
+                    KTWARN(specklog, "WARNING: " << pkt_num[i]-pkt_num[i-1] << " packets dropped!");
                 }
 
-                file.seekg (position, ios::beg); //set read pointer location
-                file.read (memblock, blockSize); //read 1 spectrum of data
+                position += fPacketHeaderSize;
 
-                for (int x = 0; x < fFreqBins; x++)
+                //reset all output spectrogram bins to zeros
+                memset(slice, 0, fFreqBins);
+
+                //loop over sparse points in file, break when reading (0,0) - (end of slice marker)
+                numHighPowerPoints = 0;
+                while(position < nMaxBufferEntry)
                 {
-                    a =  memblock[x+fPacketHeaderSize];
-                    slice[x] = a;
+                    highPowerBin = read_high_power_point(buffer.data() + position);
+                    position += 3; //2 bytes for 4096 bin number, 1 byte for power
+                    if(highPowerBin.first != 0 && highPowerBin.second !=0)
+                    {
+                        slice[highPowerBin.first] = highPowerBin.second;
+                        numHighPowerPoints += 1;
+                        KTDEBUG(specklog, "Adding high power point at slice: "<<i<<", bin: "<<highPowerBin.first<<", power: "<<highPowerBin.second);
+                    }
+                    else
+                    {
+                        break;
+                    }
                 }
 
                 unsigned comp = 0;
@@ -155,14 +173,14 @@ namespace Katydid
                 sliceHeader.SetPacketNumber(pkt_num[i]);
 
                 //slice size in bytes = # of bins (given 8-bit resolution)
-                sliceHeader.SetRawSliceSize(fFreqBins);
+                sliceHeader.SetRawSliceSize(numHighPowerPoints);
 
                 //no diff between 'raw' slice size, slice size
                 sliceHeader.SetSliceSize(fFreqBins);
 
                 //Nyquist frequency is 1/2 sampling rate
                 sliceHeader.SetSampleRate(2*fFreqMax);
-                KTINFO(speclog, "Frequency max = " << fFreqMax);
+                KTINFO(specklog, "Frequency max = " << fFreqMax);
 
                 //slice length is 2x # of bins / 2x Nyquist freq, times averaged spectra
                 sliceHeader.SetSliceLength(fFreqBins*fSpectraAvg/fFreqMax);
@@ -172,7 +190,7 @@ namespace Katydid
 
                 //assume for now that all runs start at time t=0
                 sliceHeader.SetTimeInRun(i*fFreqBins*fSpectraAvg/fFreqMax);
-                KTDEBUG(speclog, "TimeInRun = "<<(i*fFreqBins*fSpectraAvg/fFreqMax));
+                KTDEBUG(specklog, "TimeInRun = "<<(i*fFreqBins*fSpectraAvg/fFreqMax));
 
                 //assume for now that there is 1 acq per run, all runs start at t=0
                 sliceHeader.SetTimeInAcq(i*fFreqBins*fSpectraAvg/fFreqMax);
@@ -195,34 +213,34 @@ namespace Katydid
 
                 if (i == 0)
                 {
-                	KTINFO(speclog, "Set first spectrum object")
+                	KTINFO(specklog, "Set first spectrum object")
                 	
                 	sliceHeader.SetIsNewAcquisition(1);
-                    KTINFO(speclog, "Set New Acquisition!");
+                    KTINFO(specklog, "Set New Acquisition!");
                     
                     double min = psData.GetArray(comp)->GetAxis().GetRangeMin();
-                    KTINFO(speclog, "First spectrum min freq = " << min);
+                    KTINFO(specklog, "First spectrum min freq = " << min);
 
                     double max = psData.GetArray(comp)->GetAxis().GetRangeMax();
-                    KTINFO(speclog, "First spectrum max freq = " << max);
+                    KTINFO(specklog, "First spectrum max freq = " << max);
 
                     double width = psData.GetArray(comp)->GetAxis().GetBinWidth();
-                    KTINFO(speclog, "First spectrum bin width = " << width);
+                    KTINFO(specklog, "First spectrum bin width = " << width);
                 }
 				else sliceHeader.SetIsNewAcquisition(0);
 
                 if(i == fNSpectra -1)
                 {
                     data->Of< Nymph::KTData >().SetLastData(true);
-                    KTINFO(speclog, "fLastData set to TRUE");
+                    KTINFO(specklog, "fLastData set to TRUE");
                 }
 
                 fDataSignal(data);
-                if (i == 0) KTINFO(speclog, "First spectrum data signal output");
+                if (i == 0) KTINFO(specklog, "First spectrum data signal output");
 
             }
-            fSpecDoneSignal();
-            KTINFO(speclog, "Spec-done signal output");
+            fSpeckDoneSignal();
+            KTINFO(specklog, "Speck-done signal output");
         }
         file.close();
         return true;
