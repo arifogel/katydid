@@ -27,9 +27,11 @@ namespace Katydid
             fNSpectra(0),
             fFreqMin(0.),
             fFreqMax(1600000000),
-            fSpectraAvg(8),
+            fBinTOff(342),          //the trap off signal frequency bin
+            fBinTOffPow(20),
+            fSpectraAvg(2),
             fDataSignal("ps", this),
-            fSpeckDoneSignal("speck-done", this)
+            fSpeckDoneSignal("spec-done", this)
     {
     }
 
@@ -80,7 +82,7 @@ namespace Katydid
 
         return true;
     }
-    std::pair<unsigned, char> KTSpeckProcessor::read_high_power_point(char *aBuffer)
+    pair<unsigned, unsigned char> KTSpeckProcessor::read_high_power_point(char *aBuffer)
     {
         // returns (index, power) from byte data in file
         //aIndex (0 - 4095) is a 12-bit number, does not fit in a byte.
@@ -91,7 +93,7 @@ namespace Katydid
         unsigned index = pow(2,8) * tens + ones;
         char power = *(aBuffer + 2);
 
-        return std::pair<unsigned, char>(index, power);
+        return pair<unsigned, unsigned char>(index, power);
 
     }
 
@@ -115,10 +117,13 @@ namespace Katydid
             unsigned nMaxBufferEntry = buffer.size();
 
             //spectra must be treated as unsigned 8-bit values (0-255)
-            int slice[fFreqBins]; //holder array for spectrum data
+            int slice[fFreqBins]; //holder array for spectrum data, set to all zeros
+            memset(slice, 0, fFreqBins);
+
             int position = 0; //variable for read position start
             unsigned numHighPowerPoints; //number of above threshold points per slice
-            std::pair<unsigned, char> highPowerBin; //index, power for above threshold points
+            pair<unsigned, unsigned char> highPowerBin; //index, power for above threshold points
+            vector<unsigned> nonZeroBins; //store above threshold bins, so that slice can be erased quickly
 
             vector <KTPowerSpectrum*> newSpec(1);
             int pkt_num [fNSpectra];
@@ -141,7 +146,10 @@ namespace Katydid
                 position += fPacketHeaderSize;
 
                 //reset all output spectrogram bins to zeros
-                memset(slice, 0, fFreqBins);
+                for(unsigned j = 0; j < nonZeroBins.size(); ++j)
+                    slice[nonZeroBins[j]] = 0;
+
+                nonZeroBins.clear();
 
                 //loop over sparse points in file, break when reading (0,0) - (end of slice marker)
                 numHighPowerPoints = 0;
@@ -153,7 +161,9 @@ namespace Katydid
                     {
                         slice[highPowerBin.first] = highPowerBin.second;
                         numHighPowerPoints += 1;
-                        KTDEBUG(specklog, "Adding high power point at slice: "<<i<<", bin: "<<highPowerBin.first<<", power: "<<highPowerBin.second);
+                        nonZeroBins.push_back(highPowerBin.first);
+                        KTDEBUG(specklog, "Adding high power point at slice: "<<i<<", bin: "<<highPowerBin.first<<", power: "<<int(highPowerBin.second));
+                        //std::cout<<"Adding high power point at slice: "<<i<<", bin: "<<highPowerBin.first<<", power: "<<int(highPowerBin.second)<<std::endl;
                     }
                     else
                     {
@@ -167,6 +177,13 @@ namespace Katydid
                 Nymph::KTDataPtr data(new Nymph::KTData());
 
                 KTSliceHeader& sliceHeader = data->Of< KTSliceHeader >().SetNComponents(1);
+
+                if (slice[fBinTOff] > fBinTOffPow)
+                {
+                    sliceHeader.SetIsTrapOff(1);
+                    //KTINFO(speclog, "Set trap off!");
+                }
+                else sliceHeader.SetIsTrapOff(0);
 
                 sliceHeader.SetSliceNumber(i);
 
@@ -240,7 +257,7 @@ namespace Katydid
 
             }
             fSpeckDoneSignal();
-            KTINFO(specklog, "Speck-done signal output");
+            KTINFO(specklog, "Spec-done signal output");
         }
         file.close();
         return true;

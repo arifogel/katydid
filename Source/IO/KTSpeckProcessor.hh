@@ -62,11 +62,13 @@ namespace Katydid
             int fFreqBins;
             double fFreqMin;
             double fFreqMax;
+            int fBinTOff;             //Bin where trap off signal should be found
+            int fBinTOffPow;
 
             Nymph::KTSignalData fDataSignal;
             Nymph::KTSignalOneArg< void > fSpeckDoneSignal;
 
-            std::pair<unsigned, char> read_high_power_point(char *aBuffer);
+            std::pair<unsigned, unsigned char> read_high_power_point(char *aBuffer);
 
 
     };
