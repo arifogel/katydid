@@ -109,6 +109,11 @@ namespace Katydid
         // open the file and load its contents into memblock
         KTINFO(specklog, "Opening speck file <" << fFilenames[0] << ">");
 
+        if(fFilenames[0].extension() != ".speck")
+        {
+            KTFATAL(specklog, fFilenames[0] <<" is not a .speck file!");
+        }
+
         std::ifstream file(fFilenames[0].c_str(), ios::in|ios::binary);
 
         if (file.is_open())
@@ -164,7 +169,6 @@ namespace Katydid
                         numHighPowerPoints += 1;
                         nonZeroBins.push_back(highPowerBin.first);
                         KTDEBUG(specklog, "Adding high power point at slice: "<<i<<", bin: "<<highPowerBin.first<<", power: "<<int(highPowerBin.second));
-                        //std::cout<<"Adding high power point at slice: "<<i<<", bin: "<<highPowerBin.first<<", power: "<<slice[highPowerBin.first]<<std::endl;
                     }
                     else
                     {
