@@ -25,6 +25,7 @@ namespace Katydid
             fFilenames(),
             fFreqBins(4096),
             fNSpectra(0),
+            fPacketHeaderSize(32),
             fFreqMin(0.),
             fFreqMax(1600000000),
             fBinTOff(342),          //the trap off signal frequency bin
@@ -118,7 +119,7 @@ namespace Katydid
 
             //spectra must be treated as unsigned 8-bit values (0-255)
             int slice[fFreqBins]; //holder array for spectrum data, set to all zeros
-            memset(slice, 0, fFreqBins);
+            std::fill(slice, slice + fFreqBins, 0);
 
             int position = 0; //variable for read position start
             unsigned numHighPowerPoints; //number of above threshold points per slice
@@ -163,7 +164,7 @@ namespace Katydid
                         numHighPowerPoints += 1;
                         nonZeroBins.push_back(highPowerBin.first);
                         KTDEBUG(specklog, "Adding high power point at slice: "<<i<<", bin: "<<highPowerBin.first<<", power: "<<int(highPowerBin.second));
-                        //std::cout<<"Adding high power point at slice: "<<i<<", bin: "<<highPowerBin.first<<", power: "<<int(highPowerBin.second)<<std::endl;
+                        //std::cout<<"Adding high power point at slice: "<<i<<", bin: "<<highPowerBin.first<<", power: "<<slice[highPowerBin.first]<<std::endl;
                     }
                     else
                     {
