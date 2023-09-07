@@ -1,5 +1,5 @@
-#ifndef KTEGGPROCESSOR_HH_
-#define KTEGGPROCESSOR_HH_
+#ifndef KTSPECKPROCESSOR_HH_
+#define KTSPECKPROCESSOR_HH_
 
 #include "KTPrimaryProcessor.hh"
 #include "KTData.hh"
@@ -82,4 +82,4 @@ namespace Katydid
 
 } /* namespace Katydid */
 
-#endif /* KTSPECPROCESSOR_HH_ */
+#endif /* KTSPECKPROCESSOR_HH_ */
