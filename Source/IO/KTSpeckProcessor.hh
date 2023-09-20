@@ -58,8 +58,9 @@ namespace Katydid
         private:
             int fNSpectra;
             int fPacketHeaderSize;
-            int fSpectraAvg;
             int fFreqBins;
+            int fROACH_FFT_Avg;       //the number of sequential FFTs averaged on the DAQ before output to *.spec
+            int fSpecFreqAvg;         //the number of freq bins to average (for improving SNR with nonzero df/dt)
             double fFreqMin;
             double fFreqMax;
             int fBinTOff;             //Bin where trap off signal should be found

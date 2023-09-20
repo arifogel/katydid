@@ -30,7 +30,8 @@ namespace Katydid
             fFreqMax(1600000000),
             fBinTOff(342),          //the trap off signal frequency bin
             fBinTOffPow(20),
-            fSpectraAvg(2),
+            fROACH_FFT_Avg(2),      //the number of sequential FFTs averaged on the DAQ before output to *.spec
+            fSpecFreqAvg(1),        //the number of freq bins to average (for improving SNR with nonzero df/dt)
             fDataSignal("ps", this),
             fSpeckDoneSignal("spec-done", this)
     {
@@ -66,10 +67,13 @@ namespace Katydid
 
             fNSpectra = node->get_value< unsigned >("spectra", fNSpectra);
             fPacketHeaderSize = node->get_value< unsigned >("header-bytes", fPacketHeaderSize);
-            fSpectraAvg = node->get_value< unsigned >("ROACH-spect-avg", fSpectraAvg);
+            fROACH_FFT_Avg = node->get_value< unsigned >("ROACH-spect-avg", fROACH_FFT_Avg);
             fFreqBins = node->get_value< unsigned >("freq-bins", fFreqBins);
             fFreqMin = node->get_value< double >("min-freq", fFreqMin);
             fFreqMax = node->get_value< double >("max-freq", fFreqMax);
+            fBinTOff = node->get_value< int >("TOff-bin", fBinTOff);
+            fBinTOffPow = node->get_value< int >("TOff-bin-pow", fBinTOffPow);
+            fSpecFreqAvg = node->get_value< unsigned >("freq-bin-avg", fSpecFreqAvg);
         }
 
         // Command-line settings
@@ -122,9 +126,15 @@ namespace Katydid
             vector<char> buffer(std::istreambuf_iterator<char>(file), {}); //read full (compressed) file into unsigned char vector
             unsigned nMaxBufferEntry = buffer.size();
 
+            //check if fSpecFreqAvg divides fFreqBins evenly
+            if(fFreqBins % fSpecFreqAvg != 0)
+                KTWARN(specklog, "freq-bin-avg does not divide freq-bins!");
+
+            const unsigned fEffectiveFreqBins = fFreqBins / fSpecFreqAvg;
+
             //spectra must be treated as unsigned 8-bit values (0-255)
-            int slice[fFreqBins]; //holder array for spectrum data, set to all zeros
-            std::fill(slice, slice + fFreqBins, 0);
+            int slice[fEffectiveFreqBins]; //holder array for spectrum data, set to all zeros
+            std::fill(slice, slice + fEffectiveFreqBins, 0);
 
             int position = 0; //variable for read position start
             unsigned numHighPowerPoints; //number of above threshold points per slice
@@ -145,8 +155,12 @@ namespace Katydid
                 pkt_num[i] += bitset<8>(uint8_t(buffer[position + 2])).to_ulong()*pow(2,8);
                 pkt_num[i] += bitset<8>(uint8_t(buffer[position + 3])).to_ulong();
                 KTINFO(specklog, "Decimal pkt_num = " << pkt_num[i]);
-                if (i>0 && pkt_num[i]-pkt_num[i-1]!=1){
-                    KTWARN(specklog, "WARNING: " << pkt_num[i]-pkt_num[i-1] << " packets dropped!");
+                if (i>0)
+                {
+                    // Both fPacketsPerSpectrum and fSpecTimeAvg are forced to be 1, for now in speck_processor
+                    int adjusted_pkt_num = (pkt_num[i-1] + 1) % 1048576; //2^20, max packet number for 2^12 bitcode
+                    if(pkt_num[i] - adjusted_pkt_num != 0)
+                        KTWARN(specklog, "WARNING: " << pkt_num[i]-adjusted_pkt_num << " packets dropped!");
                 }
 
                 position += fPacketHeaderSize;
@@ -165,10 +179,11 @@ namespace Katydid
                     position += 3; //2 bytes for 4096 bin number, 1 byte for power
                     if(highPowerBin.first != 0 && highPowerBin.second !=0)
                     {
-                        slice[highPowerBin.first] = highPowerBin.second;
+                        unsigned hpbIndex = highPowerBin.first/fSpecFreqAvg;
+                        slice[hpbIndex] += highPowerBin.second;
                         numHighPowerPoints += 1;
-                        nonZeroBins.push_back(highPowerBin.first);
-                        KTDEBUG(specklog, "Adding high power point at slice: "<<i<<", bin: "<<highPowerBin.first<<", power: "<<int(highPowerBin.second));
+                        nonZeroBins.push_back(hpbIndex);
+                        KTDEBUG(specklog, "Adding high power point at slice: "<<i<<", bin: "<<hpbIndex<<", power: "<<int(highPowerBin.second));
                     }
                     else
                     {
@@ -205,17 +220,17 @@ namespace Katydid
                 KTINFO(specklog, "Frequency max = " << fFreqMax);
 
                 //slice length is 2x # of bins / 2x Nyquist freq, times averaged spectra
-                sliceHeader.SetSliceLength(fFreqBins*fSpectraAvg/fFreqMax);
+                sliceHeader.SetSliceLength(fFreqBins*fROACH_FFT_Avg/fFreqMax);
 
                 //bin width = bandwidth/bins
-                sliceHeader.SetBinWidth(fFreqMax/fFreqBins);
+                sliceHeader.SetBinWidth(fFreqMax/fEffectiveFreqBins);
 
                 //assume for now that all runs start at time t=0
-                sliceHeader.SetTimeInRun(i*fFreqBins*fSpectraAvg/fFreqMax);
-                KTDEBUG(specklog, "TimeInRun = "<<(i*fFreqBins*fSpectraAvg/fFreqMax));
+                sliceHeader.SetTimeInRun(i*fFreqBins*fROACH_FFT_Avg/fFreqMax);
+                KTDEBUG(specklog, "TimeInRun = "<<(i*fFreqBins*fROACH_FFT_Avg/fFreqMax));
 
                 //assume for now that there is 1 acq per run, all runs start at t=0
-                sliceHeader.SetTimeInAcq(i*fFreqBins*fSpectraAvg/fFreqMax);
+                sliceHeader.SetTimeInAcq(i*fFreqBins*fROACH_FFT_Avg/fFreqMax);
 
                 sliceHeader.SetStartRecordNumber(0);
 
@@ -228,10 +243,10 @@ namespace Katydid
                 sliceHeader.SetRecordSize(0);
 
 
-                newSpec[0] = new KTPowerSpectrum(slice, fFreqBins, fFreqMin, fFreqMax);
+                newSpec[0] = new KTPowerSpectrum(slice, fEffectiveFreqBins, fFreqMin, fFreqMax);
                 KTPowerSpectrumData& psData = data->Of< KTPowerSpectrumData >().SetNComponents(1);
                 psData.SetSpectrum(newSpec[0], comp);
-                psData.GetArray(comp)->GetAxis().SetBinsRange(fFreqMin, fFreqMax, fFreqBins);
+                psData.GetArray(comp)->GetAxis().SetBinsRange(fFreqMin, fFreqMax, fEffectiveFreqBins);
 
                 if (i == 0)
                 {
