@@ -9,6 +9,26 @@
 namespace Katydid
 {
 
+    class KTSpeckHelper
+    {
+     // Micro-class to organize reading multiple speck files. Includes their buffers and keeps track of their pointers
+        public:
+            std::ifstream file;
+            std::vector<char> buffer;
+            unsigned nMaxBufferEntry;
+            char *pointer;
+            unsigned position;
+            KTSpeckHelper() {}
+            KTSpeckHelper(boost::filesystem::path aFilename):
+             file(aFilename.c_str(), std::ios::in|std::ios::binary),
+             buffer(std::istreambuf_iterator<char>(file), {}), //read full (compressed) file into unsigned char vector
+             nMaxBufferEntry(buffer.size()),
+             pointer(buffer.data()),
+             position(0)
+            {}
+            KTSpeckHelper& operator+=(int aAdvance) { position += aAdvance; pointer += aAdvance; return *this;} //overload += operator to advance buffer pointer
+    };
+
     class KTPowerSpectrumData;
 
     /*!
@@ -57,6 +77,7 @@ namespace Katydid
 
         private:
             int fNSpectra;
+            unsigned fPacketIDOffset; //where in the packet header is the packet ID [1,9], historically
             int fPacketHeaderSize;
             int fFreqBins;
             int fROACH_FFT_Avg;       //the number of sequential FFTs averaged on the DAQ before output to *.spec
@@ -69,17 +90,16 @@ namespace Katydid
             Nymph::KTSignalData fDataSignal;
             Nymph::KTSignalOneArg< void > fSpeckDoneSignal;
 
-            std::pair<unsigned, unsigned char> read_high_power_point(char *aBuffer);
+            std::pair<unsigned, unsigned char> ReadHighPowerPoint(char *aBuffer);
+            int PacketNumber(char *aBufferPointer);
 
-
+            std::vector<KTSpeckHelper> fSpecks;
     };
 
     inline bool KTSpeckProcessor::Run()
     {
         return ProcessSpeck();
     }
-
-
 
 } /* namespace Katydid */
 
