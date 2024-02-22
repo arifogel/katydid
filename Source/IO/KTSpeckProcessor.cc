@@ -128,8 +128,21 @@ namespace Katydid
             return false;
         }
 
-        //vector<std::ifstream> files;
+        //check if fSpecFreqAvg divides fFreqBins evenly
+        if(fFreqBins % fSpecFreqAvg != 0)
+            KTWARN(specklog, "freq-bin-avg does not divide freq-bins!");
 
+        const unsigned fEffectiveFreqBins = fFreqBins / fSpecFreqAvg;
+
+        const int nChannels = fSpecks.size();
+        //check if fFreqBins divides nChannels evenly
+        if(fEffectiveFreqBins % nChannels != 0)
+            KTWARN(specklog, "nChannels does not divide (effective) freq-bins!");
+
+        // For file j, j*fBinOffsetPerFile is added to the bin numbers to files are not "on top of each other"
+        const unsigned fBinOffsetPerFile = fEffectiveFreqBins / nChannels;
+
+        // Open the .speck files
         for(unsigned i = 0; i <fFilenames.size(); ++i)
         {
             KTINFO(specklog, "Opening speck file <" << fFilenames[i] << ">");
@@ -147,20 +160,6 @@ namespace Katydid
                 KTINFO(specklog, "Speck file <" << fFilenames[i] << "> opened");
             }
         }
-
-        //check if fSpecFreqAvg divides fFreqBins evenly
-        if(fFreqBins % fSpecFreqAvg != 0)
-            KTWARN(specklog, "freq-bin-avg does not divide freq-bins!");
-
-        const unsigned fEffectiveFreqBins = fFreqBins / fSpecFreqAvg;
-
-        const int nChannels = fSpecks.size();
-        //check if fFreqBins divides nChannels evenly
-        if(fEffectiveFreqBins % nChannels != 0)
-            KTWARN(specklog, "nChannels does not divide (effective) freq-bins!");
-
-        // For file j, j*fBinOffsetPerFile is added to the bin numbers to files are not "on top of each other"
-        const unsigned fBinOffsetPerFile = fEffectiveFreqBins / nChannels;
 
         //spectra must be treated as unsigned 8-bit values (0-255)
         int slice[fEffectiveFreqBins]; //holder array for spectrum data, set to all zeros
@@ -314,12 +313,13 @@ namespace Katydid
 
             fDataSignal(data);
             if (i == 0) KTINFO(specklog, "First spectrum data signal output");
-
         }
+
         fSpeckDoneSignal();
         KTINFO(specklog, "Spec-done signal output");
 
-        //file.close();
+        for(unsigned j=0; j<nChannels;++j)
+            fSpecks[j].file.close();
 
         return true;
     }
