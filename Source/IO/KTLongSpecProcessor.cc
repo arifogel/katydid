@@ -14,7 +14,7 @@ using namespace std;
 namespace Katydid
 {
     static Nymph::KTCommandLineOption< string > sFilenameCLO("Long Spec Processor",
-    "Spec filename to open", "spec-file", 's');
+    "Spec filename to open", "long-spec-file", 'l');
 
     KTLOGGER(speclog, "KTLongSpecProcessor");
 

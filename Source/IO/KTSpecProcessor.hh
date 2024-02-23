@@ -43,7 +43,7 @@ namespace Katydid
         (\"filename\" will take priority over this)
 
      Command-line options defined
-     - -k (spec-file): spec filename to use
+     - -s (spec-file): spec filename to use
 
      Signals:
      - "header": void (Nymph::KTDataPtr) -- emitted when the header is parsed.

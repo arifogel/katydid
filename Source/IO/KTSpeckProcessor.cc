@@ -134,7 +134,7 @@ namespace Katydid
 
         const unsigned fEffectiveFreqBins = fFreqBins / fSpecFreqAvg;
 
-        const int nChannels = fSpecks.size();
+        const int nChannels = fFilenames.size();
         //check if fFreqBins divides nChannels evenly
         if(fEffectiveFreqBins % nChannels != 0)
             KTWARN(specklog, "nChannels does not divide (effective) freq-bins!");

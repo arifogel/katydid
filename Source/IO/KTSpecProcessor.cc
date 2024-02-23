@@ -13,7 +13,7 @@ using namespace std;
 
 namespace Katydid
 {
-    static Nymph::KTCommandLineOption< string > sFilenameCLO("Spec Processor", "Spec filename to open", "spec-file", 'c');
+    static Nymph::KTCommandLineOption< string > sFilenameCLO("Spec Processor", "Spec filename to open", "spec-file", 's');
 
     KTLOGGER(speclog, "KTSpecProcessor");
 
@@ -48,14 +48,7 @@ namespace Katydid
         // Config-file settings
         if (node != NULL)
         {
-            if (node->has("filename"))
-            {
-                KTDEBUG(speclog, "Adding single file to spec processor");
-                fFilenames.clear();
-                fFilenames.push_back( std::move(scarab::expand_path(node->get_value( "filename" ))) );
-                KTINFO(speclog, "Added file to spec processor: <" << fFilenames.back() << ">");
-            }
-            else if (node->has("filenames"))
+            if (node->has("filenames"))
             {
                 KTDEBUG(speclog, "Adding multiple files to spec processor");
                 fFilenames.clear();
@@ -66,14 +59,23 @@ namespace Katydid
                     KTINFO(speclog, "Added file to spec processor: <" << fFilenames.back() << ">");
                 }
             }
+            else if (node->has("filename"))
+            {
+                KTDEBUG(speclog, "Adding single file to spec processor");
+                fFilenames.clear();
+                fFilenames.push_back( std::move(scarab::expand_path(node->get_value( "filename" ))) );
+                KTINFO(speclog, "Added file to spec processor: <" << fFilenames.back() << ">");
+            }
 
             fNSpectra = node->get_value< unsigned >("spectra", fNSpectra);
+            KTINFO(speclog, "Number of spectra = " << fNSpectra);
             fPacketIDOffset = node->get_value< unsigned >("packet-ID-offset", fPacketIDOffset);
             fPacketHeaderSize = node->get_value< unsigned >("header-bytes", fPacketHeaderSize);
             fROACH_FFT_Avg = node->get_value< unsigned >("ROACH-spect-avg", fROACH_FFT_Avg);
             fFreqBins = node->get_value< unsigned >("freq-bins", fFreqBins); //total bins
             fFreqMin = node->get_value< double >("min-freq", fFreqMin);
             fFreqMax = node->get_value< double >("max-freq", fFreqMax);
+            KTINFO(speclog, "Maximum frequency = " << fFreqMax);
             fBinTOff = node->get_value< int >("TOff-bin", fBinTOff);
             fBinTOffPow = node->get_value< int >("TOff-bin-pow", fBinTOffPow);
             fSpecFreqAvg = node->get_value< unsigned >("freq-bin-avg", fSpecFreqAvg);
@@ -126,7 +128,7 @@ namespace Katydid
 
         const int nBins = fFreqBins / nChannels; // number of frequency bins per channel
         const int nPacketSize = fPacketHeaderSize + nBins; // could use reconfiguration (user config) if more general case wanted
-        KTDEBUG(speclog, "Packet Size: "<<nPacketSize);
+        KTINFO(speclog, "Packet Size: "<<nPacketSize);
 
         // For file j, j*fBinOffsetPerFile is added to the bin numbers to files are not "on top of each other"
         const unsigned fBinOffsetPerFile = fEffectiveFreqBins / nChannels;
@@ -161,13 +163,11 @@ namespace Katydid
         //loop over # of spectra to be read
         for(int i = 0; i < fNSpectra; ++i)
         {
-
             if (i == 0) KTINFO(speclog, "Preparing to read first spectrum");
 
             for(unsigned j = 0; j < nChannels; ++j)
             {
-                KTINFO(speclog, "Spec: "<<j<<" is at position: " << j * nPacketSize);
-                fSpecs[j].file.read(fSpecs[j].pointer, nPacketSize); //read full packet(s) into (respective) buffers
+                fSpecs[j].file.read(fSpecs[j].pointer, nPacketSize); //read full packet into buffer at position pointer
             }
 
             pkt_num[i] = PacketNumber(fSpecs[0].pointer);
