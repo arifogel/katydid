@@ -86,8 +86,14 @@ namespace Katydid
         //temp: write vector to file for testing
         std::ofstream outFile(fFilename);
         outFile << "Time_On,Time_Off\n";
-        for (int i = 0; i < fSlewStartTimes.size(); i++){
-            outFile << fSlewStartTimes[i] << "," << fSlewEndTimes[i] << "\n";
+        KTINFO(slewlog, "fSlewEndTimes length: " << fSlewEndTimes.size());
+        if (fSlewEndTimes.size() > 0 ){
+            for (int i = 0; i < fSlewStartTimes.size(); i++){
+                outFile << fSlewStartTimes[i] << "," << fSlewEndTimes[i] << "\n";
+            }
+        }
+        else{
+            outFile << 0 << "," << 1 << "\n";
         }
         //return fSlewStartEndTimes;
     }
