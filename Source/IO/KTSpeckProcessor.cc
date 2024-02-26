@@ -170,7 +170,7 @@ namespace Katydid
         vector<unsigned> nonZeroBins; //store above threshold bins, so that slice can be erased quickly
 
         vector <KTPowerSpectrum*> newSpec(1);
-        int pkt_num[fNSpectra];
+        vector<int> pkt_num(fNSpectra);
         unsigned binOffset, hpbIndex;
 
         //loop over # of spectra to be read
@@ -265,11 +265,13 @@ namespace Katydid
             sliceHeader.SetBinWidth(fFreqMax/fEffectiveFreqBins);
 
             //assume for now that all runs start at time t=0
-            sliceHeader.SetTimeInRun(i*fFreqBins*fROACH_FFT_Avg/fFreqMax);
-            KTDEBUG(specklog, "TimeInRun = "<<(i*fFreqBins*fROACH_FFT_Avg/fFreqMax));
+            // be super careful about this. The product i*fFreqBins*fROACH_FFT_Avg exceeds the MAX_INT, causing overflow
+            // we switch to double be dividing immediately. Could go through intermediate of long ints
+            sliceHeader.SetTimeInRun(i/fFreqMax*fFreqBins*fROACH_FFT_Avg);
+            KTDEBUG(specklog, "TimeInRun = "<<(i/fFreqMax*fFreqBins*fROACH_FFT_Avg));
 
             //assume for now that there is 1 acq per run, all runs start at t=0
-            sliceHeader.SetTimeInAcq(i*fFreqBins*fROACH_FFT_Avg/fFreqMax);
+            sliceHeader.SetTimeInAcq(i/fFreqMax*fFreqBins*fROACH_FFT_Avg);
 
             sliceHeader.SetStartRecordNumber(0);
 

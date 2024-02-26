@@ -159,7 +159,7 @@ namespace Katydid
             char specFlagA, specFlagB, specFlagC, specFlagD;
 
             bool packetDrop =  false;
-            int pkt_num [fNSpectra];
+            vector<int> pkt_num(fNSpectra);
 
             for(int i = 0; i < fNSpectra; i++) //loop over # of spectra to be output
             {
@@ -260,10 +260,10 @@ namespace Katydid
                 else sliceHeader.SetIsTrapOff(0);
 
                 //assume for now that all runs start at time t=0
-                sliceHeader.SetTimeInRun(i*fFreqBinsPerPkt*fPacketsPerSpectrum*fROACH_FFT_Avg*fSpecTimeAvg/fFreqMax);
+                sliceHeader.SetTimeInRun(i/fFreqMax*fFreqBinsPerPkt*fPacketsPerSpectrum*fROACH_FFT_Avg*fSpecTimeAvg);
 
                 //assume for now that there is 1 acq per run, all runs start at t=0
-                sliceHeader.SetTimeInAcq(i*fFreqBinsPerPkt*fPacketsPerSpectrum*fROACH_FFT_Avg*fSpecTimeAvg/fFreqMax);
+                sliceHeader.SetTimeInAcq(i/fFreqMax*fFreqBinsPerPkt*fPacketsPerSpectrum*fROACH_FFT_Avg*fSpecTimeAvg);
 
                 sliceHeader.SetStartRecordNumber(0);
 

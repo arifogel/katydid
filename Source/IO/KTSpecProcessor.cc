@@ -157,7 +157,7 @@ namespace Katydid
         std::fill(slice, slice + fEffectiveFreqBins, 0);
 
         vector <KTPowerSpectrum*> newSpec(1);
-        int pkt_num[fNSpectra];
+        vector<int> pkt_num(fNSpectra);
         unsigned binOffset;
 
         //loop over # of spectra to be read
@@ -229,11 +229,11 @@ namespace Katydid
             sliceHeader.SetBinWidth(fFreqMax/fEffectiveFreqBins);
 
             //assume for now that all runs start at time t=0
-            sliceHeader.SetTimeInRun(i*fFreqBins*fROACH_FFT_Avg/fFreqMax);
-            KTDEBUG(speclog, "TimeInRun = "<<(i*fFreqBins*fROACH_FFT_Avg/fFreqMax));
+            sliceHeader.SetTimeInRun(i/fFreqMax*fFreqBins*fROACH_FFT_Avg);
+            KTDEBUG(speclog, "TimeInRun = "<<(i/fFreqMax*fFreqBins*fROACH_FFT_Avg));
 
             //assume for now that there is 1 acq per run, all runs start at t=0
-            sliceHeader.SetTimeInAcq(i*fFreqBins*fROACH_FFT_Avg/fFreqMax);
+            sliceHeader.SetTimeInAcq(i/fFreqMax*fFreqBins*fROACH_FFT_Avg);
 
             sliceHeader.SetStartRecordNumber(0);
 
