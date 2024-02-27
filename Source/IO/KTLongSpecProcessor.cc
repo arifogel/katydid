@@ -14,7 +14,7 @@ using namespace std;
 namespace Katydid
 {
     static Nymph::KTCommandLineOption< string > sFilenameCLO("Long Spec Processor",
-    "Spec filename to open", "spec-file", 's');
+    "Spec filename to open", "long-spec-file", 'l');
 
     KTLOGGER(speclog, "KTLongSpecProcessor");
 
@@ -159,7 +159,7 @@ namespace Katydid
             char specFlagA, specFlagB, specFlagC, specFlagD;
 
             bool packetDrop =  false;
-            int pkt_num [fNSpectra];
+            vector<int> pkt_num(fNSpectra);
 
             for(int i = 0; i < fNSpectra; i++) //loop over # of spectra to be output
             {
@@ -197,10 +197,12 @@ namespace Katydid
 
                 //Check if sequential spectra have correct packet numbers
                 pkt_num[i] = bitset<8>(memblock[1]).to_ulong()*pow(2,16)+bitset<8>(memblock[2]).to_ulong()*pow(2,8)+bitset<8>(memblock[3]).to_ulong();
-                pkt_num[i] = pkt_num[i] % 171872;
                 KTINFO(speclog, "Decimal pkt_num = " << pkt_num[i]);
-                if (i>0 && pkt_num[i]-pkt_num[i-1]!=fPacketsPerSpectrum*fSpecTimeAvg){
-                    KTWARN(speclog, "WARNING: " << pkt_num[i]-pkt_num[i-1] << " packets dropped!");
+                if (i>0)
+                {
+                    int adjusted_pkt_num = (pkt_num[i-1] + fPacketsPerSpectrum*fSpecTimeAvg ) % 1048576; //2^20, max packet number for 2^12 bitcode
+                    if(pkt_num[i] - adjusted_pkt_num != 0)
+                        KTWARN(speclog, "WARNING: " << pkt_num[i]-adjusted_pkt_num << " packets dropped!");
                 }
 
                 specFlagA = memblock[24];
@@ -208,8 +210,8 @@ namespace Katydid
                 specFlagC = memblock[16472];
                 specFlagD = memblock[24696];
 
-                if ((bitset<8>(specFlagA) != 128 || bitset<8>(specFlagB) != 160
-                || bitset<8>(specFlagC) != 192 || bitset<8>(specFlagD) != 224) & fPacketsPerSpectrum == 4)
+                if ((fPacketsPerSpectrum == 4) && (bitset<8>(specFlagA) != 128 || bitset<8>(specFlagB) != 160
+                || bitset<8>(specFlagC) != 192 || bitset<8>(specFlagD) != 224))
                 {
                   KTWARN(speclog, "WARNING: Packet dropped from spectrum # " << i << "!!");
                   packetDrop = true;
@@ -258,10 +260,10 @@ namespace Katydid
                 else sliceHeader.SetIsTrapOff(0);
 
                 //assume for now that all runs start at time t=0
-                sliceHeader.SetTimeInRun(i*fFreqBinsPerPkt*fPacketsPerSpectrum*fROACH_FFT_Avg*fSpecTimeAvg/fFreqMax);
+                sliceHeader.SetTimeInRun(i/fFreqMax*fFreqBinsPerPkt*fPacketsPerSpectrum*fROACH_FFT_Avg*fSpecTimeAvg);
 
                 //assume for now that there is 1 acq per run, all runs start at t=0
-                sliceHeader.SetTimeInAcq(i*fFreqBinsPerPkt*fPacketsPerSpectrum*fROACH_FFT_Avg*fSpecTimeAvg/fFreqMax);
+                sliceHeader.SetTimeInAcq(i/fFreqMax*fFreqBinsPerPkt*fPacketsPerSpectrum*fROACH_FFT_Avg*fSpecTimeAvg);
 
                 sliceHeader.SetStartRecordNumber(0);
 
