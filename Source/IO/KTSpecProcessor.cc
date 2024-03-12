@@ -191,7 +191,7 @@ namespace Katydid
             { 
                 binOffset = j*fBinOffsetPerFile;
                 for(unsigned k = 0; k < nBins; ++k)
-                    slice[k/fSpecFreqAvg + binOffset] += fSpecs[j].buffer[fPacketHeaderSize + k];
+                    slice[k/fSpecFreqAvg + binOffset] += uint8_t(fSpecs[j].buffer[fPacketHeaderSize + k]);
             }
 
             unsigned comp = 0;
