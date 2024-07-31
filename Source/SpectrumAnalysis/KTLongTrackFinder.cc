@@ -25,7 +25,7 @@ namespace Katydid
 {
     KTLOGGER(stflog, "KTLongTrackFinder");
 
-    KT_REGISTER_PROCESSOR(KTLongTrackFinder, "sequential-track-finder-track-first");
+    KT_REGISTER_PROCESSOR(KTLongTrackFinder, "long-track-finder");
 
     KTLongTrackFinder::KTLongTrackFinder(const std::string& name) :
             KTProcessor(name),
@@ -34,7 +34,6 @@ namespace Katydid
             fFrequencyAcceptance(56166.0528183),
             fInitialFrequencyAcceptance(0.0),
             fInitialTimeAcceptance(0.0),
-            fSearchRadius(6),
             fMinPoints(3),
             fMaxPoints(100),
             fMinSlope(0.0),
@@ -87,10 +86,6 @@ namespace Katydid
         {
             SetMaxBin(node->get_value< unsigned >("max-bin"));
             SetCalculateMaxBin(false);
-        }
-        if (node->has("search-radius"))
-        {
-            SetSearchRadius(node->get_value<int>("search-radius"));
         }
         if (node->has("initial-frequency-acceptance"))
         {

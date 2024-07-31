@@ -61,12 +61,6 @@ namespace Katydid
      - "min-points": a line only gets converted to a track if it has collected more than this many number of points
      - "max-points": lines will be terminated after this many points. Good for curved tracks/resonances.
      - "min-slope": a line only gets converted to a track if its slope is > than this slope (in Hz/s)
-     - "apply-power-cut": default false; if true, the summed-power has to be > total-power-threshold; uses fNeighborhoodAmplitude
-     - "apply-point-density-cut": default false; if true, the summed-power/time-length has to be > average-power-threshold; uses fNeighborhoodAmplitude
-     - "apply-total-snr-cut": default false; if true, the summed-snr has to be > total-snr-threshold; uses fNeighborhoodAmplitude
-     - "apply-average-snr-cut": default false; if true, the summed-snr/time-length has to be > average-snr-threshold; uses fNeighborhoodAmplitude
-     - "apply-total-residual-cut: default false; if true, the summed-unitless-residual has to be > total-residual-threshold; uses fNeighborhoodAmplitude
-     - "apply-average-residual-cut: default false; if true, the summed-unitless-residual/time-length has to be > average-residual-threshold; uses fNeighborhoodAmplitude
      - "total-power-threshold": threshold for apply-total-power-cut
      - "average-power-threshold": threshold for apply-average-power-cut
      - "total-snr-threshold": threshold for apply-total-snr-cut
@@ -109,9 +103,6 @@ namespace Katydid
         virtual ~KTLongTrackFinder();
 
         bool Configure(const scarab::param_node* node);
-
-        // Parameters for point update before adding point to line
-    MEMBERVARIABLE(int, SearchRadius);
 
         // Parameters for point collection
     MEMBERVARIABLE(double, InitialSlope);
