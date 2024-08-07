@@ -208,6 +208,7 @@ namespace Katydid
             void WriteMTEWithClassifierResults(Nymph::KTDataPtr data);
             void WriteLinearFitResultData(Nymph::KTDataPtr data);
             void WritePowerFitData(Nymph::KTDataPtr data);
+            void WriteLongTrack(Nymph::KTDataPtr data);
 
         public:
             TTree* GetFrequencyCandidateTree() const;
@@ -239,6 +240,7 @@ namespace Katydid
             TTree* fWaterfallCandidateTree;
             TTree* fSparseWaterfallCandidateTree;
             TTree* fSequentialLineTree;
+            TTree* ftrackTree;
             TTree* fProcessedMPTTree;
             TTree* fProcessedTrackTree;
             TTree* fMultiPeakTrackTree;
@@ -250,6 +252,7 @@ namespace Katydid
             TFrequencyCandidateData fFreqCandidateData;
             TWaterfallCandidateData fWaterfallCandidateData;
             TSparseWaterfallCandidateData* fSparseWaterfallCandidateDataPtr;
+            TLongTrackData* fLongTrackDataPtr;
             TSequentialLineData* fSequentialLineDataPtr;
             Cicada::TProcessedTrackData* fProcessedTrackDataPtr;
             Cicada::TProcessedMPTData* fProcessedMPTDataPtr;
@@ -258,7 +261,6 @@ namespace Katydid
             Cicada::TMTEWithClassifierResultsData* fMTEWithClassifierResultsDataPtr;
             TLinearFitResult fLineFitData;
             TPowerFitData fPowerFitData;
-
     };
 
     inline TTree* KTROOTTreeTypeWriterEventAnalysis::GetFrequencyCandidateTree() const

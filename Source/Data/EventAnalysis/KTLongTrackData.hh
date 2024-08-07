@@ -63,29 +63,17 @@ namespace Katydid
         unsigned TrackId;
         static const std::string sName;
 
-//        double BulkSlope;
-//        double TotalPower;
-//        double MeanPower;
-//        double MaxPower;
-//        double MinPower;
-//        double StdDevPower;
-        //            double TotalSNR;
-        //            double TotalNUP;
-        //            double TotalWidePower;
-        //            double TotalWideSNR;
-        //            double TotalWideNUP;
-
         // Sorted by time
         std::vector<KTLongTrackData::Point> points;
 
     public:
         KTLongTrackData();
-        virtual ~KTLongTrackData();
+        ~KTLongTrackData() override;
 
         const std::vector<KTLongTrackData::Point>& GetPoints() const { return points; }
         void AddPoint(const Point& point);
 //        void AddPoints(const Point& point);
-        const KTLongTrackData::TrackStats CalculateTrackStats() const;
+        KTLongTrackData::TrackStats CalculateTrackStats() const;
         double GetBulkSlope() const;
 
         void SetPoints(const std::vector<KTLongTrackData::Point> &vector);

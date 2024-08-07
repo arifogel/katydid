@@ -140,4 +140,37 @@ namespace Katydid
         fPoints->Clear(); (*fPoints) = *(rhs.fPoints);
         return *this;
     }
+
+    //************************
+    // TLongTrackData
+    //************************
+
+    TLongTrackData::TLongTrackData():
+            TObject(),
+            fCandidateID(0)
+    {
+        fPoints = new TClonesArray("Katydid::TLongTrackData::TPoint", 20)
+    }
+
+    TLongTrackData::TLongTrackData(const TLongTrackData &orig) :
+            TObject(orig),
+            fCandidateID(orig.fCandidateID)
+    {
+        fPoints = new TClonesArray(*orig.fPoints);
+    }
+
+    TLongTrackData::~TLongTrackData() {
+        fPoints->Clear();
+        delete fPoints;
+    }
+
+    TObject *TLongTrackData::Clone(const char *newname) {
+        return new TLongTrackData(*this);
+    }
+
+    TLongTrackData &TLongTrackData::operator=(const TLongTrackData &rhs) {
+        fCandidateID = rhs.fCandidateID;
+        fPoints->Clear(); (*fPoints) = *(rhs.fPoints);
+        return *this;
+    }
 }

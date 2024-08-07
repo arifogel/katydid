@@ -123,6 +123,40 @@ namespace Katydid
 
             ClassDef(TSequentialLineData, 1);
     };
+
+    class TLongTrackData : public TObject
+    {
+        MEMBERVARIABLE(UInt_t, CandidateID);
+
+        struct Point {
+            MEMBERVARIABLE(Double_t, Frequency)
+            MEMBERVARIABLE(Double_t, Time)
+            MEMBERVARIABLE(Double_t, Amplitude)
+            MEMBERVARIABLE(Double_t, Threshold)
+            MEMBERVARIABLE(Double_t, SNR)
+            MEMBERVARIABLE(Double_t, NoiseMean)
+            MEMBERVARIABLE(Double_t, NoiseVariance)
+            MEMBERVARIABLE(Double_t, TrackFinderLocalSlope)
+        };
+
+
+    public:
+        TClonesArray* GetPoints() {return fPoints;}
+
+    private:
+        TClonesArray* fPoints{}{};
+
+    public:
+        TLongTrackData();
+        TLongTrackData(const TLongTrackData& orig);
+        virtual ~TLongTrackData();
+        TObject* Clone(const char* newname="");
+        TLongTrackData& operator=(const TLongTrackData& rhs);
+
+        std::string GetBranchName() { return std::string("Track"); } // Defines the default name of the object saved inside the output tree
+
+    ClassDef(TLongTrackData, 1);
+    };
 }
 
 #endif /* KTROOTDATA_HH_ */

@@ -45,4 +45,8 @@ namespace Katydid
     void KTLongTrackData::AddPoint(const KTLongTrackData::Point &point) {
         points.push_back(point);
     }
+
+    KTLongTrackData::TrackStats KTLongTrackData::CalculateTrackStats() const {
+        return KTLongTrackData::TrackStats();
+    }
 } /* namespace Katydid */

@@ -24,6 +24,7 @@
 #include "KTTimeSeriesFFTW.hh"
 #include "KTTimeSeriesReal.hh"
 #include "KTSparseWaterfallCandidateData.hh"
+#include "KTLongTrackData.hh"
 #include "KTSequentialLineData.hh"
 #include "KTChannelAggregatedData.hh"
 #include "KTMath.hh"
@@ -966,10 +967,27 @@ namespace Katydid
         return;
     }
 
-// void KT2ROOT::UnloadSequentialLineData(KTSequentialLineData& seqData, const TSequentialLineData& rootSEQData)
-// {
-// TODO
-// return;
-// }
+    void Katydid::KT2ROOT::LoadLongTrackData(const Katydid::KTLongTrackData &ktData, Katydid::TLongTrackData &rootData) {
+        auto nPoints = (Int_t) ktData.GetPoints().size();
+        TClonesArray* points = rootData.GetPoints();
+        points->Clear();
+        points->Expand(nPoints);
+        Int_t iPoint = 0;
+        for (auto pIt : ktData.GetPoints())
+        {
+            auto* point = new ((*points)[iPoint]) Katydid::TLongTrackData::Point;
+            point->SetTime(pIt.Time);
+            point->SetFrequency(pIt.Frequency);
+            point->SetAmplitude(pIt.Amplitude);
+            point->SetThreshold(pIt.Threshold);
+            point->SetTrackFinderLocalSlope(pIt.TrackFinderLocalSlope);
+            point->SetNoiseVariance(pIt.NoiseMean);
+            point->SetNoiseMean(pIt.NoiseVariance);
+            point->SetSNR(pIt.SNR);
+            ++iPoint;
+        }
 
+        rootData.SetCandidateID(ktData.TrackId);
+    }
 } /* namespace Katydid */
+
