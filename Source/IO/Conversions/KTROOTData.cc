@@ -13,9 +13,12 @@
 
 #include <iostream>
 
+// These macros let ROOT use reflection (RTTI) on these classes to automatically find properties when writing to ROOT
+// files. TO make this work you also need to add the ClassDef macro to the header file and add an entry in IOLinkDef.hh
 ClassImp(Katydid::TDiscriminatedPoint);
 ClassImp(Katydid::TSparseWaterfallCandidateData);
 ClassImp(Katydid::TSequentialLineData);
+ClassImp(Katydid::TLongTrackData);
 
 namespace Katydid
 {
@@ -149,7 +152,7 @@ namespace Katydid
             TObject(),
             fCandidateID(0)
     {
-        fPoints = new TClonesArray("Katydid::TLongTrackData::TPoint", 20)
+        fPoints = new TClonesArray("Katydid::TLongTrackData::TPoint", 20);
     }
 
     TLongTrackData::TLongTrackData(const TLongTrackData &orig) :

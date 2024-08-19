@@ -13,6 +13,7 @@
 #pragma link C++ class Katydid::TDiscriminatedPoint+;
 #pragma link C++ class Katydid::TSparseWaterfallCandidateData+;
 #pragma link C++ class Katydid::TSequentialLineData+;
+#pragma link C++ class Katydid::TLongTrackData+;
 
 
 #endif

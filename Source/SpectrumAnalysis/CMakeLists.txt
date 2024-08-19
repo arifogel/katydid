@@ -20,6 +20,7 @@ set (SPECTRUMANALYSIS_HEADERFILES
     KTMergeKDTree.hh
     KTNNFilter.hh
     KTSequentialTrackFinder.hh
+    KTLongTrackFinder.hh
     KTSpectrumDiscriminator.hh
     KTSpectrogramStriper.hh
     KTSwitchFFTWPolar.hh
@@ -46,6 +47,7 @@ set (SPECTRUMANALYSIS_SOURCEFILES
     KTMergeKDTree.cc
     KTNNFilter.cc
     KTSequentialTrackFinder.cc
+    KTLongTrackFinder.cc
     KTSpectrumDiscriminator.cc
     KTSpectrogramStriper.cc
     KTSwitchFFTWPolar.cc

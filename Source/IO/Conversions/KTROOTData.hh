@@ -144,7 +144,7 @@ namespace Katydid
         TClonesArray* GetPoints() {return fPoints;}
 
     private:
-        TClonesArray* fPoints{}{};
+        TClonesArray* fPoints;
 
     public:
         TLongTrackData();
@@ -155,7 +155,8 @@ namespace Katydid
 
         std::string GetBranchName() { return std::string("Track"); } // Defines the default name of the object saved inside the output tree
 
-    ClassDef(TLongTrackData, 1);
+        // This is necessary for ROOT's reflection (RTTI) system to read properties to/from ROOT files automagically
+        ClassDef(TLongTrackData, 1);
     };
 }
 
