@@ -212,7 +212,7 @@ namespace Katydid
         // This will just look at every point until we find the first matching point
         std::vector<KTDiscriminatedPoints1DData::Point> pointsToConsider;
         for (auto& point : sortedPoints) {
-            if(DoesPointMatchLine(track, point.fAbscissa, timeInRunC)) {
+            if(DoesPointMatchLine(track, timeInRunC, point.fAbscissa)) {
                 pointsToConsider.push_back(point);
             }
             // Once we start missing points, break since we won't find any ever again
@@ -267,7 +267,7 @@ namespace Katydid
         Nymph::KTDataPtr data(new Nymph::KTData());
         auto& newCand = data->Of<KTLongTrackData>();
         newCand.TrackId = fNCandidatesEmitted;
-        newCand.SetPoints(newCand.GetPoints());
+        newCand.SetPoints(track.GetPoints());
 
         ++fNCandidatesEmitted;
 
