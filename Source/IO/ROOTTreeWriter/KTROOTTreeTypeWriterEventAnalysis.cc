@@ -59,6 +59,7 @@ namespace Katydid
                     fWaterfallCandidateTree(NULL),
                     fSparseWaterfallCandidateTree(NULL),
                     fSequentialLineTree(NULL),
+                    ftrackTree(NULL),
                     fProcessedMPTTree(NULL),
                     fProcessedTrackTree(NULL),
                     fMultiPeakTrackTree(NULL),
@@ -70,6 +71,7 @@ namespace Katydid
                     fWaterfallCandidateData(),
                     fSparseWaterfallCandidateDataPtr(NULL),
                     fSequentialLineDataPtr(NULL),
+                    fLongTrackDataPtr(NULL),
                     fProcessedTrackDataPtr(NULL),
                     fProcessedMPTDataPtr(NULL),
                     fMultiPeakTrackData(),
@@ -572,7 +574,7 @@ namespace Katydid
 
         if (ftrackTree == nullptr)
         {
-            ftrackTree = new TTree("tracks", "Sequential lines");
+            ftrackTree = new TTree("tracks", "Tracks");
             fWriter->AddTree(ftrackTree);
             // Root will use reflection (RTTI) to infer all the leaf names and addresses. This ability is provided by
             // inheriting from TClass via TObject

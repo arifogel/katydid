@@ -128,7 +128,7 @@ namespace Katydid
     {
         MEMBERVARIABLE(UInt_t, CandidateID);
 
-        struct Point {
+        struct Point : public TObject {
             MEMBERVARIABLE(Double_t, Frequency)
             MEMBERVARIABLE(Double_t, Time)
             MEMBERVARIABLE(Double_t, Amplitude)
@@ -137,11 +137,13 @@ namespace Katydid
             MEMBERVARIABLE(Double_t, NoiseMean)
             MEMBERVARIABLE(Double_t, NoiseVariance)
             MEMBERVARIABLE(Double_t, TrackFinderLocalSlope)
+
+            ClassDef(Point, 1)
         };
 
 
     public:
-        TClonesArray* GetPoints() {return fPoints;}
+        TClonesArray* GetPoints() { return fPoints; }
 
     private:
         TClonesArray* fPoints;

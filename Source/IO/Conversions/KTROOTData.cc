@@ -19,6 +19,7 @@ ClassImp(Katydid::TDiscriminatedPoint);
 ClassImp(Katydid::TSparseWaterfallCandidateData);
 ClassImp(Katydid::TSequentialLineData);
 ClassImp(Katydid::TLongTrackData);
+ClassImp(Katydid::TLongTrackData::Point);
 
 namespace Katydid
 {
@@ -152,7 +153,7 @@ namespace Katydid
             TObject(),
             fCandidateID(0)
     {
-        fPoints = new TClonesArray("Katydid::TLongTrackData::TPoint", 20);
+        fPoints = new TClonesArray("Katydid::TLongTrackData::Point", 20);
     }
 
     TLongTrackData::TLongTrackData(const TLongTrackData &orig) :
