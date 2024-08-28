@@ -981,8 +981,8 @@ namespace Katydid
             point->SetAmplitude(pIt.Amplitude);
             point->SetThreshold(pIt.Threshold);
             point->SetTrackFinderLocalSlope(pIt.TrackFinderLocalSlope);
-            point->SetNoiseVariance(pIt.NoiseMean);
-            point->SetNoiseMean(pIt.NoiseVariance);
+            point->SetNoiseVariance(pIt.NoiseVariance);
+            point->SetNoiseMean(pIt.NoiseMean);
             point->SetSNR(pIt.SNR);
             ++iPoint;
         }
