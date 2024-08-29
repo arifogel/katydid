@@ -113,12 +113,9 @@ namespace Katydid
     MEMBERVARIABLE(double, TimeGapTolerance);
 
         // Parameters for line post-processing
-    MEMBERVARIABLE(double, TrimmingThreshold);
     MEMBERVARIABLE(unsigned, MinPoints);
     MEMBERVARIABLE(unsigned, MaxPoints);
     MEMBERVARIABLE(double, MinSlope);
-    MEMBERVARIABLE(double, TotalUnitlessResidualThreshold);
-    MEMBERVARIABLE(double, AverageUnitlessResidualThreshold);
 
         // Others
     MEMBERVARIABLE_PROTECTED(unsigned, NCandidatesEmitted);

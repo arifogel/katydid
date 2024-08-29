@@ -26,7 +26,6 @@ namespace Katydid
 
     KTLongTrackFinder::KTLongTrackFinder(const std::string& name) :
             KTProcessor(name),
-            fTrimmingThreshold(6),
             fTimeGapTolerance(0.0005),
             fFrequencyAcceptance(56166.0528183),
             fInitialFrequencyAcceptance(0.0),
@@ -65,7 +64,6 @@ namespace Katydid
         SetMinFrequency(node->get_value("min-frequency", GetMinFrequency()));
         SetMaxFrequency(node->get_value("max-frequency", GetMaxFrequency()));
 
-        SetTrimmingThreshold(node->get_value("trimming-threshold", GetTrimmingThreshold()));
         SetMinPoints(node->get_value("min-points", GetMinPoints()));
         SetMaxPoints(node->get_value("max-points", GetMaxPoints()));
         SetMinSlope(node->get_value("min-slope", GetMinSlope()));
@@ -183,7 +181,7 @@ namespace Katydid
                 auto bestPoint = std::max_element(matchingPoints.begin(), matchingPoints.end(),
                                                   [](auto a, auto b) { return a.fOrdinate > b.fOrdinate; });
                 auto slopeCalcPoints = std::vector<std::pair<double,double>>();
-                std::transform(track.GetPoints().end() - std::min(4, (int) track.GetPoints().size()),
+                std::transform(track.GetPoints().end() - std::min(fNSlopePoints, (int) track.GetPoints().size()),
                           track.GetPoints().end(),
                           std::back_inserter(slopeCalcPoints),
                           [] (auto& p) { return std::pair<double,double>(p.Time, p.Frequency); });
