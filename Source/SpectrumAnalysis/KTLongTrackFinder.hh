@@ -51,7 +51,6 @@ namespace Katydid
 
      Slots:
      - "disc-1d": void (KTDataPtr) -- clusters discriminated points to sequential lines candidates
-     - "disc-1d-ps": void (KTDataPtr) -- clusters discriminated points to sequential line candidates; updates point properties using power spectrum slice
      - "done": void () -- Processes remaining active lines and emits clustering-done signal
 
      Signals:
