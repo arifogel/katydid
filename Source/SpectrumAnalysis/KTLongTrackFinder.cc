@@ -31,7 +31,7 @@ namespace Katydid
             fInitialFrequencyAcceptance(0.0),
             fInitialTimeAcceptance(0.0),
             fMinPoints(3),
-            fMaxPoints(100),
+            fMaxPoints(10000),
             fMinSlope(0.0),
             fInitialSlope(3.0*pow(10,8)),
             fNSlopePoints(10),
@@ -139,7 +139,7 @@ namespace Katydid
             AddPointsToExistingTracks(points, fActiveLines, timeInRunC);
 
             for(auto trackIt = fActiveLines.begin(); trackIt != fActiveLines.end();) {
-                if(timeInRunC - trackIt->GetPoints().back().Time > fTimeGapTolerance) {
+                if(timeInRunC - trackIt->GetPoints().back().Time > fTimeGapTolerance or trackIt->GetPoints().size() >= fMaxPoints) {
                     HandleFinishedTrack(*trackIt); // let the vector sort itself by earliest track instead of longest track
                     trackIt = fActiveLines.erase(trackIt);
                 } else {

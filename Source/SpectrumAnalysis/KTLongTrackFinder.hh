@@ -31,29 +31,16 @@ namespace Katydid
     class KTSliceHeader;
 
     /*!
-     @class KTSeqTrackFinder
-     @author C. Claessens
-
-     @brief Implementation of Dan Furse's algorithm with some modifications
-
-     @details
      Collects points on a linear track
 
-     Configuration name: "sequential-track-finder"
+     Configuration name: "long-track-finder"
 
      Available configuration values:
      - "min-frequency": minimum allowed frequency (has to be set)
      - "max-frequency": max allowed frequency (has to be set)
      - "min-bin": can be set instead of min frequency
      - "max-bin": can be set instead of  max frequency
-     - "trimming-threshold": before a line is converted to a sparse waterfall candidate its edges get trimmed. If the last or first line point snr is less than the trimming-threshold, they get removed
-     - "line-power-radius": only valid for disc1d-ps slot. the power that is assigned to a line point is the sum of the power_spectrum[point_bin - line_width: point_bin + line_width]
-     - "time-gap-tolerance": maximum gap between points in a line (in seconds)
-     - "minimum-line-distance": requires some thought for disc1d-slot!!! For disc1d-ps slot: if a point is less than this distance (in bins) away from the last point it will be skipped
-     - "search-radius": for disc1d-ps slot: before a point is added to a line, the weighted average of the points frequency neighborhood (+/- search-radius in bins) is taken and the point updated until the frequency converges
-     - "converge-delta": for disc1d-ps slot: defines when convergence has been reached (in bins)
      - "frequency-acceptance": maximum allowed frequency distance of point to an extrapolated line (in Hz)
-     - "slope-method": method to update the line slope after point collection (see options below)
      - "initial-frequency-acceptance": if the line that a point is being compared to, only has a single point so far, this is the accepted frequency acceptance. Default is frequency_acceptance
      - "initial-time-acceptance": if the line that a point is being compared to, only has a single point so far, this is the accepted time window. Default is time-gap-tolerance
      - "initial-slope": if a line has only one point, this is the line's slope
@@ -61,12 +48,6 @@ namespace Katydid
      - "min-points": a line only gets converted to a track if it has collected more than this many number of points
      - "max-points": lines will be terminated after this many points. Good for curved tracks/resonances.
      - "min-slope": a line only gets converted to a track if its slope is > than this slope (in Hz/s)
-     - "total-power-threshold": threshold for apply-total-power-cut
-     - "average-power-threshold": threshold for apply-average-power-cut
-     - "total-snr-threshold": threshold for apply-total-snr-cut
-     - "average-snr-threshold": threshold for apply-average-snr-cut
-     - "total-residual-threshold": threshold for apply-total-residual-cut
-     - "average-residual-threshold": threshold for apply-average-residual
 
      Slots:
      - "disc-1d": void (KTDataPtr) -- clusters discriminated points to sequential lines candidates
@@ -118,7 +99,6 @@ namespace Katydid
     MEMBERVARIABLE(double, MinSlope);
 
         // Others
-    MEMBERVARIABLE_PROTECTED(unsigned, NCandidatesEmitted);
     MEMBERVARIABLE(unsigned, MinBin);
     MEMBERVARIABLE(unsigned, MaxBin);
     MEMBERVARIABLE(bool, CalculateMinBin);
@@ -127,6 +107,9 @@ namespace Katydid
     MEMBERVARIABLE(double, TimeBinWidth);
     MEMBERVARIABLE(double, MinFrequency);
     MEMBERVARIABLE(double, MaxFrequency);
+
+    // Internal tracking
+    MEMBERVARIABLE_PROTECTED(unsigned, NCandidatesEmitted);
 
     public:
         bool InitializeWithHeader(KTEggHeader& header);
