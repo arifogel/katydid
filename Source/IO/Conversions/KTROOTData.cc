@@ -151,14 +151,14 @@ namespace Katydid
 
     TLongTrackData::TLongTrackData():
             TObject(),
-            fCandidateID(0)
+            fTrackId(0)
     {
         fPoints = new TClonesArray("Katydid::TLongTrackData::Point", 20);
     }
 
     TLongTrackData::TLongTrackData(const TLongTrackData &orig) :
             TObject(orig),
-            fCandidateID(orig.fCandidateID)
+            fTrackId(orig.fTrackId)
     {
         fPoints = new TClonesArray(*orig.fPoints);
     }
@@ -173,7 +173,7 @@ namespace Katydid
     }
 
     TLongTrackData &TLongTrackData::operator=(const TLongTrackData &rhs) {
-        fCandidateID = rhs.fCandidateID;
+        fTrackId = rhs.fTrackId;
         fPoints->Clear(); (*fPoints) = *(rhs.fPoints);
         return *this;
     }

@@ -976,6 +976,7 @@ namespace Katydid
         for (auto pIt : ktData.GetPoints())
         {
             auto* point = new ((*points)[iPoint]) Katydid::TLongTrackData::Point;
+            point->SetTrackId(ktData.TrackId);
             point->SetTime(pIt.Time);
             point->SetFrequency(pIt.Frequency);
             point->SetAmplitude(pIt.Amplitude);
@@ -987,7 +988,7 @@ namespace Katydid
             ++iPoint;
         }
 
-        rootData.SetCandidateID(ktData.TrackId);
+        rootData.SetTrackId(ktData.TrackId);
     }
 } /* namespace Katydid */
 
