@@ -14,6 +14,7 @@
 #pragma link C++ class Katydid::TSparseWaterfallCandidateData+;
 #pragma link C++ class Katydid::TSequentialLineData+;
 #pragma link C++ class Katydid::TLongTrackData+;
+#pragma link C++ class Katydid::TLongTrackData::Point+;
 
 
 #endif
