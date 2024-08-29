@@ -11,9 +11,6 @@
 
 #include "KTEggHeader.hh"
 #include "KTSliceHeader.hh"
-#include "KTPowerSpectrum.hh"
-#include "KTSequentialLineData.hh"
-#include "KTSparseWaterfallCandidateData.hh"
 #include "KTDiscriminatedPoints1DData.hh"
 
 #include <cmath>
@@ -140,7 +137,6 @@ namespace Katydid
             }
 
             KTDEBUG( stflog, "Collected "<<points.size()<<" points");
-//            auto timeInRunC = points.begin()->fAbscissa;
 
             AddPointsToExistingTracks(points, fActiveLines, timeInRunC);
 
@@ -208,14 +204,16 @@ namespace Katydid
     std::vector<KTDiscriminatedPoints1DData::Point> KTLongTrackFinder::GetPointsNearTrack(
             const STFFrequencySortedPoints& sortedPoints, const KTLongTrackData& track, double timeInRunC) const {
 
-        // do some cool binary search or whatever to speed things up.
+        // We can do some cool binary search or whatever to speed things up.
         // This will just look at every point until we find the first matching point
         std::vector<KTDiscriminatedPoints1DData::Point> pointsToConsider;
         for (auto& point : sortedPoints) {
             if(DoesPointMatchLine(track, timeInRunC, point.fAbscissa)) {
                 pointsToConsider.push_back(point);
+            } else {
+                // Once we start missing points, break since we won't find any ever again since the points are sorted
+                break;
             }
-            // Once we start missing points, break since we won't find any ever again
         }
 
         return pointsToConsider;
@@ -242,26 +240,15 @@ namespace Katydid
     }
 
     void KTLongTrackFinder::HandleFinishedTrack(KTLongTrackData& track) {
-        if (track.GetPoints().size() >= fMinPoints)
-        {
-//            track.LineSNRTrimming(fTrimmingThreshold, fMinPoints);
-
-            if (track.GetPoints().size() >= fMinPoints and track.GetBulkSlope() >= fMinSlope)
-            {
-                KTDEBUG(stflog, "Found line candidate");
-//                track.SetSlope(CalculateLocalSlope(track));
-                EmitPreCandidate(track);
-            }
+        if (track.GetPoints().size() >= fMinPoints and track.GetBulkSlope() >= fMinSlope) {
+            KTDEBUG(stflog, "Found line candidate");
+            EmitPreCandidate(track);
         }
     }
 
     void KTLongTrackFinder::EmitPreCandidate(KTLongTrackData& track)
     {
-        KTDEBUG(stflog, "applying cuts and then emitting candidate");
-//        track.CalculateTotalPower();
-//        track.CalculateTotalSNR();
-//        track.CalculateTotalNUP();
-
+        KTDEBUG(stflog, "emitting candidate");
 
         // Set up new data object
         Nymph::KTDataPtr data(new Nymph::KTData());
@@ -283,18 +270,9 @@ namespace Katydid
         auto lineIt = fActiveLines.begin();
         while( lineIt != fActiveLines.end())
         {
-            if (lineIt->GetPoints().size() >= fMinPoints)
-            {
-                if (lineIt->GetPoints().size() <= fMaxPoints)
-                {
-//                    TODO ALEX:
-//                    lineIt->LineSNRTrimming(fTrimmingThreshold, fMinPoints);
-
-                    if (lineIt->GetPoints().size() >= fMinPoints and lineIt->GetBulkSlope() > fMinSlope and lineIt->GetPoints().size() <= fMaxPoints)
-                    {
-                        EmitPreCandidate(*lineIt);
-                    }
-                }
+            if (lineIt->GetPoints().size() >= fMinPoints and lineIt->GetPoints().size() <= fMaxPoints
+                and lineIt->GetBulkSlope() > fMinSlope) {
+                EmitPreCandidate(*lineIt);
             }
 
             lineIt = fActiveLines.erase(lineIt);
@@ -333,7 +311,7 @@ namespace Katydid
                 point.fAbscissa,
                 point.fOrdinate,
                 point.fThreshold,
-                1, //TODO SNR
+                point.fOrdinate / point.fMean,
                 point.fMean,
                 point.fVariance,
                 trackFinderSlope};
