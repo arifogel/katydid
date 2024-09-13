@@ -57,6 +57,7 @@ namespace Katydid
             std::vector< double > fSlewEndTimes;
             std::vector< double > fPriorSlices;
             int fPriorMean;
+            int fNumRunAvg;             //Number of time slices used for running average to determine if trap is off/ExB on. For old data with Vaunix at 18 GHz, use 7, for newer data with Vaunix at bin 301, use 1.
 
         public:
             bool GetOnOffTimes(KTSliceHeader& slHeader, KTPowerSpectrumData& spectrum);

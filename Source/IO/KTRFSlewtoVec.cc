@@ -25,10 +25,11 @@ namespace Katydid
 
     KTRFSlewtoVec::KTRFSlewtoVec(const std::string& name) :
             KTProcessor(name),
-            fPriorSlices({1.0,1.0,1.0,1.0,1.0,1.0,1.0}),
+            fNumRunAvg(1),
             fPriorMean(1),
             fSlewEndTimes(),
             fSlewStartTimes(),
+            fPriorSlices({1.0}),
             fFilename("SlewTimes.txt"),
             //fVecSignal("slew-vec", this),
             fPSSlot("ps", this, &KTRFSlewtoVec::GetOnOffTimes),
@@ -45,6 +46,9 @@ namespace Katydid
         if (node == NULL) return false;
 
         SetFilename(node->get_value("output-file", fFilename));
+        fNumRunAvg = node->get_value< int >("num-for-run-avg", fNumRunAvg);
+        // Create a vector filled with fNumRunAvg elements, all initialized to 1.0
+        std::vector<double> fPriorSlices(fNumRunAvg, 1.0);
         
         return true;
     }

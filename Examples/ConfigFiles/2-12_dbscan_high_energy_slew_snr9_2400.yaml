@@ -92,7 +92,7 @@ processor-toolbox:
         - spec2
 
 spec1:
-    filenames: ["/media/heather/T7/SpecFiles/NeTest_06202024/Freq_data_2024-06-20-12-04-11_0.spec","/media/heather/T7/SpecFiles/NeTest_06202024/Freq_data_2024-06-20-12-04-11_1.spec"]
+    filenames: ["/media/heather/T7/SpecFiles/NeTest_09112024/Freq_data_2024-09-11-13-38-19_0.spec","/media/heather/T7/SpecFiles/NeTest_09112024/Freq_data_2024-09-11-13-38-19_1.spec"]
     spectra: 1000
     packets-per-spec: 1
     header-bytes: 32
@@ -104,7 +104,7 @@ spec1:
     freq-bin-avg: 1   #must be a power of 2  -- adjust discrim and gainvar accordingly!
     
 spec2:
-    filenames: ["/media/heather/T7/SpecFiles/NeTest_06202024/Freq_data_2024-06-20-14-49-02_0.speck","/media/heather/T7/SpecFiles/NeTest_06202024/Freq_data_2024-06-20-14-49-02_1.speck"]
+    filenames: ["/media/heather/T7/SpecFiles/NeTest_09112024/Freq_data_2024-09-11-17-13-59_0.speck","/media/heather/T7/SpecFiles/NeTest_09112024/Freq_data_2024-09-11-17-13-59_1.speck"]
     spectra: 146484 #146484=1s
     packets-per-spec: 1
     header-bytes: 32
@@ -114,19 +114,20 @@ spec2:
     max-freq: 2400.0e6
     time-slice-avg: 1
     freq-bin-avg: 1   #must be a power of 2  -- adjust discrim and gainvar accordingly!    
-    TOff-bin: 342
+    TOff-bin: 301
     TOff-bin-pow: 25
 
 brw:
-    output-file: "/media/heather/T7/KatydidOutput/NeTest_06202024/Freq_data_2024-06-20-14-49-02.root"
+    output-file: "/media/heather/T7/KatydidOutput/NeTest_09112024/Freq_data_2024-09-11-17-13-59.root"
     file-flag: "recreate"
 
 rtw:
-    output-file: "/media/heather/T7/KatydidOutput/NeTest_06202024/Freq_data_2024-06-20-14-49-02.root"
+    output-file: "/media/heather/T7/KatydidOutput/NeTest_09112024/Freq_data_2024-09-11-17-13-59.root"
     file-flag: recreate
 
 stv:
-    output-file: "/media/heather/T7/KatydidOutput/NeTest_06202024/Freq_data_2024-06-20-14-49-02_SlewTimes.txt"
+    num-for-run-avg: 1 # For old data where the vaunix was at 18GHz, change this to 7! 1 = no running average
+    output-file: "/media/heather/T7/KatydidOutput/NeTest_09112024/Freq_data_2024-09-11-17-13-59_SlewTimes.txt"
 
 acc:
     number-to-average: 0
@@ -139,7 +140,7 @@ gainvar:
     fit-points: 300
 
 discrim:
-    min-bin: 342 #100MHz HPF
+    min-bin: 300 #NOT 100MHz HPF now below Vaunix at 301
     max-bin: 8191
     sigma-threshold: 9.0 # 4.2
     modulate: false
@@ -147,7 +148,7 @@ discrim:
 seq-tr-find:
     min-frequency: 105.0e6 # minimum frequency (in Hz)
     max-frequency: 2250.0e6 # maximum frequency (in Hz)
-    initial-slope : 38331313480.99209 #8.0e10 # slope of a track with 1 point (in Hz/s)
+    initial-slope : 138891536839.9646 #8.0e10 # slope of a track with 1 point (in Hz/s)
     slope-method: unweighted # method to update line slope after point collection
     n-slope-points: 10 # max points to include in the slope calculation
     time-gap-tolerance: 3.0e-4 # max gap between points in a line (in sec.) one time slice is 5.46×10^-5 seconds
@@ -162,5 +163,5 @@ tr-proc-ws:
     min-points: 3 # min points required to keep a processed track (fixed -H)
 
 dbscan:
-    radii: [0.00104353324,19165656.7405 ] #[5.0e-4,40.0e6] #double[2] -- array used to describe the distances that will be used to cluster tracks together; [time, frequency] [1.0e-3,2.0e6] NOTE that frequency/time should equal slope [5.0e-4,40.0e6]
+    radii: [0.0002879945,69445768.4199823 ] #[5.0e-4,40.0e6] #double[2] -- array used to describe the distances that will be used to cluster tracks together; [time, frequency] [1.0e-3,2.0e6] NOTE that frequency/time should equal slope [5.0e-4,40.0e6]
     min-points: 2 #minimum number of tracks required to have a cluster
