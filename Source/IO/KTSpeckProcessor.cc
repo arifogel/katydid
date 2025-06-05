@@ -221,7 +221,7 @@ namespace Katydid
                         slice[hpbIndex] += highPowerBin.second;
                         numHighPowerPoints += 1;
                         nonZeroBins.push_back(hpbIndex);
-                        KTDEBUG(specklog, "Adding high power point at slice: "<<i<<", bin: "<<hpbIndex<<", power: "<<int(highPowerBin.second));
+                        //KTDEBUG(specklog, "Adding high power point at slice: "<<i<<", bin: "<<hpbIndex<<", power: "<<int(highPowerBin.second));
                     }
                     else
                     {

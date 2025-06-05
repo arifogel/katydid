@@ -30,6 +30,7 @@ namespace Katydid
         MEMBERVARIABLE(Double_t, Amplitude);
         MEMBERVARIABLE(Double_t, TimeInAcq);
         MEMBERVARIABLE(Double_t, Mean);
+        MEMBERVARIABLE(Double_t, Tau);
         MEMBERVARIABLE(Double_t, Variance);
         MEMBERVARIABLE(Double_t, NeighborhoodAmplitude);
         MEMBERVARIABLE(UInt_t, BinInSlice);
@@ -122,6 +123,45 @@ namespace Katydid
             std::string GetBranchName() { return std::string("SequentialLine"); } // Defines the default name of the object saved inside the output tree
 
             ClassDef(TSequentialLineData, 1);
+    };
+
+    class TLongTrackData : public TObject
+    {
+        MEMBERVARIABLE(UInt_t, TrackId);
+
+        struct Point : public TObject {
+            MEMBERVARIABLE(UInt_t, TrackId)
+            MEMBERVARIABLE(Double_t, Frequency)
+            MEMBERVARIABLE(Double_t, Time)
+            MEMBERVARIABLE(Double_t, Amplitude)
+            MEMBERVARIABLE(Double_t, Threshold)
+            MEMBERVARIABLE(Double_t, SNR)
+            MEMBERVARIABLE(Double_t, NoiseMean)
+            MEMBERVARIABLE(Double_t, NoiseTau)
+            MEMBERVARIABLE(Double_t, NoiseVariance)
+            MEMBERVARIABLE(Double_t, TrackFinderLocalSlope)
+
+            ClassDef(Point, 1)
+        };
+
+
+    public:
+        TClonesArray* GetPoints() { return fPoints; }
+
+    private:
+        TClonesArray* fPoints;
+
+    public:
+        TLongTrackData();
+        TLongTrackData(const TLongTrackData& orig);
+        virtual ~TLongTrackData();
+        TObject* Clone(const char* newname="");
+        TLongTrackData& operator=(const TLongTrackData& rhs);
+
+        std::string GetBranchName() { return std::string("Track"); } // Defines the default name of the object saved inside the output tree
+
+        // This is necessary for ROOT's reflection (RTTI) system to read properties to/from ROOT files automagically
+        ClassDef(TLongTrackData, 1);
     };
 }
 

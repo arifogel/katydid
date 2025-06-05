@@ -42,6 +42,7 @@ namespace Katydid
                 unsigned fBinInSlice;
                 uint64_t fSliceNumber;
                 double fMean;
+                double fTau;
                 double fVariance;
                 double fNeighborhoodAmplitude;
                 //uint64_t fAcquisitionID;

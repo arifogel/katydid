@@ -38,6 +38,7 @@ namespace Katydid
     class KTTimeSeriesFFTW;
     class KTTimeSeriesReal;
     class KTPowerFitData;
+    class KTLongTrackData;
     class KTProcessedTrackData;
     class KTProcessedMPTData;
     class KTMultiTrackEventData;
@@ -50,6 +51,7 @@ namespace Katydid
 
     class TDiscriminatedPoint;
     class TSparseWaterfallCandidateData;
+    class TLongTrackData;
     class TSequentialLineData;
 
     class KT2ROOT
@@ -179,6 +181,7 @@ namespace Katydid
             //*********************************
 
             static void LoadSequentialLineData(const KTSequentialLineData& seqData, TSequentialLineData& rootSEQData);
+            static void LoadLongTrackData(const KTLongTrackData& ktData, Katydid::TLongTrackData& rootData);
             // static void UnloadSequentialLineData(KTSequentialLineData& seqData, const TSequentialLineData& rootSEQData);
 
     };

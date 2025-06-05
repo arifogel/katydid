@@ -21,6 +21,7 @@
 #include "KTSliceHeader.hh"
 #include "KTSparseWaterfallCandidateData.hh"
 #include "KTSequentialLineData.hh"
+#include "KTLongTrackData.hh"
 #include "KTWaterfallCandidateData.hh"
 #include "KTDiscriminatedPoint.hh"
 
@@ -58,6 +59,7 @@ namespace Katydid
                     fWaterfallCandidateTree(NULL),
                     fSparseWaterfallCandidateTree(NULL),
                     fSequentialLineTree(NULL),
+                    ftrackTree(NULL),
                     fProcessedMPTTree(NULL),
                     fProcessedTrackTree(NULL),
                     fMultiPeakTrackTree(NULL),
@@ -69,6 +71,7 @@ namespace Katydid
                     fWaterfallCandidateData(),
                     fSparseWaterfallCandidateDataPtr(NULL),
                     fSequentialLineDataPtr(NULL),
+                    fLongTrackDataPtr(NULL),
                     fProcessedTrackDataPtr(NULL),
                     fProcessedMPTDataPtr(NULL),
                     fMultiPeakTrackData(),
@@ -96,6 +99,7 @@ namespace Katydid
         fWriter->RegisterSlot("seq-cand", this, &KTROOTTreeTypeWriterEventAnalysis::WriteSequentialLine);
         fWriter->RegisterSlot("processed-mpt", this, &KTROOTTreeTypeWriterEventAnalysis::WriteProcessedMPT);
         fWriter->RegisterSlot("proc-track", this, &KTROOTTreeTypeWriterEventAnalysis::WriteProcessedTrack);
+        fWriter->RegisterSlot("long-track", this, &KTROOTTreeTypeWriterEventAnalysis::WriteLongTrack);
         fWriter->RegisterSlot("mp-track", this, &KTROOTTreeTypeWriterEventAnalysis::WriteMultiPeakTrack);
         fWriter->RegisterSlot("mt-event", this, &KTROOTTreeTypeWriterEventAnalysis::WriteMultiTrackEvent);
         fWriter->RegisterSlot("mte-with-cr", this, &KTROOTTreeTypeWriterEventAnalysis::WriteMTEWithClassifierResults);
@@ -555,6 +559,38 @@ namespace Katydid
         return true;
     }
 
+
+    //*********************
+    // Long Track Data
+    //*********************
+
+    void KTROOTTreeTypeWriterEventAnalysis::WriteLongTrack(Nymph::KTDataPtr data)
+    {
+        KTDEBUG(publog, "Attempting to write to sequential line root tree");
+        auto& ptData = data->Of< KTLongTrackData >();
+
+        if (! fWriter->OpenAndVerifyFile()) return;
+        fWriter->GetFile()->GetObject("tracks", ftrackTree);
+
+        if (ftrackTree == nullptr)
+        {
+            ftrackTree = new TTree("tracks", "Tracks");
+            fWriter->AddTree(ftrackTree);
+            // Root will use reflection (RTTI) to infer all the leaf names and addresses. This ability is provided by
+            // inheriting from TClass via TObject
+            ftrackTree->Branch(fLongTrackDataPtr->GetBranchName().c_str(), &fLongTrackDataPtr);
+        }
+        else
+        {
+            KTINFO(publog, "Tree already exists!");
+            fWriter->AddTree( ftrackTree );
+
+            ftrackTree->SetBranchAddress(fLongTrackDataPtr->GetBranchName().c_str(), &fLongTrackDataPtr);
+        }
+
+        KT2ROOT::LoadLongTrackData(ptData, *fLongTrackDataPtr);
+        ftrackTree->Fill();
+    }
 
     //*********************
     // Sequential Line Data

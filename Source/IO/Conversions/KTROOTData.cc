@@ -13,9 +13,13 @@
 
 #include <iostream>
 
+// These macros let ROOT use reflection (RTTI) on these classes to automatically find properties when writing to ROOT
+// files. TO make this work you also need to add the ClassDef macro to the header file and add an entry in IOLinkDef.hh
 ClassImp(Katydid::TDiscriminatedPoint);
 ClassImp(Katydid::TSparseWaterfallCandidateData);
 ClassImp(Katydid::TSequentialLineData);
+ClassImp(Katydid::TLongTrackData);
+ClassImp(Katydid::TLongTrackData::Point);
 
 namespace Katydid
 {
@@ -27,13 +31,13 @@ namespace Katydid
     TDiscriminatedPoint::TDiscriminatedPoint() :
             TObject(),
             fTimeInRunC(0), fFrequency(0), fAmplitude(0), fTimeInAcq(0),
-            fMean(0), fVariance(0),fNeighborhoodAmplitude(0)
+            fMean(0), fTau(0), fVariance(0),fNeighborhoodAmplitude(0)
     {}
 
     TDiscriminatedPoint::TDiscriminatedPoint(const TDiscriminatedPoint& orig) :
             TObject(orig),
             fTimeInRunC(orig.fTimeInRunC), fFrequency(orig.fFrequency), fAmplitude(orig.fAmplitude), fTimeInAcq(orig.fTimeInAcq),
-            fMean(orig.fMean), fVariance(orig.fVariance),fNeighborhoodAmplitude(orig.fNeighborhoodAmplitude)
+            fMean(orig.fMean), fTau(orig.fTau),fVariance(orig.fVariance),fNeighborhoodAmplitude(orig.fNeighborhoodAmplitude)
     {}
 
     TDiscriminatedPoint::~TDiscriminatedPoint()
@@ -48,7 +52,7 @@ namespace Katydid
     TDiscriminatedPoint& TDiscriminatedPoint::operator=(const TDiscriminatedPoint& rhs)
     {
         fTimeInRunC = rhs.fTimeInRunC; fFrequency = rhs.fFrequency; fAmplitude = rhs.fAmplitude; fTimeInAcq = rhs.fTimeInAcq;
-        fMean = rhs.fMean; fVariance = rhs.fVariance; fNeighborhoodAmplitude = rhs.fNeighborhoodAmplitude;
+        fMean = rhs.fMean; fTau = rhs.fTau; fVariance = rhs.fVariance; fNeighborhoodAmplitude = rhs.fNeighborhoodAmplitude;
         return *this;
     }
 
@@ -137,6 +141,39 @@ namespace Katydid
         fComponent = rhs.fComponent; fAcquisitionID = rhs.fAcquisitionID; fCandidateID = rhs.fCandidateID;
         fStartTimeInRunC = rhs.fStartTimeInRunC; fEndTimeInRunC = rhs.fEndTimeInRunC; fStartTimeInAcq = rhs.fStartTimeInAcq; fStartFrequency = rhs.fStartFrequency; fEndFrequency = rhs.fEndFrequency; fSlope = rhs.fSlope; 
         fTotalPower = rhs.fTotalPower; fTotalTrackSNR = rhs.fTotalTrackSNR; fTotalTrackNUP = rhs.fTotalTrackNUP; fTotalWidePower = rhs.fTotalWidePower; fTotalWideTrackSNR = rhs.fTotalWideTrackSNR; fTotalWideTrackNUP = rhs.fTotalWideTrackNUP;
+        fPoints->Clear(); (*fPoints) = *(rhs.fPoints);
+        return *this;
+    }
+
+    //************************
+    // TLongTrackData
+    //************************
+
+    TLongTrackData::TLongTrackData():
+            TObject(),
+            fTrackId(0)
+    {
+        fPoints = new TClonesArray("Katydid::TLongTrackData::Point", 20);
+    }
+
+    TLongTrackData::TLongTrackData(const TLongTrackData &orig) :
+            TObject(orig),
+            fTrackId(orig.fTrackId)
+    {
+        fPoints = new TClonesArray(*orig.fPoints);
+    }
+
+    TLongTrackData::~TLongTrackData() {
+        fPoints->Clear();
+        delete fPoints;
+    }
+
+    TObject *TLongTrackData::Clone(const char *newname) {
+        return new TLongTrackData(*this);
+    }
+
+    TLongTrackData &TLongTrackData::operator=(const TLongTrackData &rhs) {
+        fTrackId = rhs.fTrackId;
         fPoints->Clear(); (*fPoints) = *(rhs.fPoints);
         return *this;
     }
