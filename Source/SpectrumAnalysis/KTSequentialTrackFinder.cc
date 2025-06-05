@@ -31,11 +31,11 @@ namespace Katydid
     KTLOGGER(stflog, "KTSequentialTrackFinder");
 
     KTSequentialTrackFinder::STFDiscriminatedPoint::STFDiscriminatedPoint(KTDiscriminatedPoints1DData::SetOfPoints::const_iterator& pointIt, double newTimeInRunC, double newTimeInAcq) :
-            KTDiscriminatedPoint(newTimeInRunC, pointIt->second.fAbscissa, pointIt->second.fOrdinate, newTimeInAcq, pointIt->second.fMean, pointIt->second.fVariance, pointIt->second.fNeighborhoodAmplitude, pointIt->first)
+            KTDiscriminatedPoint(newTimeInRunC, pointIt->second.fAbscissa, pointIt->second.fOrdinate, newTimeInAcq, pointIt->second.fMean, pointIt->second.fTau, pointIt->second.fVariance, pointIt->second.fNeighborhoodAmplitude, pointIt->first)
     {}
 
     KTSequentialTrackFinder::STFDiscriminatedPoint::STFDiscriminatedPoint(KTKDTreeData::SetOfPoints::const_iterator& pointIt, double time, double frequency, double timeScaling) :
-            KTDiscriminatedPoint(time, frequency, pointIt->fAmplitude, pointIt->fTimeInAcq * timeScaling, pointIt->fMean, pointIt->fVariance, pointIt->fNeighborhoodAmplitude, pointIt->fBinInSlice)
+            KTDiscriminatedPoint(time, frequency, pointIt->fAmplitude, pointIt->fTimeInAcq * timeScaling, pointIt->fMean, pointIt->fTau, pointIt->fVariance, pointIt->fNeighborhoodAmplitude, pointIt->fBinInSlice)
     {}
 
 

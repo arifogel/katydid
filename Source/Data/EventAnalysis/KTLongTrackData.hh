@@ -2,8 +2,8 @@
  @file KTSequentialLineData.hh
  @brief Contains KTSequentialLineData
  @details KTDiscriminatedPoint cluster with some track properties
- @author: C. Claessens
- @date: May 31, 2018
+ @author: agorman
+ @date: March 7, 2024
  */
 
 #ifndef KTLONGLINEDATA_HH
@@ -49,13 +49,14 @@ namespace Katydid
             double Threshold;
             double SNR;
             double NoiseMean;
+            double NoiseTau;
             double NoiseVariance;
             // Slope that the track finder computes to project forward when finding *next* point
             // Embedded here for debugging/observability as well as to memoize slope calculation which happens a lot
             double TrackFinderLocalSlope;
 
-            Point(double time, double frequency, double amplitude, double threshold, double snr, double noiseMean, double noiseVariance, double trackFinderLocalSlope) :
-                Time(time), Frequency(frequency), Amplitude(amplitude), Threshold(threshold), SNR(snr), NoiseMean(noiseMean),
+            Point(double time, double frequency, double amplitude, double threshold, double snr, double noiseMean, double noiseTau, double noiseVariance, double trackFinderLocalSlope) :
+                Time(time), Frequency(frequency), Amplitude(amplitude), Threshold(threshold), SNR(snr), NoiseMean(noiseMean), NoiseTau(noiseTau),
                 NoiseVariance(noiseVariance), TrackFinderLocalSlope(trackFinderLocalSlope) {}
         };
 

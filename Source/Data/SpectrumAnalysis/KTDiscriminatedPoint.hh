@@ -20,11 +20,12 @@ namespace Katydid
         double fAmplitude;
         double fTimeInAcq;
         double fMean;
+        double fTau;
         double fVariance;
         double fNeighborhoodAmplitude;
         unsigned fBinInSlice;
-        KTDiscriminatedPoint(double tirc, double freq, double amp, double tiacq, double mean, double variance, double neighborhoodAmplitude, unsigned bis) :
-            fTimeInRunC(tirc), fFrequency(freq), fAmplitude(amp), fTimeInAcq(tiacq), fMean(mean), fVariance(variance), fNeighborhoodAmplitude(neighborhoodAmplitude), fBinInSlice(bis)
+        KTDiscriminatedPoint(double tirc, double freq, double amp, double tiacq, double mean, double tau, double variance, double neighborhoodAmplitude, unsigned bis) :
+            fTimeInRunC(tirc), fFrequency(freq), fAmplitude(amp), fTimeInAcq(tiacq), fMean(mean), fTau(tau), fVariance(variance), fNeighborhoodAmplitude(neighborhoodAmplitude), fBinInSlice(bis)
         {}
 
     };

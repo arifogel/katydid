@@ -105,8 +105,10 @@ namespace Katydid
                 fDiscPoints1DData.fOrdinate = it->second.fOrdinate;
                 fDiscPoints1DData.fThreshold = it->second.fThreshold;
                 fDiscPoints1DData.fMean = it->second.fMean;
+                fDiscPoints1DData.fTau = it->second.fTau;
                 fDiscPoints1DData.fVariance = it->second.fVariance;
                 fDiscPoints1DData.fNeighborhoodAmplitude = it->second.fNeighborhoodAmplitude;
+                fDiscPoints1DData.fSNR = it->second.fOrdinate/it->second.fTau;
 
                 fDiscPoints1DTree->Fill();
             }
@@ -136,9 +138,10 @@ namespace Katydid
                 fDiscPoints1DTree->SetBranchAddress("Ordinate", &fDiscPoints1DData.fOrdinate);
                 fDiscPoints1DTree->SetBranchAddress("Threshold", &fDiscPoints1DData.fThreshold);
                 fDiscPoints1DTree->SetBranchAddress("Mean", &fDiscPoints1DData.fMean);
+                fDiscPoints1DTree->SetBranchAddress("Tau", &fDiscPoints1DData.fTau);
                 fDiscPoints1DTree->SetBranchAddress("Variance", &fDiscPoints1DData.fVariance);
                 fDiscPoints1DTree->SetBranchAddress("NeighborhoodAmplitude", &fDiscPoints1DData.fNeighborhoodAmplitude);
-
+                fDiscPoints1DTree->SetBranchAddress("SNR", &fDiscPoints1DData.fSNR);
                 return true;
             }
         }
@@ -163,8 +166,10 @@ namespace Katydid
         fDiscPoints1DTree->Branch("Ordinate", &fDiscPoints1DData.fOrdinate, "fOrdinate/d");
         fDiscPoints1DTree->Branch("Threshold", &fDiscPoints1DData.fThreshold, "fThreshold/d");
         fDiscPoints1DTree->Branch("Mean", &fDiscPoints1DData.fMean, "fMean/d");
+        fDiscPoints1DTree->Branch("Tau", &fDiscPoints1DData.fTau, "fTau/d");
         fDiscPoints1DTree->Branch("Variance", &fDiscPoints1DData.fVariance, "fVariance/d");
         fDiscPoints1DTree->Branch("NeighborhoodAmplitude", &fDiscPoints1DData.fNeighborhoodAmplitude, "fNeighborhoodAmplitude/d");
+        fDiscPoints1DTree->Branch("SNR", &fDiscPoints1DData.fSNR, "fSNR/d");
         //fDiscPoints1DTree->Branch("freqAnalysis", &fDiscPoints1DData.fComponent, "fComponent/s:fSlice/l:fTimeInRun/d:f/d:fFirstBin/i:fLastBin/i:fMeanFrequency/d:fPeakAmplitude/d");
 
         return true;

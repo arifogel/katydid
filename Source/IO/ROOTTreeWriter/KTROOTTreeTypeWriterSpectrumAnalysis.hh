@@ -38,9 +38,11 @@ namespace Katydid
         Double_t fAbscissa;
         Double_t fOrdinate;
         Double_t fThreshold;
-        Double_t fMean; //<-
-        Double_t fVariance; //<-
+        Double_t fMean; //<- observed noise mean
+        Double_t fTau; //<- inferened noise mean before quantization
+        Double_t fVariance; //<- observed noise variance 
         Double_t fNeighborhoodAmplitude; //<-
+        Double_t fSNR; //<- SNR using Tau
     };
 
     struct TKDTreePointData

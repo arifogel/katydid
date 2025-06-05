@@ -30,6 +30,7 @@ namespace Katydid
         MEMBERVARIABLE(Double_t, Amplitude);
         MEMBERVARIABLE(Double_t, TimeInAcq);
         MEMBERVARIABLE(Double_t, Mean);
+        MEMBERVARIABLE(Double_t, Tau);
         MEMBERVARIABLE(Double_t, Variance);
         MEMBERVARIABLE(Double_t, NeighborhoodAmplitude);
         MEMBERVARIABLE(UInt_t, BinInSlice);
@@ -136,6 +137,7 @@ namespace Katydid
             MEMBERVARIABLE(Double_t, Threshold)
             MEMBERVARIABLE(Double_t, SNR)
             MEMBERVARIABLE(Double_t, NoiseMean)
+            MEMBERVARIABLE(Double_t, NoiseTau)
             MEMBERVARIABLE(Double_t, NoiseVariance)
             MEMBERVARIABLE(Double_t, TrackFinderLocalSlope)
 

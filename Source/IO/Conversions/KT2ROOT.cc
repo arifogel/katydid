@@ -913,6 +913,7 @@ namespace Katydid
             point->SetAmplitude(pIt->fAmplitude);
             point->SetTimeInAcq(pIt->fTimeInAcq);
             point->SetMean(pIt->fMean);
+            point->SetTau(pIt->fTau);
             point->SetVariance(pIt->fVariance);
             point->SetNeighborhoodAmplitude(pIt->fNeighborhoodAmplitude);
             point->SetBinInSlice(pIt->fBinInSlice);
@@ -960,6 +961,7 @@ namespace Katydid
             point->SetAmplitude(pIt->fAmplitude);
             point->SetTimeInAcq(pIt->fTimeInAcq);
             point->SetMean(pIt->fMean);
+            point->SetTau(pIt->fTau);
             point->SetVariance(pIt->fVariance);
             point->SetNeighborhoodAmplitude(pIt->fNeighborhoodAmplitude);
             ++iPoint;
@@ -984,6 +986,7 @@ namespace Katydid
             point->SetTrackFinderLocalSlope(pIt.TrackFinderLocalSlope);
             point->SetNoiseVariance(pIt.NoiseVariance);
             point->SetNoiseMean(pIt.NoiseMean);
+            point->SetNoiseTau(pIt.NoiseTau);
             point->SetSNR(pIt.SNR);
             ++iPoint;
         }

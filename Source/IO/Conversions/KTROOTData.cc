@@ -31,13 +31,13 @@ namespace Katydid
     TDiscriminatedPoint::TDiscriminatedPoint() :
             TObject(),
             fTimeInRunC(0), fFrequency(0), fAmplitude(0), fTimeInAcq(0),
-            fMean(0), fVariance(0),fNeighborhoodAmplitude(0)
+            fMean(0), fTau(0), fVariance(0),fNeighborhoodAmplitude(0)
     {}
 
     TDiscriminatedPoint::TDiscriminatedPoint(const TDiscriminatedPoint& orig) :
             TObject(orig),
             fTimeInRunC(orig.fTimeInRunC), fFrequency(orig.fFrequency), fAmplitude(orig.fAmplitude), fTimeInAcq(orig.fTimeInAcq),
-            fMean(orig.fMean), fVariance(orig.fVariance),fNeighborhoodAmplitude(orig.fNeighborhoodAmplitude)
+            fMean(orig.fMean), fTau(orig.fTau),fVariance(orig.fVariance),fNeighborhoodAmplitude(orig.fNeighborhoodAmplitude)
     {}
 
     TDiscriminatedPoint::~TDiscriminatedPoint()
@@ -52,7 +52,7 @@ namespace Katydid
     TDiscriminatedPoint& TDiscriminatedPoint::operator=(const TDiscriminatedPoint& rhs)
     {
         fTimeInRunC = rhs.fTimeInRunC; fFrequency = rhs.fFrequency; fAmplitude = rhs.fAmplitude; fTimeInAcq = rhs.fTimeInAcq;
-        fMean = rhs.fMean; fVariance = rhs.fVariance; fNeighborhoodAmplitude = rhs.fNeighborhoodAmplitude;
+        fMean = rhs.fMean; fTau = rhs.fTau; fVariance = rhs.fVariance; fNeighborhoodAmplitude = rhs.fNeighborhoodAmplitude;
         return *this;
     }
 

@@ -2,8 +2,8 @@
  @file KTLongTrackData.cc
  @brief Contains KTLongTrackData
  @details KTDiscriminatedPoint cluster with some track properties
- @author: C. Claessens
- @date: May 31, 2018
+ @author: agorman
+ @date: March 7, 2024
  */
 #include <KTLongTrackData.hh>
 

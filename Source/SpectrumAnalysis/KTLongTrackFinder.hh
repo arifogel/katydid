@@ -41,6 +41,7 @@ namespace Katydid
      - "min-bin": can be set instead of min frequency
      - "max-bin": can be set instead of  max frequency
      - "frequency-acceptance": maximum allowed frequency distance of point to an extrapolated line (in Hz)
+     - "time-gap-tolerance": max time gap before track is deemed over.
      - "initial-frequency-acceptance": if the line that a point is being compared to, only has a single point so far, this is the accepted frequency acceptance. Default is frequency_acceptance
      - "initial-time-acceptance": if the line that a point is being compared to, only has a single point so far, this is the accepted time window. Default is time-gap-tolerance
      - "initial-slope": if a line has only one point, this is the line's slope
@@ -70,7 +71,7 @@ namespace Katydid
         {
             bool operator() (const KTDiscriminatedPoints1DData::Point& lhs, const KTDiscriminatedPoints1DData::Point& rhs) const
             {
-                return lhs.fOrdinate < rhs.fOrdinate;
+                return lhs.fAbscissa < rhs.fAbscissa;
             }
         };
 

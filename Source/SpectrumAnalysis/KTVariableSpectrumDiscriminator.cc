@@ -470,6 +470,7 @@ namespace Katydid
                 double value = (*spectrum)(iBin).abs();
                 double threshold = thresholdMult * (*splineImp)(iBin - fMinBin);
                 double mean = (*splineImp)(iBin - fMinBin);
+                double tau = 1.0 / std::log(1.0 + 1.0 / mean); //"True" noise power pre-rounding!
                 double variance = (*varSplineImp)(iBin - fMinBin);
                 if (value >= threshold)
                 {
@@ -488,7 +489,7 @@ namespace Katydid
                         neighborhoodAmplitude = neighborhoodAmplitude - ( 2 * fNeighborhoodRadius ) * mean;
                     }
 
-                    newData.AddPoint(iBin, KTDiscriminatedPoints1DData::Point(binWidth * ((double)iBin), value, threshold, mean, variance, neighborhoodAmplitude), component);
+                    newData.AddPoint(iBin, KTDiscriminatedPoints1DData::Point(binWidth * ((double)iBin), value, threshold, mean, tau, variance, neighborhoodAmplitude), component);
                 }
             }
         }
@@ -501,6 +502,7 @@ namespace Katydid
             for (unsigned iBin=fMinBin; iBin<=fMaxBin; ++iBin)
             {
                 double mean = (*splineImp)(iBin - fMinBin);
+                double tau = 1.0 / std::log(1.0 + 1.0 / mean); //"True" noise power pre-rounding!
                 double variance = (*varSplineImp)(iBin - fMinBin);
                 double threshold = mean + fSigmaThreshold * sqrt( variance );
                 double value = (*spectrum)(iBin).abs();
@@ -521,7 +523,7 @@ namespace Katydid
                         neighborhoodAmplitude = neighborhoodAmplitude - ( 2 * fNeighborhoodRadius ) * mean;
                     }
 
-                    newData.AddPoint(iBin, KTDiscriminatedPoints1DData::Point(binWidth * ((double)iBin), value, threshold, mean, variance, neighborhoodAmplitude), component);
+                    newData.AddPoint(iBin, KTDiscriminatedPoints1DData::Point(binWidth * ((double)iBin), value, threshold, mean, tau, variance, neighborhoodAmplitude), component);
                 }
             }
         }
@@ -574,6 +576,7 @@ namespace Katydid
                 double value = sqrt((*spectrum)(iBin)[0] * (*spectrum)(iBin)[0] + (*spectrum)(iBin)[1] * (*spectrum)(iBin)[1]);
                 double threshold = thresholdMult * (*splineImp)(iBin - fMinBin);
                 double mean = (*splineImp)(iBin - fMinBin);
+                double tau = 1.0 / std::log(1.0 + 1.0 / mean); //"True" noise power pre-rounding!
                 double variance = (*varSplineImp)(iBin - fMinBin);
 
                 if (value >= threshold)
@@ -592,7 +595,7 @@ namespace Katydid
                         neighborhoodAmplitude = neighborhoodAmplitude - ( 2 * fNeighborhoodRadius ) * mean;
                     }
 
-                    newData.AddPoint(iBin, KTDiscriminatedPoints1DData::Point(binWidth * ((double)iBin), value, threshold, mean, variance, neighborhoodAmplitude), component);
+                    newData.AddPoint(iBin, KTDiscriminatedPoints1DData::Point(binWidth * ((double)iBin), value, threshold, mean, tau, variance, neighborhoodAmplitude), component);
                 }
             }
         }
@@ -605,6 +608,7 @@ namespace Katydid
             for (unsigned iBin=fMinBin; iBin<=fMaxBin; ++iBin)
             {
                 double mean = (*splineImp)(iBin - fMinBin);
+                double tau = 1.0 / std::log(1.0 + 1.0 / mean); //"True" noise power pre-rounding!
                 double variance = (*varSplineImp)(iBin - fMinBin);
                 double threshold = mean + fSigmaThreshold * sqrt( variance );
                 double value = sqrt((*spectrum)(iBin)[0] * (*spectrum)(iBin)[0] + (*spectrum)(iBin)[1] * (*spectrum)(iBin)[1]);
@@ -624,7 +628,7 @@ namespace Katydid
                         neighborhoodAmplitude = neighborhoodAmplitude - ( 2 * fNeighborhoodRadius ) * mean;
                     }
 
-                    newData.AddPoint(iBin, KTDiscriminatedPoints1DData::Point(binWidth * ((double)iBin), value, threshold, mean, variance, neighborhoodAmplitude), component);
+                    newData.AddPoint(iBin, KTDiscriminatedPoints1DData::Point(binWidth * ((double)iBin), value, threshold, mean, tau, variance, neighborhoodAmplitude), component);
                 }
             }
         }
@@ -689,25 +693,30 @@ namespace Katydid
 
                 double value = (*spectrum)(iBin);
                 double mean = (*splineImp)(iBin - fMinBin);
-                double threshold = thresholdMult * mean + mod;
+                double tau = 1.0 / std::log(1.0 + 1.0 / mean); //"True" noise power pre-rounding!
+                double threshold = thresholdMult * tau + mod;
                 double variance = (*varSplineImp)(iBin - fMinBin);
+
                 if (value >= threshold)
                 {
+                    KTWARN(sdlog, "Overthresh! ");
+                    KTDEBUG(sdlog, "mean: " << mean << ", tau: " << tau << ", threshold: "<<threshold<<", power: "<<value);
+
                     double neighborhoodAmplitude = 0.;
                     this->SumAdjacentBinAmplitude(spectrum, neighborhoodAmplitude, iBin);
                     if( fNormalize )
                     {
-                        value = normalizedValue + (value - mean) * sqrt( normalizedVariance / variance );
-                        neighborhoodAmplitude = normalizedValue + ( neighborhoodAmplitude - ( 2 * fNeighborhoodRadius+1 ) * mean ) * sqrt( normalizedVariance / variance );
-                        mean = normalizedValue;
+                        value = normalizedValue + (value - tau) * sqrt( normalizedVariance / variance );
+                        neighborhoodAmplitude = normalizedValue + ( neighborhoodAmplitude - ( 2 * fNeighborhoodRadius+1 ) * tau ) * sqrt( normalizedVariance / variance );
+                        tau = normalizedValue;
                         variance = normalizedVariance;
                     }
                     else
                     {
-                        neighborhoodAmplitude = neighborhoodAmplitude - ( 2 * fNeighborhoodRadius ) * mean;
+                        neighborhoodAmplitude = neighborhoodAmplitude - ( 2 * fNeighborhoodRadius ) * tau;
                     }
 
-                    newData.AddPoint(iBin, KTDiscriminatedPoints1DData::Point(binWidth * ((double)iBin), value, threshold, mean, variance, neighborhoodAmplitude), component);
+                    newData.AddPoint(iBin, KTDiscriminatedPoints1DData::Point(binWidth * ((double)iBin), value, threshold, mean, tau, variance, neighborhoodAmplitude), component);
                 }
             }
         }
@@ -722,6 +731,7 @@ namespace Katydid
             for (unsigned iBin=fMinBin; iBin<=fMaxBin; ++iBin)
             {
                 double mean = (*splineImp)(iBin - fMinBin);
+                double tau = 1.0 / std::log(1.0 + 1.0 / mean); //"True" noise power pre-rounding!
                 double variance = (*varSplineImp)(iBin - fMinBin);
                 double threshold = mean + fSigmaThreshold * sqrt( variance );
                 double value = (*spectrum)(iBin);
@@ -741,7 +751,7 @@ namespace Katydid
                         neighborhoodAmplitude = neighborhoodAmplitude - ( 2 * fNeighborhoodRadius ) * mean;
                     }
 
-                    newData.AddPoint(iBin, KTDiscriminatedPoints1DData::Point(binWidth * ((double)iBin), value, threshold, mean, variance, neighborhoodAmplitude), component);
+                    newData.AddPoint(iBin, KTDiscriminatedPoints1DData::Point(binWidth * ((double)iBin), value, threshold, mean, tau, variance, neighborhoodAmplitude), component);
                 }
             }
         }
