@@ -94,6 +94,8 @@ namespace Katydid
         fDiscPoints1DData.fPacket = header.GetPacketNumber();
         fDiscPoints1DData.fTrapOff = header.GetIsTrapOff();
         fDiscPoints1DData.fTimeInRunC = header.GetTimeInRun() + 0.5 * header.GetSliceLength();
+        fDiscPoints1DData.fTimeInAcqC = header.GetTimeInAcq() + 0.5 * header.GetSliceLength();
+        fDiscPoints1DData.fAcquisitionID = header.GetAcquisitionID();
 
         for (fDiscPoints1DData.fComponent = 0; fDiscPoints1DData.fComponent < fcData.GetNComponents(); fDiscPoints1DData.fComponent++)
         {
@@ -132,6 +134,8 @@ namespace Katydid
                 fDiscPoints1DTree->SetBranchAddress("Packet", &fDiscPoints1DData.fPacket);
                 fDiscPoints1DTree->SetBranchAddress("TrapOff", &fDiscPoints1DData.fTrapOff);
                 fDiscPoints1DTree->SetBranchAddress("TimeInRunC", &fDiscPoints1DData.fTimeInRunC);
+                fDiscPoints1DTree->SetBranchAddress("TimeInAcqC", &fDiscPoints1DData.fTimeInAcqC);
+                fDiscPoints1DTree->SetBranchAddress("AcquisitionID", &fDiscPoints1DData.fAcquisitionID);
                 fDiscPoints1DTree->SetBranchAddress("Component", &fDiscPoints1DData.fComponent);
                 fDiscPoints1DTree->SetBranchAddress("Bin", &fDiscPoints1DData.fBin);
                 fDiscPoints1DTree->SetBranchAddress("Abscissa", &fDiscPoints1DData.fAbscissa);
@@ -160,6 +164,8 @@ namespace Katydid
         fDiscPoints1DTree->Branch("Packet", &fDiscPoints1DData.fPacket, "fPacket/i");
         fDiscPoints1DTree->Branch("TrapOff", &fDiscPoints1DData.fTrapOff, "fTrapOff/i");
         fDiscPoints1DTree->Branch("TimeInRunC", &fDiscPoints1DData.fTimeInRunC, "fTimeInRunC/d");
+        fDiscPoints1DTree->Branch("TimeInAcqC", &fDiscPoints1DData.fTimeInAcqC, "fTimeInAcqC/d");
+        fDiscPoints1DTree->Branch("AcquisitionID", &fDiscPoints1DData.fAcquisitionID, "fAcquisitionID/d");
         fDiscPoints1DTree->Branch("Component", &fDiscPoints1DData.fComponent, "fComponent/i");
         fDiscPoints1DTree->Branch("Bin", &fDiscPoints1DData.fBin, "fBin/i");
         fDiscPoints1DTree->Branch("Abscissa", &fDiscPoints1DData.fAbscissa, "fAbscissa/d");

@@ -53,9 +53,10 @@ namespace Katydid
 
 
         private:
-            std::vector< double > fSlewStartTimes;
-            std::vector< double > fSlewEndTimes;
+            std::vector< double > fAcqStartTimes;
+            std::vector< double > fAcqEndTimes;
             std::vector< double > fPriorSlices;
+            int fCurrentAcqID = 0;
             int fPriorMean;
             int fNumRunAvg;             //Number of time slices used for running average to determine if trap is off/ExB on. For old data with Vaunix at 18 GHz, use 7, for newer data with Vaunix at bin 301, use 1.
 

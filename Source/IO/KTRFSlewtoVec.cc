@@ -27,8 +27,8 @@ namespace Katydid
             KTProcessor(name),
             fNumRunAvg(1),
             fPriorMean(1),
-            fSlewEndTimes(),
-            fSlewStartTimes(),
+            fAcqEndTimes(),
+            fAcqStartTimes(),
             fPriorSlices({1.0}),
             fFilename("SlewTimes.txt"),
             //fVecSignal("slew-vec", this),
@@ -59,26 +59,36 @@ namespace Katydid
         uint64_t sliceNum = slHeader.GetSliceNumber();
         double timeInRun = slHeader.GetTimeInRun();
 
-        //update vector of last 5 slice on/off status
+        // update vector of last 5 slice on/off status
         fPriorSlices.erase(fPriorSlices.begin());
         fPriorSlices.push_back(isTrapOff);
 
         auto const count = static_cast<float>(fPriorSlices.size());
         double mean = std::round(std::accumulate(fPriorSlices.begin(), fPriorSlices.end(),0) / count);
 
-        if (mean != fPriorMean)
+        if (mean != fPriorMean) // Detects a trap state change (smoothed)
         {
             if (isTrapOff == 0){
                 if (sliceNum <= count){
-                    fSlewStartTimes.push_back(0);
+                    fAcqStartTimes.push_back(0);
                 }
-                else fSlewStartTimes.push_back(timeInRun);
+                else fAcqStartTimes.push_back(timeInRun);
+                fCurrentAcqID++ ; // new acquisition started
             }
-            else fSlewEndTimes.push_back(timeInRun);
+            else fAcqEndTimes.push_back(timeInRun);
 
             KTDEBUG(slewlog, "Slew break detected at " << timeInRun);
         }
-
+        // if you haven’t yet hit a clear transition to acquisition start, you're still in acquisition 0
+        if (fAcqStartTimes.empty()){ 
+            slHeader.SetAcquisitionID(0);
+            slHeader.SetTimeInAcq(timeInRun-0); // time since start of run
+        }
+        else{
+            slHeader.SetAcquisitionID(fCurrentAcqID);
+            slHeader.SetTimeInAcq(timeInRun-fAcqStartTimes.back());
+        }
+        
         fPriorMean = mean;
         return true;
     }
@@ -91,10 +101,10 @@ namespace Katydid
         //temp: write vector to file for testing
         std::ofstream outFile(fFilename);
         outFile << "Time_On,Time_Off\n";
-        KTINFO(slewlog, "fSlewEndTimes length: " << fSlewEndTimes.size());
-        if (fSlewEndTimes.size() > 0 ){
-            for (int i = 0; i < fSlewStartTimes.size(); i++){
-                outFile << fSlewStartTimes[i] << "," << fSlewEndTimes[i] << "\n";
+        KTINFO(slewlog, "fAcqEndTimes length: " << fAcqEndTimes.size());
+        if (fAcqEndTimes.size() > 0 ){
+            for (int i = 0; i < fAcqStartTimes.size(); i++){
+                outFile << fAcqStartTimes[i] << "," << fAcqEndTimes[i] << "\n";
             }
         }
         else{

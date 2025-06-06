@@ -33,6 +33,8 @@ namespace Katydid
         UInt_t fPacket;
         UInt_t fTrapOff;
         Double_t fTimeInRunC; // bin center on the time axis
+        Double_t fTimeInAcqC; // bin center on the time axis relative to most recent acq start
+        Double_t fAcquisitionID;
         UInt_t fComponent;
         UInt_t fBin;
         Double_t fAbscissa;

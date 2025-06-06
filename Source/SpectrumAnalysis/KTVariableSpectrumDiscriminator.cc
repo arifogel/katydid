@@ -699,8 +699,7 @@ namespace Katydid
 
                 if (value >= threshold)
                 {
-                    KTWARN(sdlog, "Overthresh! ");
-                    KTDEBUG(sdlog, "mean: " << mean << ", tau: " << tau << ", threshold: "<<threshold<<", power: "<<value);
+                    KTDEBUG(sdlog, "Overthresh! mean: " << mean << ", tau: " << tau << ", threshold: "<<threshold<<", power: "<<value);
 
                     double neighborhoodAmplitude = 0.;
                     this->SumAdjacentBinAmplitude(spectrum, neighborhoodAmplitude, iBin);
