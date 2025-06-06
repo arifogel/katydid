@@ -31,7 +31,7 @@ namespace Katydid
             fInitialFrequencyAcceptance(0.0),
             fInitialTimeAcceptance(0.0),
             fMinPoints(3),
-            fMaxPoints(10000),
+            fMaxPoints(1e8),
             fMinSlope(0.0),
             fInitialSlope(3.0*pow(10,8)),
             fNSlopePoints(5),
@@ -141,6 +141,7 @@ namespace Katydid
 
             for(auto trackIt = fActiveLines.begin(); trackIt != fActiveLines.end();) {
                 if(timeInRunC - trackIt->GetPoints().back().Time > fTimeGapTolerance or trackIt->GetPoints().size() >= fMaxPoints) {
+                    KTDEBUG(stflog, "trackIt->GetPoints().back().Time "<<trackIt->GetPoints().back().Time);
                     HandleFinishedTrack(*trackIt); // let the vector sort itself by earliest track instead of longest track
                     trackIt = fActiveLines.erase(trackIt);
                 } else {
@@ -175,7 +176,7 @@ namespace Katydid
             double timeInRunC) const {
         for (auto& track : tracks) {
             if(points.empty()) { break; }  // Break early when we run out of points
-
+                //KTDEBUG(stflog, "Checking for matched for track with track.GetPoints().size() "<<track.GetPoints().size());
             std::vector<KTDiscriminatedPoints1DData::Point> matchingPoints = GetPointsNearTrack(points, track, timeInRunC);
             if(matchingPoints.size()>0){
                 KTDEBUG(stflog, "Number of matching points: " << matchingPoints.size());
@@ -198,14 +199,23 @@ namespace Katydid
                 slopeCalcPoints.emplace_back(timeInRunC, bestPoint->fAbscissa);
 
                 auto localSlope = CalculateLocalSlope(slopeCalcPoints);
-                track.AddPoint(CreatePoint(*bestPoint, timeInRunC, localSlope));
-
+                //track.AddPoint(CreatePoint(*bestPoint, timeInRunC, localSlope));
+                
                 // Consume all points that were near the track, even if we didn't select them. This is because tracks are
                 // assumed to be spaced quite far apart, so it's just easier to use a more naive algorithm here.
-                //for (auto& matchingPoint : matchingPoints) { points.erase(matchingPoint); }
                 for (auto& matchingPoint : matchingPoints) {
                     track.AddPoint(CreatePoint(matchingPoint, timeInRunC, localSlope));
+                    points.erase(matchingPoint); 
                 }
+                if(matchingPoints.size()>0){
+                    KTDEBUG(stflog, "Number of points left in slice after adding those to track: " << points.size());
+                }
+                
+
+                // Throw out all other points that were near the track, even if we didn't select them. This is because tracks are
+                // assumed to be spaced quite far apart, so it's just easier to use a more naive algorithm here.
+                //for (auto& matchingPoint : matchingPoints) { points.erase(matchingPoint); }
+
             }
         }
     }
@@ -216,16 +226,13 @@ namespace Katydid
             const STFFrequencySortedPoints& sortedPoints, const KTLongTrackData& track, double timeInRunC) const {
 
         // We can do some cool binary search or whatever to speed things up.
-        // This will just look at every point until we find the first matching point
+        // This will just look at every point to find matching points
         std::vector<KTDiscriminatedPoints1DData::Point> pointsToConsider;
         for (auto& point : sortedPoints) {
             if(DoesPointMatchLine(track, timeInRunC, point.fAbscissa)) {
                 pointsToConsider.push_back(point);
-                KTWARN(stflog, "Added point to line!");
-            } else {
-                // Once we start missing points, break since we won't find any ever again since the points are sorted
-                break;
-            }
+                KTDEBUG(stflog, "Added point to line!");
+            } 
         }
 
         return pointsToConsider;
@@ -239,13 +246,21 @@ namespace Katydid
 
         // Frequency we would expect a point matching this track to be at
         double predictedFrequency = trackPoints.back().Frequency + trackPoints.back().TrackFinderLocalSlope * deltaTime;
+        //KTDEBUG(stflog, "predicted Frequency: " << predictedFrequency<<", newFrequency: "<<newFrequency);
         // Difference between predicted frequency for this track and the observed frequency of this point
         double predictedActualFrequencyDelta = std::abs(newFrequency - predictedFrequency);
-        //KTDEBUG(stflog, "predictedActualFrequencyDelta" << predictedActualFrequencyDelta);
-
+        
+        /*
         if(trackPoints.size() == 1 and predictedActualFrequencyDelta < fInitialFrequencyAcceptance and deltaTime < fInitialTimeAcceptance) {
+            KTINFO(stflog, "second point to a track! fInitialFrequencyAcceptance: "<<fInitialFrequencyAcceptance<<" fInitialTimeAcceptance: "<<fInitialTimeAcceptance<<" predictedActualFrequencyDelta: " << predictedActualFrequencyDelta);
             return true;
         } else if(predictedActualFrequencyDelta < fFrequencyAcceptance) {
+            KTWARN(stflog, "Subsiquent points to a track! fFrequencyAcceptance: "<<fFrequencyAcceptance<<" predictedActualFrequencyDelta: "<<predictedActualFrequencyDelta);
+            return true;
+        }
+        */
+        if(predictedActualFrequencyDelta < fFrequencyAcceptance) {
+            KTDEBUG(stflog, "Subsiquent points to a track! fFrequencyAcceptance: "<<fFrequencyAcceptance<<" predictedActualFrequencyDelta: "<<predictedActualFrequencyDelta);
             return true;
         }
 
@@ -262,6 +277,7 @@ namespace Katydid
     void KTLongTrackFinder::EmitPreCandidate(KTLongTrackData& track)
     {
         KTDEBUG(stflog, "emitting candidate");
+        KTDEBUG(stflog, "emitting candidate with " << track.GetPoints().size() << " points");
 
         // Set up new data object
         Nymph::KTDataPtr data(new Nymph::KTData());
@@ -299,7 +315,7 @@ namespace Katydid
      */
     double KTLongTrackFinder::CalculateLocalSlope(const std::vector<std::pair<double, double>>& points) const {
         for (const auto& p : points) {
-            KTWARN(stflog, "Time: " << p.first << ", Frequency: " << p.second);
+            KTDEBUG(stflog, "Time: " << p.first << ", Frequency: " << p.second);
         }
         if(points.size() == 1) {
             return fInitialSlope;
@@ -317,7 +333,7 @@ namespace Katydid
             sumXX += pointIt->first * pointIt->first;
             pointIt++;
         }
-        KTWARN(stflog, "CalcLocalSlope: " << (maxPoints * sumXY - sumX * sumY)/(sumXX * maxPoints - sumX * sumX));
+        KTDEBUG(stflog, "CalcLocalSlope: " << (maxPoints * sumXY - sumX * sumY)/(sumXX * maxPoints - sumX * sumX));
         return (maxPoints * sumXY - sumX * sumY)/(sumXX * maxPoints - sumX * sumX);
     }
 
