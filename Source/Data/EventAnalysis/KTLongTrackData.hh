@@ -44,7 +44,9 @@ namespace Katydid
 
         struct Point {
             double Frequency;
-            double Time;
+            double TimeInRunC;
+            double TimeInAcqC;
+            double AcquisitionID;
             double Amplitude;
             double Threshold;
             double SNR;
@@ -55,8 +57,8 @@ namespace Katydid
             // Embedded here for debugging/observability as well as to memoize slope calculation which happens a lot
             double TrackFinderLocalSlope;
 
-            Point(double time, double frequency, double amplitude, double threshold, double snr, double noiseMean, double noiseTau, double noiseVariance, double trackFinderLocalSlope) :
-                Time(time), Frequency(frequency), Amplitude(amplitude), Threshold(threshold), SNR(snr), NoiseMean(noiseMean), NoiseTau(noiseTau),
+            Point(double timeInRunC, double timeInAcqC, double acqID, double frequency, double amplitude, double threshold, double snr, double noiseMean, double noiseTau, double noiseVariance, double trackFinderLocalSlope) :
+                TimeInRunC(timeInRunC), TimeInAcqC(timeInAcqC),AcquisitionID(acqID),Frequency(frequency), Amplitude(amplitude), Threshold(threshold), SNR(snr), NoiseMean(noiseMean), NoiseTau(noiseTau),
                 NoiseVariance(noiseVariance), TrackFinderLocalSlope(trackFinderLocalSlope) {}
         };
 

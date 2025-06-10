@@ -125,6 +125,10 @@ namespace Katydid
             ClassDef(TSequentialLineData, 1);
     };
 
+    //************************
+    // TLongTrackData
+    //************************
+
     class TLongTrackData : public TObject
     {
         MEMBERVARIABLE(UInt_t, TrackId);
@@ -132,7 +136,9 @@ namespace Katydid
         struct Point : public TObject {
             MEMBERVARIABLE(UInt_t, TrackId)
             MEMBERVARIABLE(Double_t, Frequency)
-            MEMBERVARIABLE(Double_t, Time)
+            MEMBERVARIABLE(Double_t, TimeInRunC)
+            MEMBERVARIABLE(Double_t, TimeInAcqC)
+            MEMBERVARIABLE(UInt_t, AcquisitionID)
             MEMBERVARIABLE(Double_t, Amplitude)
             MEMBERVARIABLE(Double_t, Threshold)
             MEMBERVARIABLE(Double_t, SNR)

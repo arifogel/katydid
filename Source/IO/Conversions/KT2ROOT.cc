@@ -979,7 +979,9 @@ namespace Katydid
         {
             auto* point = new ((*points)[iPoint]) Katydid::TLongTrackData::Point;
             point->SetTrackId(ktData.TrackId);
-            point->SetTime(pIt.Time);
+            point->SetTimeInRunC(pIt.TimeInRunC);
+            point->SetTimeInAcqC(pIt.TimeInAcqC);
+            point->SetAcquisitionID(pIt.AcquisitionID);
             point->SetFrequency(pIt.Frequency);
             point->SetAmplitude(pIt.Amplitude);
             point->SetThreshold(pIt.Threshold);

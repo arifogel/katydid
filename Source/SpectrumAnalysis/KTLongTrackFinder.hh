@@ -149,16 +149,16 @@ namespace Katydid
 
         bool DoesPointMatchLine(const KTLongTrackData& track, double newTime, double newFrequency) const;
 
-        void AddPointsToExistingTracks(STFFrequencySortedPoints &points, std::list<KTLongTrackData> &tracks, double timeInRunC) const;
+        void AddPointsToExistingTracks(STFFrequencySortedPoints &points, std::list<KTLongTrackData> &tracks, double timeInRunC, double timeInAcqC, int acqID) const;
 
         std::vector<KTDiscriminatedPoints1DData::Point> GetPointsNearTrack(
                 const STFFrequencySortedPoints& sortedPoints, const KTLongTrackData& track, double timeInRunC) const;
 
-        std::list<KTLongTrackData> CreateNewTracks(STFFrequencySortedPoints &points, double timeInRunC) const;
+        std::list<KTLongTrackData> CreateNewTracks(STFFrequencySortedPoints &points, double timeInRunC, double timeInAcqC, int acqID) const;
 
         double CalculateLocalSlope(const std::vector<std::pair<double, double>>& points) const;
 
-        static KTLongTrackData::Point CreatePoint(const KTDiscriminatedPoints1DData::Point &point, double timeInRunC, double trackFinderSlope) ;
+        static KTLongTrackData::Point CreatePoint(const KTDiscriminatedPoints1DData::Point &point, double timeInRunC, double timeInAcqC, int acqID, double trackFinderSlope) ;
     };
     inline const std::set< Nymph::KTDataPtr >& KTLongTrackFinder::GetCandidates() const
     {

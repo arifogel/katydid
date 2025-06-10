@@ -28,7 +28,7 @@ namespace Katydid
     double KTLongTrackData::GetBulkSlope() const {
         if(points.size() < 2) { return 0; }
 
-        return (points.front().Frequency - points.back().Frequency) / (points.front().Time - points.back().Time);
+        return (points.front().Frequency - points.back().Frequency) / (points.front().TimeInRunC - points.back().TimeInRunC);
     }
 
     // Copies vector of points to internal points vector
@@ -36,7 +36,7 @@ namespace Katydid
         points = pointsToCopy;
 
         // Sorts points by time so that earlier points are first
-        auto timeSorter = [] (auto first, auto second) { return first.Time < second.Time; };
+        auto timeSorter = [] (auto first, auto second) { return first.TimeInRunC < second.TimeInRunC; };
         if(!std::is_sorted(points.begin(), points.end(), timeSorter)) {
             std::sort(points.begin(), points.end(), timeSorter);
         }

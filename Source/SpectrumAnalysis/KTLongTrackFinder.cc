@@ -124,6 +124,8 @@ namespace Katydid
         for (unsigned iComponent = 0; iComponent < nComponents; ++iComponent)
         {
             double timeInRunC = slHeader.GetTimeInRun() + 0.5 * slHeader.GetSliceLength();
+            double timeInAcqC = slHeader.GetTimeInAcq() + 0.5 * slHeader.GetSliceLength();
+            int acqID = slHeader.GetAcquisitionID();
 
             STFFrequencySortedPoints points;
             for (auto& point : discrimPoints.GetSetOfPoints(iComponent))
@@ -137,11 +139,11 @@ namespace Katydid
 
             KTDEBUG( stflog, "Collected "<<points.size()<<" points");
 
-            AddPointsToExistingTracks(points, fActiveLines, timeInRunC);
+            AddPointsToExistingTracks(points, fActiveLines, timeInRunC, timeInAcqC, acqID);
 
             for(auto trackIt = fActiveLines.begin(); trackIt != fActiveLines.end();) {
-                if(timeInRunC - trackIt->GetPoints().back().Time > fTimeGapTolerance or trackIt->GetPoints().size() >= fMaxPoints) {
-                    KTDEBUG(stflog, "trackIt->GetPoints().back().Time "<<trackIt->GetPoints().back().Time);
+                if(timeInRunC - trackIt->GetPoints().back().TimeInRunC > fTimeGapTolerance or trackIt->GetPoints().size() >= fMaxPoints) {
+                    KTDEBUG(stflog, "trackIt->GetPoints().back().TimeInRunC "<<trackIt->GetPoints().back().TimeInRunC);
                     HandleFinishedTrack(*trackIt); // let the vector sort itself by earliest track instead of longest track
                     trackIt = fActiveLines.erase(trackIt);
                 } else {
@@ -149,19 +151,19 @@ namespace Katydid
                 }
             }
 
-            auto newTracks = CreateNewTracks(points, timeInRunC);
+            auto newTracks = CreateNewTracks(points, timeInRunC, timeInAcqC, acqID);
             fActiveLines.splice(fActiveLines.end(), newTracks);
         }
         return true;
     }
 
-    std::list<KTLongTrackData> KTLongTrackFinder::CreateNewTracks(STFFrequencySortedPoints& points, double timeInRunC) const {
+    std::list<KTLongTrackData> KTLongTrackFinder::CreateNewTracks(STFFrequencySortedPoints& points, double timeInRunC, double timeInAcqC, int acqID) const {
         auto newTracks = std::list<KTLongTrackData>();
 
         // TODO: Pick out best point from cluster, like we do when adding to existing tracks. For now, all non-claimed points.
         for(auto pointIt = points.begin(); pointIt != points.end(); pointIt = points.erase(pointIt)) {
             KTLongTrackData newLine;
-            newLine.AddPoint(CreatePoint(*pointIt, timeInRunC, fInitialSlope));
+            newLine.AddPoint(CreatePoint(*pointIt, timeInRunC, timeInAcqC, acqID, fInitialSlope));
             newTracks.push_back(newLine);
         }
 
@@ -173,7 +175,7 @@ namespace Katydid
     void KTLongTrackFinder::AddPointsToExistingTracks(
             STFFrequencySortedPoints& points,
             std::list<KTLongTrackData>& tracks,
-            double timeInRunC) const {
+            double timeInRunC, double timeInAcqC, int acqID) const {
         for (auto& track : tracks) {
             if(points.empty()) { break; }  // Break early when we run out of points
                 //KTDEBUG(stflog, "Checking for matched for track with track.GetPoints().size() "<<track.GetPoints().size());
@@ -195,7 +197,7 @@ namespace Katydid
                 std::transform(track.GetPoints().end() - std::min(fNSlopePoints, (int) track.GetPoints().size()),
                           track.GetPoints().end(),
                           std::back_inserter(slopeCalcPoints),
-                          [] (auto& p) { return std::pair<double,double>(p.Time, p.Frequency); });
+                          [] (auto& p) { return std::pair<double,double>(p.TimeInRunC, p.Frequency); });
                 slopeCalcPoints.emplace_back(timeInRunC, bestPoint->fAbscissa);
 
                 auto localSlope = CalculateLocalSlope(slopeCalcPoints);
@@ -204,7 +206,7 @@ namespace Katydid
                 // Consume all points that were near the track, even if we didn't select them. This is because tracks are
                 // assumed to be spaced quite far apart, so it's just easier to use a more naive algorithm here.
                 for (auto& matchingPoint : matchingPoints) {
-                    track.AddPoint(CreatePoint(matchingPoint, timeInRunC, localSlope));
+                    track.AddPoint(CreatePoint(matchingPoint, timeInRunC, timeInAcqC, acqID, localSlope));
                     points.erase(matchingPoint); 
                 }
                 if(matchingPoints.size()>0){
@@ -242,7 +244,7 @@ namespace Katydid
     bool KTLongTrackFinder::DoesPointMatchLine(const KTLongTrackData& track, double newTime, double newFrequency) const {
         auto trackPoints = track.GetPoints();
 
-        double deltaTime = newTime - trackPoints.back().Time;
+        double deltaTime = newTime - trackPoints.back().TimeInRunC;
 
         // Frequency we would expect a point matching this track to be at
         double predictedFrequency = trackPoints.back().Frequency + trackPoints.back().TrackFinderLocalSlope * deltaTime;
@@ -338,9 +340,11 @@ namespace Katydid
     }
 
     KTLongTrackData::Point KTLongTrackFinder::CreatePoint(
-            const KTDiscriminatedPoints1DData::Point &point, double timeInRunC, double trackFinderSlope) {
+            const KTDiscriminatedPoints1DData::Point &point, double timeInRunC, double timeInAcqC, int acqID, double trackFinderSlope) {
         return {
                 timeInRunC,
+                timeInAcqC,
+                acqID,
                 point.fAbscissa,
                 point.fOrdinate,
                 point.fThreshold,
