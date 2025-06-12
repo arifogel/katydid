@@ -31,6 +31,7 @@ set (EVENTANALYSIS_HEADERFILES
     KTDBSCANEventSIDClustering.hh
     KTDBSCANEventClustering.hh
     KTDBSCANTrackClustering.hh
+    KTDBSCANLongTrackCollinearClustering.hh
     KTFrequencyCandidateIdentifier.hh
     KTIterativeTrackClustering.hh
     KTMultiPeakEventBuilder.hh
@@ -71,6 +72,7 @@ set (EVENTANALYSIS_SOURCEFILES
     KTDBSCANEventSIDClustering.cc
     KTDBSCANEventClustering.cc
     KTDBSCANTrackClustering.cc
+    KTDBSCANLongTrackCollinearClustering.cc
     KTFrequencyCandidateIdentifier.cc
     KTIterativeTrackClustering.cc
     KTMultiPeakEventBuilder.cc

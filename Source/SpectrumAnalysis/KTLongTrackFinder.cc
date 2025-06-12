@@ -2,7 +2,7 @@
  * KTLongTrackFinder.cc
  *
  *  Created on: March 7, 2024
- *      Author: agorman
+ *  Authors: A. Gorman, H.S. Harrington
  */
 
 #include "KTLongTrackFinder.hh"
@@ -45,7 +45,7 @@ namespace Katydid
             fCalculateMaxBin(true),
             fActiveLines(),
             fNCandidatesEmitted(0),
-            fLineSignal("seq-cand", this),
+            fLineSignal("long-track-cand", this),
             fClusterDoneSignal("clustering-done", this),
             fHeaderSlot("header", this, &KTLongTrackFinder::InitializeWithHeader),
             fDiscrimSlot("disc-1d", this, &KTLongTrackFinder::CollectDiscrimPointsFromSlice),
@@ -118,6 +118,11 @@ namespace Katydid
     {
         unsigned minBin = fCalculateMinBin ? fMinFrequency / (double) slHeader.GetBinWidth() : fMinBin;
         unsigned maxBin = fCalculateMaxBin ? fMaxFrequency / (double) slHeader.GetBinWidth() : fMaxBin;
+
+        fFreqBinWidth = slHeader.GetBinWidth();
+        fTimeBinWidth = slHeader.GetSliceLength();
+        KTDEBUG( stflog, "fTimeBinWidth "<<fTimeBinWidth<<" fFreqBinWidth "<<fFreqBinWidth);
+
 
         unsigned nComponents = 1;
 
@@ -286,6 +291,8 @@ namespace Katydid
         auto& newCand = data->Of<KTLongTrackData>();
         newCand.TrackId = fNCandidatesEmitted;
         newCand.SetPoints(track.GetPoints());
+        // Compute and store track stats
+        newCand.CalculateTrackStats(fTimeBinWidth,fFreqBinWidth);
 
         ++fNCandidatesEmitted;
 

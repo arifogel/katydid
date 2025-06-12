@@ -983,7 +983,7 @@ namespace Katydid
             point->SetTimeInAcqC(pIt.TimeInAcqC);
             point->SetAcquisitionID(pIt.AcquisitionID);
             point->SetFrequency(pIt.Frequency);
-            point->SetAmplitude(pIt.Amplitude);
+            point->SetOrdinate(pIt.Ordinate);
             point->SetThreshold(pIt.Threshold);
             point->SetTrackFinderLocalSlope(pIt.TrackFinderLocalSlope);
             point->SetNoiseVariance(pIt.NoiseVariance);
@@ -992,8 +992,36 @@ namespace Katydid
             point->SetSNR(pIt.SNR);
             ++iPoint;
         }
-
+        
         rootData.SetTrackId(ktData.TrackId);
+        const auto& stats = ktData.GetTrackStats();
+        rootData.SetStartFrequency(stats.StartFrequency);
+        rootData.SetEndFrequency(stats.EndFrequency);
+        rootData.SetFreqLength(stats.EndFrequency - stats.StartFrequency);
+        rootData.SetStartTimeInRunC(stats.StartTimeInRunC);
+        rootData.SetEndTimeInRunC(stats.EndTimeInRunC);
+        rootData.SetTimeLength(stats.EndTimeInRunC - stats.StartTimeInRunC);
+        rootData.SetStartTimeInAcqC(stats.StartTimeInAcqC);
+        rootData.SetEndTimeInAcqC(stats.EndTimeInAcqC);
+        rootData.SetStartAcqID(ktData.GetPoints().front().AcquisitionID); // if you don't store it separately
+        rootData.SetAcqFreqIntercept(stats.AcqFreqIntercept);
+        rootData.SetBulkSlope(stats.BulkSlope);
+        rootData.SetMeanLocalSlope(stats.MeanLocalSlope);
+        rootData.SetMaxLocalSlope(stats.MaxLocalSlope);
+        rootData.SetMinLocalSlope(stats.MinLocalSlope);
+        rootData.SetStdDevLocalSlope(stats.StdDevLocalSlope);
+        rootData.SetTotalSnr(stats.TotalSnr);
+        rootData.SetMeanSnr(stats.MeanSnr);
+        rootData.SetMaxSnr(stats.MaxSnr);
+        rootData.SetMinSnr(stats.MinSnr);
+        rootData.SetStdDevSnr(stats.StdDevSnr);
+        rootData.SetTotalPower(stats.TotalPower);
+        rootData.SetMeanPower(stats.MeanPower);
+        rootData.SetMaxPower(stats.MaxPower);
+        rootData.SetMinPower(stats.MinPower);
+        rootData.SetStdDevPower(stats.StdDevPower);
+        rootData.SetManhattanLength(stats.ManhattanLength);
+        rootData.SetSNRPerUnitLength(stats.SNRPerUnitLength);
     }
 } /* namespace Katydid */
 

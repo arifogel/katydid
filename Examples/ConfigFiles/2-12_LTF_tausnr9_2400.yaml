@@ -1,16 +1,17 @@
 processor-toolbox:
 
     processors:
-        - { type: "spec-processor",                  name: "spec1" }
-        - { type: "speck-processor",                 name: "spec2" }
-        - { type: "data-accumulator",                name: "acc" }
-        - { type: "gain-variation",                  name: "gainvar" }
-        - { type: "rf-slew-to-vec",                  name: "stv" }
-        - { type: "variable-spectrum-discriminator", name: "discrim" }
-        - { type: "long-track-finder",               name: "long-tr-find"}
-        - { type: "basic-root-writer",               name: "brw" }
-        #- { type: "root-spectrogram-writer",         name: "rsw"}
-        - { type: "root-tree-writer",                name: "rtw"}
+        - { type: "spec-processor",                         name: "spec1" }
+        - { type: "speck-processor",                        name: "spec2" }
+        - { type: "data-accumulator",                       name: "acc" }
+        - { type: "gain-variation",                         name: "gainvar" }
+        - { type: "rf-slew-to-vec",                         name: "stv" }
+        - { type: "variable-spectrum-discriminator",        name: "discrim" }
+        - { type: "long-track-finder",                      name: "long-tr-find"}
+        - { type: "dbscan-longtrack-collinear-clustering",  name: "dbscan-trackclust"}
+        - { type: "basic-root-writer",                      name: "brw" }
+        #- { type: "root-spectrogram-writer",               name: "rsw"}
+        - { type: "root-tree-writer",                       name: "rtw"}
 
     connections:
               # Take the power spectra from the input file and send them to accumulator
@@ -61,8 +62,16 @@ processor-toolbox:
             - signal: "spec2:spec-done"
               slot: "long-tr-find:done"
               
+              # Send sequential line data to root tree
+            - signal: "long-tr-find:long-track-cand"
+              slot: "dbscan-trackclust:long-track-cand"
+
+              # Send signal to DBSCAN clustering algorithm to run
+            - signal: "long-tr-find:clustering-done"
+              slot: "dbscan-trackclust:do-clustering"
+
               # Write sequential line data to root tree
-            - signal: "long-tr-find:seq-cand"
+            - signal: "dbscan-trackclust:clust-long-track-cand"
               slot: "rtw:long-track"
  
     run-queue:
@@ -133,3 +142,7 @@ long-tr-find:
     min-points: 5 # line is converted to a track iff it has >= this # of points
     max-points: 500
     min-slope: 0 # line is converted to a track iff line slope is > than this (in Hz/s)
+
+dbscan-trackclust:
+    freq-int-epsilon: 4e6 # epsilon used for DBScan clustering on AcqFreqIntercept. In Hz
+

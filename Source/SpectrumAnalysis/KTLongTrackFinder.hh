@@ -2,7 +2,7 @@
  @file KTLongTrackFinder.hh
  @brief Contains KTLongTrackFinder
  @details Finds and creates track from descriminator data
- @author: agorman
+ @Authors: A. Gorman, H.S. Harrington
  @date: March 7, 2024
  */
 
@@ -55,7 +55,7 @@ namespace Katydid
      - "done": void () -- Processes remaining active lines and emits clustering-done signal
 
      Signals:
-     - "seq-cand": void (KTDataPtr) -- Emitted when a candidate is ready; guarantees KTLongTrackData
+     - "long-track-cand": void (KTDataPtr) -- Emitted when a candidate is ready; guarantees KTLongTrackData
      - "clustering-done": void () -- Emitted when track clustering is complete
     */
 

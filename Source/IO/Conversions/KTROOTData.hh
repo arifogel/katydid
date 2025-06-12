@@ -132,6 +132,34 @@ namespace Katydid
     class TLongTrackData : public TObject
     {
         MEMBERVARIABLE(UInt_t, TrackId);
+        MEMBERVARIABLE(Double_t, StartFrequency);
+        MEMBERVARIABLE(Double_t, EndFrequency);
+        MEMBERVARIABLE(Double_t, FreqLength);
+        MEMBERVARIABLE(Double_t, StartTimeInRunC);
+        MEMBERVARIABLE(Double_t, EndTimeInRunC);
+        MEMBERVARIABLE(Double_t, TimeLength);
+        MEMBERVARIABLE(Double_t, StartTimeInAcqC);
+        MEMBERVARIABLE(Double_t, EndTimeInAcqC);
+        MEMBERVARIABLE(UInt_t, StartAcqID);
+        MEMBERVARIABLE(Double_t, AcqFreqIntercept);
+        MEMBERVARIABLE(Double_t, BulkSlope);
+        MEMBERVARIABLE(Double_t, MeanLocalSlope);
+        MEMBERVARIABLE(Double_t, MaxLocalSlope);
+        MEMBERVARIABLE(Double_t, MinLocalSlope);
+        MEMBERVARIABLE(Double_t, StdDevLocalSlope);
+        MEMBERVARIABLE(Double_t, TotalSnr);
+        MEMBERVARIABLE(Double_t, MeanSnr);
+        MEMBERVARIABLE(Double_t, MaxSnr);
+        MEMBERVARIABLE(Double_t, MinSnr);
+        MEMBERVARIABLE(Double_t, StdDevSnr);
+        MEMBERVARIABLE(Double_t, TotalPower);
+        MEMBERVARIABLE(Double_t, MeanPower);
+        MEMBERVARIABLE(Double_t, MaxPower);
+        MEMBERVARIABLE(Double_t, MinPower);
+        MEMBERVARIABLE(Double_t, StdDevPower);
+        MEMBERVARIABLE(Double_t, ManhattanLength);
+        MEMBERVARIABLE(Double_t, SNRPerUnitLength);
+
 
         struct Point : public TObject {
             MEMBERVARIABLE(UInt_t, TrackId)
@@ -139,7 +167,7 @@ namespace Katydid
             MEMBERVARIABLE(Double_t, TimeInRunC)
             MEMBERVARIABLE(Double_t, TimeInAcqC)
             MEMBERVARIABLE(UInt_t, AcquisitionID)
-            MEMBERVARIABLE(Double_t, Amplitude)
+            MEMBERVARIABLE(Double_t, Ordinate)
             MEMBERVARIABLE(Double_t, Threshold)
             MEMBERVARIABLE(Double_t, SNR)
             MEMBERVARIABLE(Double_t, NoiseMean)
