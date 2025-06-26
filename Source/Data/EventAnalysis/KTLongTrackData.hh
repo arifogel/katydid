@@ -38,11 +38,11 @@ namespace Katydid
             double MaxLocalSlope;
             double MinLocalSlope;
             double StdDevLocalSlope;
-            double TotalSnr;
-            double MeanSnr;
-            double MaxSnr;
-            double MinSnr;
-            double StdDevSnr;
+            double TotalNsp;
+            double MeanNsp;
+            double MaxNsp;
+            double MinNsp;
+            double StdDevNsp;
             double TotalPower;
             double MeanPower;
             double MaxPower;
@@ -51,7 +51,8 @@ namespace Katydid
             double TimeBinWidth;
             double FreqBinWidth;
             double ManhattanLength;
-            double SNRPerUnitLength;
+            double NSPPerUnitLength;
+            double BestSNR;
         };
 
         struct Point {
@@ -61,7 +62,7 @@ namespace Katydid
             double AcquisitionID;
             double Ordinate;
             double Threshold;
-            double SNR;
+            double NSP;
             double NoiseMean;
             double NoiseTau;
             double NoiseVariance;
@@ -69,8 +70,8 @@ namespace Katydid
             // Embedded here for debugging/observability as well as to memoize slope calculation which happens a lot
             double TrackFinderLocalSlope;
 
-            Point(double timeInRunC, double timeInAcqC, double acqID, double frequency, double ordinate, double threshold, double snr, double noiseMean, double noiseTau, double noiseVariance, double trackFinderLocalSlope) :
-                TimeInRunC(timeInRunC), TimeInAcqC(timeInAcqC),AcquisitionID(acqID),Frequency(frequency), Ordinate(ordinate), Threshold(threshold), SNR(snr), NoiseMean(noiseMean), NoiseTau(noiseTau),
+            Point(double timeInRunC, double timeInAcqC, int acqID, double frequency, double ordinate, double threshold, double nsp, double noiseMean, double noiseTau, double noiseVariance, double trackFinderLocalSlope) :
+                TimeInRunC(timeInRunC), TimeInAcqC(timeInAcqC),AcquisitionID(acqID),Frequency(frequency), Ordinate(ordinate), Threshold(threshold), NSP(nsp), NoiseMean(noiseMean), NoiseTau(noiseTau),
                 NoiseVariance(noiseVariance), TrackFinderLocalSlope(trackFinderLocalSlope) {}
         };
 
@@ -93,12 +94,13 @@ namespace Katydid
         const TrackStats& CalculateTrackStats(double fTimeBinWidth,double fFreqBinWidth);
         double GetBulkSlope() const;
         double ComputeAcqFreqIntercept() const;
-
+        double LogLikelihood(double lambda, const std::vector<double>& chi_vals);
+        double ComputeMaxLoglikelihoodLambda();
         void SetPoints(const std::vector<KTLongTrackData::Point> &vector);
 
     private:
         void ComputeLocalSlopeStats(TrackStats& stats) const;
-        void ComputeSnrStats(TrackStats& stats) const;
+        void ComputeNspStats(TrackStats& stats) const;
         void ComputePowerStats(TrackStats& stats) const;
 
         static void ComputeBasicStats(const std::vector<double>& values,

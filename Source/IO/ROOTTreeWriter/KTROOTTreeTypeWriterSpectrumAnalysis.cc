@@ -110,7 +110,7 @@ namespace Katydid
                 fDiscPoints1DData.fTau = it->second.fTau;
                 fDiscPoints1DData.fVariance = it->second.fVariance;
                 fDiscPoints1DData.fNeighborhoodAmplitude = it->second.fNeighborhoodAmplitude;
-                fDiscPoints1DData.fSNR = it->second.fOrdinate/it->second.fTau;
+                fDiscPoints1DData.fNSP = it->second.fOrdinate/it->second.fTau;
 
                 fDiscPoints1DTree->Fill();
             }
@@ -145,7 +145,7 @@ namespace Katydid
                 fDiscPoints1DTree->SetBranchAddress("Tau", &fDiscPoints1DData.fTau);
                 fDiscPoints1DTree->SetBranchAddress("Variance", &fDiscPoints1DData.fVariance);
                 fDiscPoints1DTree->SetBranchAddress("NeighborhoodAmplitude", &fDiscPoints1DData.fNeighborhoodAmplitude);
-                fDiscPoints1DTree->SetBranchAddress("SNR", &fDiscPoints1DData.fSNR);
+                fDiscPoints1DTree->SetBranchAddress("NSP", &fDiscPoints1DData.fNSP);
                 return true;
             }
         }
@@ -175,7 +175,7 @@ namespace Katydid
         fDiscPoints1DTree->Branch("Tau", &fDiscPoints1DData.fTau, "fTau/d");
         fDiscPoints1DTree->Branch("Variance", &fDiscPoints1DData.fVariance, "fVariance/d");
         fDiscPoints1DTree->Branch("NeighborhoodAmplitude", &fDiscPoints1DData.fNeighborhoodAmplitude, "fNeighborhoodAmplitude/d");
-        fDiscPoints1DTree->Branch("SNR", &fDiscPoints1DData.fSNR, "fSNR/d");
+        fDiscPoints1DTree->Branch("NSP", &fDiscPoints1DData.fNSP, "fNSP/d");
         //fDiscPoints1DTree->Branch("freqAnalysis", &fDiscPoints1DData.fComponent, "fComponent/s:fSlice/l:fTimeInRun/d:f/d:fFirstBin/i:fLastBin/i:fMeanFrequency/d:fPeakAmplitude/d");
 
         return true;

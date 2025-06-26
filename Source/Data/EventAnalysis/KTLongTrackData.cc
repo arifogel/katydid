@@ -12,6 +12,7 @@
 #include <iostream>
 #include <cmath>
 #include <algorithm>
+#include <boost/math/special_functions/bessel.hpp>
 
 namespace Katydid
 {
@@ -94,19 +95,19 @@ namespace Katydid
                           stats.MaxLocalSlope);
     }
 
-    void KTLongTrackData::ComputeSnrStats(TrackStats& stats) const {
-        std::vector<double> snrs;
-        stats.TotalSnr = 0.0;
+    void KTLongTrackData::ComputeNspStats(TrackStats& stats) const {
+        std::vector<double> nsps;
+        stats.TotalNsp = 0.0;
         for (const auto& pt : points) {
-            snrs.push_back(pt.SNR);
-            stats.TotalSnr += pt.SNR;
+            nsps.push_back(pt.NSP);
+            stats.TotalNsp += pt.NSP;
         }
 
-        ComputeBasicStats(snrs,
-                          stats.MeanSnr,
-                          stats.StdDevSnr,
-                          stats.MinSnr,
-                          stats.MaxSnr);
+        ComputeBasicStats(nsps,
+                          stats.MeanNsp,
+                          stats.StdDevNsp,
+                          stats.MinNsp,
+                          stats.MaxNsp);
     }
 
     void KTLongTrackData::ComputePowerStats(TrackStats& stats) const {
@@ -158,11 +159,13 @@ namespace Katydid
         fTrackStats.AcqFreqIntercept = ComputeAcqFreqIntercept();
 
         ComputeLocalSlopeStats(fTrackStats);
-        ComputeSnrStats(fTrackStats);
+        ComputeNspStats(fTrackStats);
         ComputePowerStats(fTrackStats);
         
         fTrackStats.ManhattanLength = nTimeBins+nFreqBins;
-        fTrackStats.SNRPerUnitLength = 2*fTrackStats.TotalSnr/fTrackStats.ManhattanLength;
+        fTrackStats.NSPPerUnitLength = 2*fTrackStats.TotalNsp/fTrackStats.ManhattanLength;
+
+        fTrackStats.BestSNR = ComputeMaxLoglikelihoodLambda();
 
         return fTrackStats;
     }
@@ -196,6 +199,50 @@ namespace Katydid
         }
 
         stddev = std::sqrt(sq_sum / values.size());
+    }
+
+    // Define the log-likelihood function
+    double KTLongTrackData::LogLikelihood(double lambda, const std::vector<double>& chi_vals)
+    {
+        if (lambda <= 0.0) return -std::numeric_limits<double>::infinity();  // log-likelihood undefined for λ ≤ 0
+
+        double logL = 0.0;
+        for (const double chi : chi_vals)
+        {
+            double sqrt_term = std::sqrt(lambda * chi);
+            double bessel = boost::math::cyl_bessel_i(0, sqrt_term);
+            if (bessel <= 0.0 || std::isnan(bessel)) return -std::numeric_limits<double>::infinity();
+
+            logL += -lambda / 2.0 + std::log(bessel);
+        }
+        return logL;
+    }
+
+    // Maximize the log-likelihood with a simple grid search (replace with a better optimizer if needed)
+    double KTLongTrackData::ComputeMaxLoglikelihoodLambda()
+    {
+        std::vector<double> chi_vals;
+        chi_vals.reserve(points.size());
+        for (const auto& pt : points)
+        {
+            chi_vals.push_back(2.0 * pt.NSP);
+        }
+
+        double best_lambda = 0.0;
+        double best_logL = -std::numeric_limits<double>::infinity();
+
+        for (double lambda = 0.01; lambda <= 100.0; lambda += 0.01)
+        {
+            double logL = LogLikelihood(lambda, chi_vals);
+            if (logL > best_logL)
+            {
+                best_logL = logL;
+                best_lambda = lambda;
+            }
+        }
+
+        std::cout << "Max log-likelihood lambda: " << best_lambda << ", logL = " << best_logL << std::endl;
+        return best_lambda/2;
     }
 
 

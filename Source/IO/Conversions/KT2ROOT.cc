@@ -989,7 +989,7 @@ namespace Katydid
             point->SetNoiseVariance(pIt.NoiseVariance);
             point->SetNoiseMean(pIt.NoiseMean);
             point->SetNoiseTau(pIt.NoiseTau);
-            point->SetSNR(pIt.SNR);
+            point->SetNSP(pIt.NSP);
             ++iPoint;
         }
         
@@ -1010,18 +1010,19 @@ namespace Katydid
         rootData.SetMaxLocalSlope(stats.MaxLocalSlope);
         rootData.SetMinLocalSlope(stats.MinLocalSlope);
         rootData.SetStdDevLocalSlope(stats.StdDevLocalSlope);
-        rootData.SetTotalSnr(stats.TotalSnr);
-        rootData.SetMeanSnr(stats.MeanSnr);
-        rootData.SetMaxSnr(stats.MaxSnr);
-        rootData.SetMinSnr(stats.MinSnr);
-        rootData.SetStdDevSnr(stats.StdDevSnr);
+        rootData.SetTotalNsp(stats.TotalNsp);
+        rootData.SetMeanNsp(stats.MeanNsp);
+        rootData.SetMaxNsp(stats.MaxNsp);
+        rootData.SetMinNsp(stats.MinNsp);
+        rootData.SetStdDevNsp(stats.StdDevNsp);
         rootData.SetTotalPower(stats.TotalPower);
         rootData.SetMeanPower(stats.MeanPower);
         rootData.SetMaxPower(stats.MaxPower);
         rootData.SetMinPower(stats.MinPower);
         rootData.SetStdDevPower(stats.StdDevPower);
         rootData.SetManhattanLength(stats.ManhattanLength);
-        rootData.SetSNRPerUnitLength(stats.SNRPerUnitLength);
+        rootData.SetNSPPerUnitLength(stats.NSPPerUnitLength);
+        rootData.SetBestSNR(stats.BestSNR);
     }
 } /* namespace Katydid */
 

@@ -147,18 +147,19 @@ namespace Katydid
         MEMBERVARIABLE(Double_t, MaxLocalSlope);
         MEMBERVARIABLE(Double_t, MinLocalSlope);
         MEMBERVARIABLE(Double_t, StdDevLocalSlope);
-        MEMBERVARIABLE(Double_t, TotalSnr);
-        MEMBERVARIABLE(Double_t, MeanSnr);
-        MEMBERVARIABLE(Double_t, MaxSnr);
-        MEMBERVARIABLE(Double_t, MinSnr);
-        MEMBERVARIABLE(Double_t, StdDevSnr);
+        MEMBERVARIABLE(Double_t, TotalNsp);
+        MEMBERVARIABLE(Double_t, MeanNsp);
+        MEMBERVARIABLE(Double_t, MaxNsp);
+        MEMBERVARIABLE(Double_t, MinNsp);
+        MEMBERVARIABLE(Double_t, StdDevNsp);
         MEMBERVARIABLE(Double_t, TotalPower);
         MEMBERVARIABLE(Double_t, MeanPower);
         MEMBERVARIABLE(Double_t, MaxPower);
         MEMBERVARIABLE(Double_t, MinPower);
         MEMBERVARIABLE(Double_t, StdDevPower);
         MEMBERVARIABLE(Double_t, ManhattanLength);
-        MEMBERVARIABLE(Double_t, SNRPerUnitLength);
+        MEMBERVARIABLE(Double_t, NSPPerUnitLength);
+        MEMBERVARIABLE(Double_t, BestSNR);
 
 
         struct Point : public TObject {
@@ -169,7 +170,7 @@ namespace Katydid
             MEMBERVARIABLE(UInt_t, AcquisitionID)
             MEMBERVARIABLE(Double_t, Ordinate)
             MEMBERVARIABLE(Double_t, Threshold)
-            MEMBERVARIABLE(Double_t, SNR)
+            MEMBERVARIABLE(Double_t, NSP)
             MEMBERVARIABLE(Double_t, NoiseMean)
             MEMBERVARIABLE(Double_t, NoiseTau)
             MEMBERVARIABLE(Double_t, NoiseVariance)

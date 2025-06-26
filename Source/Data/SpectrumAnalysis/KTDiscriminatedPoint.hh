@@ -16,6 +16,8 @@ namespace Katydid
     struct KTDiscriminatedPoint
     {
         double fTimeInRunC;
+        double fTimeInAcqC;
+        double fAcquisitionID;
         double fFrequency;
         double fAmplitude;
         double fTimeInAcq;

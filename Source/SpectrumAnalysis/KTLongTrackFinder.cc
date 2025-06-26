@@ -28,13 +28,14 @@ namespace Katydid
             KTProcessor(name),
             fTimeGapTolerance(0.0005),
             fFrequencyAcceptance(56166.0528183),
+            fRelSlopeDiffToExpand(0.2),
             fInitialFrequencyAcceptance(0.0),
             fInitialTimeAcceptance(0.0),
             fMinPoints(3),
             fMaxPoints(1e8),
             fMinSlope(0.0),
             fInitialSlope(3.0*pow(10,8)),
-            fNSlopePoints(5),
+            fNSlopeSlices(8),
             fMinBin(0),
             fMaxBin(1),
             fFreqBinWidth(0.0),
@@ -63,6 +64,7 @@ namespace Katydid
 
         SetMinFrequency(node->get_value("min-frequency", GetMinFrequency()));
         SetMaxFrequency(node->get_value("max-frequency", GetMaxFrequency()));
+        SetRelSlopeDiffToExpand(node->get_value("rel-slope-diff-to-expand", GetRelSlopeDiffToExpand()));
 
         SetMinPoints(node->get_value("min-points", GetMinPoints()));
         SetMaxPoints(node->get_value("max-points", GetMaxPoints()));
@@ -100,7 +102,7 @@ namespace Katydid
         }
         if (node->has("n-slope-points"))
         {
-            SetNSlopePoints(node->get_value("n-slope-points", GetNSlopePoints()));
+            SetNSlopeSlices(node->get_value("n-slope-slices", GetNSlopeSlices()));
         }
 
         return true;
@@ -194,21 +196,39 @@ namespace Katydid
                 for (const auto& p : matchingPoints) {
                     KTDEBUG(stflog, "Frequency: " << p.fAbscissa << ", Power: " << p.fOrdinate<< ", Tau: " << p.fTau<< ", SNR: " << p.fOrdinate/p.fTau);
                 }
-                //bestPoint is the consumed point at this time slice with the higherst SNR. This is taken as the "frequency". 
-                //Could do a fit or take middle instead.
-                auto bestPoint = std::max_element(matchingPoints.begin(), matchingPoints.end(),
-                                                  [](auto a, auto b) { return a.fOrdinate/a.fTau < b.fOrdinate/b.fTau; });
-                auto slopeCalcPoints = std::vector<std::pair<double,double>>();
-                std::transform(track.GetPoints().end() - std::min(fNSlopePoints, (int) track.GetPoints().size()),
-                          track.GetPoints().end(),
-                          std::back_inserter(slopeCalcPoints),
-                          [] (auto& p) { return std::pair<double,double>(p.TimeInRunC, p.Frequency); });
-                slopeCalcPoints.emplace_back(timeInRunC, bestPoint->fAbscissa);
+                // 1. Gather all points (track + matching) into one structure
+                /*
+                This map groups time slices (TimeInRunC) → list of (TimeInRunC, Frequency) pairs.
+                Keys: TimeInRunC values (the slice centers)
+                Values: std::vector<std::pair<double, double>>, i.e., all (TimeInRunC, Frequency) points in that slice
+                std::greater<> ensures descending time order (most recent first)
+                */
+                std::map<double, std::vector<std::pair<double, double>>, std::greater<>> timeToTimeFreqPairs;
 
-                auto localSlope = CalculateLocalSlope(slopeCalcPoints);
+                // Track points: KTLongTrackData::Point
+                for (const auto& p : track.GetPoints()) {
+                    timeToTimeFreqPairs[p.TimeInRunC].emplace_back(p.TimeInRunC, p.Frequency);
+                }
+
+                // Matching points: KTDiscriminatedPoints1DData::Point
+                for (const auto& p : matchingPoints) {
+                    timeToTimeFreqPairs[timeInRunC].emplace_back(timeInRunC, p.fAbscissa);  // fAbscissa is the frequency
+                }
+                // 2. Select points from most recent fNSlopeSlices unique time slices
+                std::vector<std::pair<double, double>> slopeCalcPoints;
+                int slicesIncluded = 0;
+                for (const auto& timeFreqPair : timeToTimeFreqPairs) {
+                    const auto& time = timeFreqPair.first;
+                    const auto& tfPairs = timeFreqPair.second;
+                    slopeCalcPoints.insert(slopeCalcPoints.end(), tfPairs.begin(), tfPairs.end());
+                    if (++slicesIncluded >= fNSlopeSlices) break;
+                }
+
+                // 3. Compute the slope
+                double localSlope = CalculateLocalSlope(slopeCalcPoints);
                 //track.AddPoint(CreatePoint(*bestPoint, timeInRunC, localSlope));
                 
-                // Consume all points that were near the track, even if we didn't select them. This is because tracks are
+                // Consume all points that were near the track. This is because tracks are
                 // assumed to be spaced quite far apart, so it's just easier to use a more naive algorithm here.
                 for (auto& matchingPoint : matchingPoints) {
                     track.AddPoint(CreatePoint(matchingPoint, timeInRunC, timeInAcqC, acqID, localSlope));
@@ -248,30 +268,123 @@ namespace Katydid
 
     bool KTLongTrackFinder::DoesPointMatchLine(const KTLongTrackData& track, double newTime, double newFrequency) const {
         auto trackPoints = track.GetPoints();
+        double effectiveAcceptance = fFrequencyAcceptance;
+        double predictedActualFrequencyDelta = std::numeric_limits<double>::max();
 
-        double deltaTime = newTime - trackPoints.back().TimeInRunC;
+        if (trackPoints.size() >= 3) {
+            // Step 1: Group points by TimeInRunC (descending)
+            std::map<double, std::vector<const Katydid::KTLongTrackData::Point*>, std::greater<>> timeToPoints;
+            for (auto it = trackPoints.rbegin(); it != trackPoints.rend(); ++it) {
+                timeToPoints[it->TimeInRunC].push_back(&(*it));
+                if (timeToPoints.size() >= 2) break;
+            }
 
-        // Frequency we would expect a point matching this track to be at
-        double predictedFrequency = trackPoints.back().Frequency + trackPoints.back().TrackFinderLocalSlope * deltaTime;
-        //KTDEBUG(stflog, "predicted Frequency: " << predictedFrequency<<", newFrequency: "<<newFrequency);
-        // Difference between predicted frequency for this track and the observed frequency of this point
-        double predictedActualFrequencyDelta = std::abs(newFrequency - predictedFrequency);
-        
-        /*
-        if(trackPoints.size() == 1 and predictedActualFrequencyDelta < fInitialFrequencyAcceptance and deltaTime < fInitialTimeAcceptance) {
-            KTINFO(stflog, "second point to a track! fInitialFrequencyAcceptance: "<<fInitialFrequencyAcceptance<<" fInitialTimeAcceptance: "<<fInitialTimeAcceptance<<" predictedActualFrequencyDelta: " << predictedActualFrequencyDelta);
-            return true;
-        } else if(predictedActualFrequencyDelta < fFrequencyAcceptance) {
-            KTWARN(stflog, "Subsiquent points to a track! fFrequencyAcceptance: "<<fFrequencyAcceptance<<" predictedActualFrequencyDelta: "<<predictedActualFrequencyDelta);
-            return true;
+            // Step 2: Median freq and slope from last two slices
+            std::vector<std::pair<double, double>> medFreqAndSlope;
+            for (const auto& time_pointPair : timeToPoints) {
+                const double& time = time_pointPair.first;
+                const auto& pointPtrs = time_pointPair.second;
+
+                std::vector<double> freqs;
+                for (const auto* pt : pointPtrs) {
+                    freqs.push_back(pt->Frequency);
+                }
+
+                std::sort(freqs.begin(), freqs.end());
+                double medianFreq = (freqs.size() % 2 == 1)
+                    ? freqs[freqs.size() / 2]
+                    : 0.5 * (freqs[freqs.size() / 2 - 1] + freqs[freqs.size() / 2]);
+
+                double slope = pointPtrs.front()->TrackFinderLocalSlope;
+                medFreqAndSlope.emplace_back(medianFreq, slope);
+            }
+
+            // Step 3: Compare slopes
+            double slope0 = medFreqAndSlope[0].second;
+            double slope1 = medFreqAndSlope[1].second;
+            double relativeSlopeDiff = std::abs(slope0 - slope1) / std::abs(slope1);
+
+            if (relativeSlopeDiff > fRelSlopeDiffToExpand) {
+                effectiveAcceptance *= 2.0;
+                KTDEBUG(stflog, "Previous slopes differ significantly (" << slope0 << " vs " << slope1 << "). Doubling acceptance to " << effectiveAcceptance);
+            }
+
+            // Step 4: Predict frequency using most recent median + slope
+            double t0 = timeToPoints.begin()->first;
+            double f0 = medFreqAndSlope[0].first;
+            double slope = medFreqAndSlope[0].second;
+            double predictedFrequency = f0 + slope * (newTime - t0);
+            predictedActualFrequencyDelta = std::abs(newFrequency - predictedFrequency);
+
+            // Final decision
+            if (predictedActualFrequencyDelta < effectiveAcceptance) {
+                KTDEBUG(stflog, "Point matches track. Acceptance: " << effectiveAcceptance
+                           << ", predicted delta: " << predictedActualFrequencyDelta);
+                // Final slope check including the new point
+                std::vector<std::pair<double, double>> slopeCalcPoints;
+
+                // Add all points from the last fNSlopeSlices slices
+                int slicesIncluded = 0;
+                for (auto it = timeToPoints.begin(); it != timeToPoints.end(); ++it) {
+                    const double& time = it->first;
+                    const std::vector<const Katydid::KTLongTrackData::Point*>& pointPtrs = it->second;
+
+                    for (const auto* pt : pointPtrs) {
+                        slopeCalcPoints.emplace_back(pt->TimeInRunC, pt->Frequency);
+                    }
+
+                    if (++slicesIncluded >= fNSlopeSlices) break;
+                }
+
+                slopeCalcPoints.emplace_back(newTime, newFrequency);
+
+                // Calculate the new local slope that would result from just adding this point. If < fMinSlope, don't add it!
+                double newSlope = CalculateLocalSlope(slopeCalcPoints);
+                if (std::abs(newSlope) < fMinSlope) {
+                    KTDEBUG(stflog, "New slope after adding point is too small: " << newSlope << " < " << fMinSlope);
+                    return false;
+                }
+                // Add new point
+                return true;
+            }
+
+            return false;
         }
-        */
-        if(predictedActualFrequencyDelta < fFrequencyAcceptance) {
-            KTDEBUG(stflog, "Subsiquent points to a track! fFrequencyAcceptance: "<<fFrequencyAcceptance<<" predictedActualFrequencyDelta: "<<predictedActualFrequencyDelta);
-            return true;
+        else {
+            // Fallback for short tracks: use most recent point group only
+            std::map<double, std::vector<const Katydid::KTLongTrackData::Point*>, std::greater<>> timeToPoints;
+            for (auto it = trackPoints.rbegin(); it != trackPoints.rend(); ++it) {
+                timeToPoints[it->TimeInRunC].push_back(&(*it));
+                if (timeToPoints.size() >= 1) break;
+            }
+
+            auto& pointPtrs = timeToPoints.begin()->second;
+            std::vector<double> freqs;
+            for (const auto* pt : pointPtrs) {
+                freqs.push_back(pt->Frequency);
+            }
+
+            std::sort(freqs.begin(), freqs.end());
+            double medianFreq = (freqs.size() % 2 == 1)
+                ? freqs[freqs.size() / 2]
+                : 0.5 * (freqs[freqs.size() / 2 - 1] + freqs[freqs.size() / 2]);
+
+            double t0 = timeToPoints.begin()->first;
+            double slope = pointPtrs.front()->TrackFinderLocalSlope;
+            double predictedFrequency = medianFreq + slope * (newTime - t0);
+            predictedActualFrequencyDelta = std::abs(newFrequency - predictedFrequency);
+
+            // Final decision
+            if (predictedActualFrequencyDelta < effectiveAcceptance) {
+                KTDEBUG(stflog, "Point matches track. Acceptance: " << effectiveAcceptance
+                           << ", predicted delta: " << predictedActualFrequencyDelta);
+                // Add new point
+                return true;
+            }
+
+            return false;
         }
 
-        return false;
     }
 
     void KTLongTrackFinder::HandleFinishedTrack(KTLongTrackData& track) {

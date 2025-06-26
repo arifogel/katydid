@@ -44,7 +44,7 @@ namespace Katydid
         Double_t fTau; //<- inferened noise mean before quantization
         Double_t fVariance; //<- observed noise variance 
         Double_t fNeighborhoodAmplitude; //<-
-        Double_t fSNR; //<- SNR using Tau
+        Double_t fNSP; //<- Noise Scaled Power (u/Tau)
     };
 
     struct TKDTreePointData

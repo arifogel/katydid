@@ -23,7 +23,7 @@ namespace Katydid
     KTDBSCANLongTrackCollinearClustering::KTDBSCANLongTrackCollinearClustering(const std::string& name) :
         KTProcessor(name),
         fEpsilon(0.5),
-        fMinTracksInAcqToRun(2),
+        fMinTracksInAcqToRun(1),
         fMinTracksInClust(1),
         fTracksPerAcq(),
         fNCandidatesEmitted(0),

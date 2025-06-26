@@ -1,7 +1,7 @@
 processor-toolbox:
 
     processors:
-        - { type: "spec-processor",                         name: "spec1" }
+        - { type: "speck-processor",                         name: "spec1" }
         - { type: "speck-processor",                        name: "spec2" }
         - { type: "data-accumulator",                       name: "acc" }
         - { type: "gain-variation",                         name: "gainvar" }
@@ -79,7 +79,8 @@ processor-toolbox:
         - spec2
 
 spec1:
-    filenames: ["/media/heather/T7/SpecFiles/StudyA_10022024/Freq_data_2024-10-03-14-05-29-588_0.spec","/media/heather/T7/SpecFiles/StudyA_10022024/Freq_data_2024-10-03-14-05-29-588_1.spec"]
+    #filenames: ["/media/heather/T7/SpecFiles/StudyA_10022024/Freq_data_2024-10-03-14-05-29-588_0.spec","/media/heather/T7/SpecFiles/StudyA_10022024/Freq_data_2024-10-03-14-05-29-588_1.spec"]
+    filenames: ["/media/heather/T7/SpecFiles/SNRdata/rid1574/Freq_data_2024-09-26-14-25-59-306_0.speck","/media/heather/T7/SpecFiles/SNRdata/rid1574/Freq_data_2024-09-26-14-25-59-306_1.speck"]    
     spectra: 1000
     packets-per-spec: 1
     header-bytes: 32
@@ -91,7 +92,8 @@ spec1:
     freq-bin-avg: 1   #must be a power of 2  -- adjust discrim and gainvar accordingly!
     
 spec2:
-    filenames: ["/media/heather/T7/SpecFiles/StudyA_10022024/Freq_data_2024-10-04-18-56-39-489_0.speck","/media/heather/T7/SpecFiles/StudyA_10022024/Freq_data_2024-10-04-18-56-39-489_1.speck"]
+    #filenames: ["/media/heather/T7/SpecFiles/StudyA_10022024/Freq_data_2024-10-04-18-56-39-489_0.speck","/media/heather/T7/SpecFiles/StudyA_10022024/Freq_data_2024-10-04-18-56-39-489_1.speck"]
+    filenames: ["/media/heather/T7/SpecFiles/SNRdata/rid1574/Freq_data_2024-09-26-14-25-59-306_0.speck","/media/heather/T7/SpecFiles/SNRdata/rid1574/Freq_data_2024-09-26-14-25-59-306_1.speck"]
     spectra: 146484 #146484=1s
     packets-per-spec: 1
     header-bytes: 32
@@ -105,16 +107,16 @@ spec2:
     TOff-bin-pow: 25
 
 brw:
-    output-file: "/media/heather/T7/KatydidOutput/StudyA_10022024/test/Freq_data_2024-10-04-18-56-39-489_snr7.root"
+    output-file: "/media/heather/T7/KatydidOutput/SNRdata/rid1574/Freq_data_2024-09-26-14-25-59-306_snr7.root"
     file-flag: "recreate"
 
 rtw:
-    output-file: "/media/heather/T7/KatydidOutput/StudyA_10022024/test/Freq_data_2024-10-04-18-56-39-489_snr7.root"
+    output-file: "/media/heather/T7/KatydidOutput/SNRdata/rid1574/Freq_data_2024-09-26-14-25-59-306_snr7.root"
     file-flag: recreate
 
 stv:
     num-for-run-avg: 1 # For old data where the vaunix was at 18GHz, change this to 7! 1 = no running average
-    output-file: "/media/heather/T7/KatydidOutput/StudyA_10022024/test/Freq_data_2024-10-04-18-56-39-489_snr7_SlewTimes.txt"
+    output-file: "/media/heather/T7/KatydidOutput/SNRdata/rid1574/Freq_data_2024-09-26-14-25-59-306_snr7_SlewTimes.txt"
 
 acc:
     number-to-average: 0
@@ -136,12 +138,12 @@ long-tr-find:
     min-frequency: 105.0e6 # minimum frequency (in Hz)
     max-frequency: 2300.0e6 # maximum frequency (in Hz)
     initial-slope : 38331313480.99209 #8.0e10 # slope of a track with 1 point (in Hz/s)
-    n-slope-points: 5 # max points to include in the slope calculation
+    n-slope-slices: 5 # max points to include in the slope calculation
     time-gap-tolerance: 1.0e-4 # max gap between points in a line (in sec.) one time slice is 5.46×10^-5 seconds
     frequency-acceptance: 8e5 # max freq gap between point and extrapolated line (in Hz) Each frequency bin is 2.9e5, so it needs to be more than that or all tracks will have a slope of 1 freq bin/1 time bin
-    min-points: 5 # line is converted to a track iff it has >= this # of points
-    max-points: 500
-    min-slope: 0 # line is converted to a track iff line slope is > than this (in Hz/s)
+    min-points: 8 # line is converted to a track iff it has >= this # of points
+    min-slope: 1e9 # line is converted to a track iff line slope is > than this (in Hz/s)
+    rel-slope-diff-to-expand: 0.2 #If the relative difference between the local slopes at the previous two time slices was greater than this, double the frequency acceptance. To recover from adding noise or to follow resonance.
 
 dbscan-trackclust:
     freq-int-epsilon: 4e6 # epsilon used for DBScan clustering on AcqFreqIntercept. In Hz

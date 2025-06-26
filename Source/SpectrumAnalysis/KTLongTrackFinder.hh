@@ -45,7 +45,8 @@ namespace Katydid
      - "initial-frequency-acceptance": if the line that a point is being compared to, only has a single point so far, this is the accepted frequency acceptance. Default is frequency_acceptance
      - "initial-time-acceptance": if the line that a point is being compared to, only has a single point so far, this is the accepted time window. Default is time-gap-tolerance
      - "initial-slope": if a line has only one point, this is the line's slope
-     - "n-slope-points": maximum number of points to include in the slope calculation
+     - "rel-slope-diff-to-expand" If the relative difference between the local slopes at the previous two time slices was greater than this, double the frequency acceptance. To recover from adding noise or to follow resonance.
+     - "n-slope-slices": maximum number of TIME SLICES to include in the slope calculation
      - "min-points": a line only gets converted to a track if it has collected more than this many number of points
      - "max-points": lines will be terminated after this many points. Good for curved tracks/resonances.
      - "min-slope": a line only gets converted to a track if its slope is > than this slope (in Hz/s)
@@ -87,11 +88,12 @@ namespace Katydid
 
         // Parameters for point collection
     MEMBERVARIABLE(double, InitialSlope);
-    MEMBERVARIABLE(signed, NSlopePoints);
+    MEMBERVARIABLE(signed, NSlopeSlices);
     MEMBERVARIABLE(double, FrequencyAcceptance);
     MEMBERVARIABLE(double, InitialFrequencyAcceptance);
     MEMBERVARIABLE(double, InitialTimeAcceptance);
     MEMBERVARIABLE(double, TimeGapTolerance);
+    MEMBERVARIABLE(double, RelSlopeDiffToExpand);
 
         // Parameters for line post-processing
     MEMBERVARIABLE(unsigned, MinPoints);
