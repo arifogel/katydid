@@ -241,7 +241,7 @@ namespace Katydid
             }
         }
 
-        std::cout << "Max log-likelihood lambda: " << best_lambda << ", logL = " << best_logL << std::endl;
+        //std::cout << "Max log-likelihood lambda: " << best_lambda << ", logL = " << best_logL << std::endl;
         return best_lambda/2;
     }
 

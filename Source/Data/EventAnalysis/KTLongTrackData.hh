@@ -77,6 +77,8 @@ namespace Katydid
 
     public:
         unsigned TrackId;
+        unsigned EventId;
+        int BandNumber;
         static const std::string sName;
 
         // Sorted by time

@@ -171,6 +171,8 @@ namespace Katydid
         Nymph::KTDataPtr data(new Nymph::KTData());
         auto& newCand = data->Of<KTLongTrackData>();
         newCand.TrackId = fNCandidatesEmitted;
+        newCand.EventId = fNCandidatesEmitted; //Set the eventID to the trackID for now, can be re-assigned by a later event-builder
+        newCand.BandNumber = 0; //All set to 0 (main band) for now, can be re-assigned by a later event-builder
 
         //Adding all points from clustered tracks into a new canidate track
         size_t totalPoints = 0;

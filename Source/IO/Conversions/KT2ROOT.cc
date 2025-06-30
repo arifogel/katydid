@@ -979,6 +979,8 @@ namespace Katydid
         {
             auto* point = new ((*points)[iPoint]) Katydid::TLongTrackData::Point;
             point->SetTrackId(ktData.TrackId);
+            point->SetEventId(ktData.EventId);
+            point->SetBandNumber(ktData.BandNumber);
             point->SetTimeInRunC(pIt.TimeInRunC);
             point->SetTimeInAcqC(pIt.TimeInAcqC);
             point->SetAcquisitionID(pIt.AcquisitionID);
@@ -994,6 +996,8 @@ namespace Katydid
         }
         
         rootData.SetTrackId(ktData.TrackId);
+        rootData.SetEventId(ktData.EventId);
+        rootData.SetBandNumber(ktData.BandNumber);
         const auto& stats = ktData.GetTrackStats();
         rootData.SetStartFrequency(stats.StartFrequency);
         rootData.SetEndFrequency(stats.EndFrequency);

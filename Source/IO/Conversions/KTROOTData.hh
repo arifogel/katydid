@@ -132,6 +132,8 @@ namespace Katydid
     class TLongTrackData : public TObject
     {
         MEMBERVARIABLE(UInt_t, TrackId);
+        MEMBERVARIABLE(UInt_t, EventId);
+        MEMBERVARIABLE(Int_t, BandNumber);
         MEMBERVARIABLE(Double_t, StartFrequency);
         MEMBERVARIABLE(Double_t, EndFrequency);
         MEMBERVARIABLE(Double_t, FreqLength);
@@ -164,6 +166,8 @@ namespace Katydid
 
         struct Point : public TObject {
             MEMBERVARIABLE(UInt_t, TrackId)
+            MEMBERVARIABLE(UInt_t, EventId)
+            MEMBERVARIABLE(Int_t, BandNumber)
             MEMBERVARIABLE(Double_t, Frequency)
             MEMBERVARIABLE(Double_t, TimeInRunC)
             MEMBERVARIABLE(Double_t, TimeInAcqC)
