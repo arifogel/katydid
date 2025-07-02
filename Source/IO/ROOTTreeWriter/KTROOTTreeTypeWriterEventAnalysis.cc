@@ -22,6 +22,7 @@
 #include "KTSparseWaterfallCandidateData.hh"
 #include "KTSequentialLineData.hh"
 #include "KTLongTrackData.hh"
+#include "KTMultiBandEventData.hh"
 #include "KTWaterfallCandidateData.hh"
 #include "KTDiscriminatedPoint.hh"
 
@@ -72,6 +73,7 @@ namespace Katydid
                     fSparseWaterfallCandidateDataPtr(NULL),
                     fSequentialLineDataPtr(NULL),
                     fLongTrackDataPtr(NULL),
+                    fMultiBandEventDataPtr(NULL),
                     fProcessedTrackDataPtr(NULL),
                     fProcessedMPTDataPtr(NULL),
                     fMultiPeakTrackData(),
@@ -105,6 +107,7 @@ namespace Katydid
         fWriter->RegisterSlot("mte-with-cr", this, &KTROOTTreeTypeWriterEventAnalysis::WriteMTEWithClassifierResults);
         fWriter->RegisterSlot("density-fit", this, &KTROOTTreeTypeWriterEventAnalysis::WriteLinearFitResultData);
         fWriter->RegisterSlot("power-fit", this, &KTROOTTreeTypeWriterEventAnalysis::WritePowerFitData);
+        fWriter->RegisterSlot("mb-event", this, &KTROOTTreeTypeWriterEventAnalysis::WriteMultiBandEvent);
         return;
     }
 
@@ -657,6 +660,63 @@ namespace Katydid
         return true;
     }
 
+    //*********************
+    // Multi Band Event Data
+    //*********************
+
+    void KTROOTTreeTypeWriterEventAnalysis::WriteMultiBandEvent(Nymph::KTDataPtr data)
+    {
+        KTDEBUG(publog, "Attempting to write to multi band event root tree");
+        KTMultiBandEventData& mbeData = data->Of< KTMultiBandEventData >();
+
+        if (! fWriter->OpenAndVerifyFile()) return;
+        fWriter->GetFile()->GetObject( "MB-events", fMultiBandEventTree );
+
+        if (fMultiBandEventTree == NULL)
+        {
+            if (! SetupMultiBandEventTree())
+            {
+                KTERROR(publog, "Something went wrong while setting up the MultiBandEventTree! Nothing was written.");
+                return;
+            }
+        }
+
+        KT2ROOT::LoadMultiBandEventData(mbeData, *fMultiBandEventDataPtr);
+
+        fMultiBandEventTree->Fill();
+
+        return;
+    }
+
+    bool KTROOTTreeTypeWriterEventAnalysis::SetupMultiBandEventTree()
+    {
+        if( fWriter->GetAccumulate() )
+        {
+            fWriter->GetFile()->GetObject( "MB-events", fMultiBandEventTree );
+
+            if( fMultiBandEventTree != NULL )
+            {
+                KTINFO( publog, "Tree already exists; will add to it" );
+                fWriter->AddTree( fMultiBandEventTree );
+
+                fMultiBandEventTree->SetBranchAddress(fMultiBandEventDataPtr->GetBranchName().c_str(), &fMultiBandEventDataPtr);
+
+                return true;
+            }
+        }
+
+        fMultiBandEventTree = new TTree("MB-events", "Multi-Band Events");
+        if (fMultiBandEventTree == NULL)
+        {
+            KTERROR(publog, "Tree was not created!");
+            return false;
+        }
+        fWriter->AddTree(fMultiBandEventTree);
+
+        fMultiBandEventTree->Branch(fMultiBandEventDataPtr->GetBranchName().c_str(), "Katydid::TMultiBandEventData", &fMultiBandEventDataPtr);
+
+        return true;
+    }
     //****************************
     // Processed Multi-Peak Track
     //****************************

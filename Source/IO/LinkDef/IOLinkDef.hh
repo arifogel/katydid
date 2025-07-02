@@ -15,6 +15,6 @@
 #pragma link C++ class Katydid::TSequentialLineData+;
 #pragma link C++ class Katydid::TLongTrackData+;
 #pragma link C++ class Katydid::TLongTrackData::Point+;
-
+#pragma link C++ class Katydid::TMultiBandEventData+;
 
 #endif

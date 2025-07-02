@@ -24,8 +24,6 @@ namespace Katydid
 
         private:
 
-
-
             MEMBERVARIABLE(unsigned, Component);
             MEMBERVARIABLE(uint64_t, AcquisitionID);
             MEMBERVARIABLE(unsigned, CandidateID);

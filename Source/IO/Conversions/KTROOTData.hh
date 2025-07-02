@@ -202,6 +202,35 @@ namespace Katydid
         // This is necessary for ROOT's reflection (RTTI) system to read properties to/from ROOT files automagically
         ClassDef(TLongTrackData, 1);
     };
+
+    //************************
+    // TMultiBandEventData
+    //************************
+
+    class TMultiBandEventData : public TObject
+    {
+        MEMBERVARIABLE(UInt_t, EventId);
+        MEMBERVARIABLE(Double_t, AxialFrequency);
+
+        public:
+            TMultiBandEventData();
+            TMultiBandEventData(const TMultiBandEventData& orig);
+            virtual ~TMultiBandEventData();
+
+            TObject* Clone(const char* newname = "");
+            TMultiBandEventData& operator=(const TMultiBandEventData& rhs);
+
+            std::string GetBranchName() const { return std::string("MultiBandEvent"); }
+
+            TClonesArray* GetTracks() { return fTracks; }
+            ClassDef(TMultiBandEventData, 1)
+
+        private:
+            TClonesArray* fTracks;  //-> Array of TLongTrackData
+
+        
+    };
+
 }
 
 #endif /* KTROOTDATA_HH_ */

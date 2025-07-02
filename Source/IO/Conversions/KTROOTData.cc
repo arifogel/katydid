@@ -20,6 +20,7 @@ ClassImp(Katydid::TSparseWaterfallCandidateData);
 ClassImp(Katydid::TSequentialLineData);
 ClassImp(Katydid::TLongTrackData);
 ClassImp(Katydid::TLongTrackData::Point);
+ClassImp(Katydid::TMultiBandEventData);
 
 namespace Katydid
 {
@@ -155,6 +156,7 @@ namespace Katydid
             fEventId(0),
             fBandNumber(0)
     {
+        // this cannot be initialized in the initializer list because ROOT
         fPoints = new TClonesArray("Katydid::TLongTrackData::Point", 20);
     }
 
@@ -183,4 +185,47 @@ namespace Katydid
         fPoints->Clear(); (*fPoints) = *(rhs.fPoints);
         return *this;
     }
+
+    //************************
+    // TMultiBandEventData
+    //************************
+
+    TMultiBandEventData::TMultiBandEventData() :
+        TObject(),
+        fEventId(0),
+        fAxialFrequency(0)
+    {
+        // this cannot be initialized in the initializer list because ROOT
+        fTracks = new TClonesArray("Katydid::TLongTrackData", 20);
+    }
+
+    TMultiBandEventData::TMultiBandEventData(const TMultiBandEventData& orig) :
+        TObject(orig),
+        fEventId(orig.fEventId),
+        fAxialFrequency(orig.fAxialFrequency)
+    {
+        fTracks = new TClonesArray(*orig.fTracks);
+    }
+
+    TMultiBandEventData::~TMultiBandEventData()
+    {
+        fTracks->Clear();
+        delete fTracks;
+    }
+
+    TMultiBandEventData& TMultiBandEventData::operator=(const TMultiBandEventData& rhs)
+    {
+        fEventId = rhs.fEventId; 
+        fAxialFrequency = rhs.fAxialFrequency;
+
+        fTracks->Clear(); (*fTracks) = *(rhs.fTracks);
+        return *this;
+    }
+
+    TObject *TMultiBandEventData::Clone(const char *newname)
+    {
+        return new TMultiBandEventData(*this);
+    }
+
+
 }

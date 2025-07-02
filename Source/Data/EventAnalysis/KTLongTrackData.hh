@@ -1,7 +1,7 @@
 /**
  @file KTLongTrackData.hh
  @brief Contains KTSequentialLineData
- @details KTDiscriminatedPoint cluster with some track properties
+ @details Discriminated Point cluster with some track properties
  @Authors: A. Gorman, H.S. Harrington
  @date: March 7, 2024
  */
@@ -75,17 +75,17 @@ namespace Katydid
                 NoiseVariance(noiseVariance), TrackFinderLocalSlope(trackFinderLocalSlope) {}
         };
 
+    private:
+            MEMBERVARIABLE(unsigned, TrackId);
+            MEMBERVARIABLE(unsigned, EventId);
+            MEMBERVARIABLE(int, BandNumber);
     public:
-        unsigned TrackId;
-        unsigned EventId;
-        int BandNumber;
         static const std::string sName;
 
         // Sorted by time
         std::vector<KTLongTrackData::Point> points;
         TrackStats fTrackStats;
 
-    public:
         KTLongTrackData();
         ~KTLongTrackData() override;
 

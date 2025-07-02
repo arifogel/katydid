@@ -116,16 +116,16 @@ spec2:
     TOff-bin-pow: 25
 
 brw:
-    output-file: "/media/heather/T7/KatydidOutput/StudyA_10022024/Freq_data_2024-10-04-18-56-39-489_snr7.root"
+    output-file: "/media/heather/T7/KatydidOutput/StudyA_10022024/Freq_data_2024-10-04-18-56-39-489_snr7_mbeb.root"
     file-flag: "recreate"
 
 rtw:
-    output-file: "/media/heather/T7/KatydidOutput/StudyA_10022024/Freq_data_2024-10-04-18-56-39-489_snr7.root"
+    output-file: "/media/heather/T7/KatydidOutput/StudyA_10022024/Freq_data_2024-10-04-18-56-39-489_snr7_mbeb.root"
     file-flag: recreate
 
 stv:
     num-for-run-avg: 1 # For old data where the vaunix was at 18GHz, change this to 7! 1 = no running average
-    output-file: "/media/heather/T7/KatydidOutput/StudyA_10022024/Freq_data_2024-10-04-18-56-39-489_snr7_SlewTimes.txt"
+    output-file: "/media/heather/T7/KatydidOutput/StudyA_10022024/Freq_data_2024-10-04-18-56-39-489_snr7_mbeb_SlewTimes.txt"
 
 acc:
     number-to-average: 0

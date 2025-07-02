@@ -25,6 +25,7 @@
 #include "KTTimeSeriesReal.hh"
 #include "KTSparseWaterfallCandidateData.hh"
 #include "KTLongTrackData.hh"
+#include "KTMultiBandEventData.hh"
 #include "KTSequentialLineData.hh"
 #include "KTChannelAggregatedData.hh"
 #include "KTMath.hh"
@@ -978,9 +979,9 @@ namespace Katydid
         for (auto pIt : ktData.GetPoints())
         {
             auto* point = new ((*points)[iPoint]) Katydid::TLongTrackData::Point;
-            point->SetTrackId(ktData.TrackId);
-            point->SetEventId(ktData.EventId);
-            point->SetBandNumber(ktData.BandNumber);
+            point->SetTrackId(ktData.GetTrackId());
+            point->SetEventId(ktData.GetEventId());
+            point->SetBandNumber(ktData.GetBandNumber());
             point->SetTimeInRunC(pIt.TimeInRunC);
             point->SetTimeInAcqC(pIt.TimeInAcqC);
             point->SetAcquisitionID(pIt.AcquisitionID);
@@ -995,9 +996,9 @@ namespace Katydid
             ++iPoint;
         }
         
-        rootData.SetTrackId(ktData.TrackId);
-        rootData.SetEventId(ktData.EventId);
-        rootData.SetBandNumber(ktData.BandNumber);
+        rootData.SetTrackId(ktData.GetTrackId());
+        rootData.SetEventId(ktData.GetEventId());
+        rootData.SetBandNumber(ktData.GetBandNumber());
         const auto& stats = ktData.GetTrackStats();
         rootData.SetStartFrequency(stats.StartFrequency);
         rootData.SetEndFrequency(stats.EndFrequency);
@@ -1028,5 +1029,26 @@ namespace Katydid
         rootData.SetNSPPerUnitLength(stats.NSPPerUnitLength);
         rootData.SetBestSNR(stats.BestSNR);
     }
+
+    void KT2ROOT::LoadMultiBandEventData(const KTMultiBandEventData& mbeData, TMultiBandEventData& rootMBEData)
+    {
+        rootMBEData.SetEventId(mbeData.GetEventId());
+        rootMBEData.SetAxialFrequency(mbeData.GetAxialFrequency());
+
+        rootMBEData.GetTracks()->Clear("C");
+
+        const auto& tracks = mbeData.GetTracks();
+
+        for (auto* track : tracks)
+        {
+            if (!track) continue;
+
+            Int_t nTracks = rootMBEData.GetTracks()->GetEntriesFast();
+            auto* rootTrack = new ((*rootMBEData.GetTracks())[nTracks]) Katydid::TLongTrackData;
+
+            LoadLongTrackData(*track, *rootTrack);
+        }
+    }
+
 } /* namespace Katydid */
 

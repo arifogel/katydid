@@ -33,6 +33,7 @@ set (DATA_HEADERFILES
     EventAnalysis/KTRPTrackData.hh
     EventAnalysis/KTSequentialLineData.hh
     EventAnalysis/KTLongTrackData.hh
+    EventAnalysis/KTMultiBandEventData.hh
     EventAnalysis/KTSparseWaterfallCandidateData.hh
     EventAnalysis/KTSpectrumCollectionData.hh
     EventAnalysis/KTWaterfallCandidateData.hh
@@ -99,6 +100,7 @@ set (DATA_SOURCEFILES
     EventAnalysis/KTRPTrackData.cc
     EventAnalysis/KTSequentialLineData.cc
     EventAnalysis/KTLongTrackData.cc
+    EventAnalysis/KTMultiBandEventData.cc
     EventAnalysis/KTSparseWaterfallCandidateData.cc
     EventAnalysis/KTSpectrumCollectionData.cc
     EventAnalysis/KTWaterfallCandidateData.cc

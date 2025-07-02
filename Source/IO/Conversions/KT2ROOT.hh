@@ -48,11 +48,13 @@ namespace Katydid
     class KTDiscriminatedPoint;
     class KTAggregatedFrequencySpectrumDataFFTW;
     class KTAggregatedPowerSpectrumData;
+    class KTMultiBandEventData;
 
     class TDiscriminatedPoint;
     class TSparseWaterfallCandidateData;
     class TLongTrackData;
     class TSequentialLineData;
+    class TMultiBandEventData;
 
     class KT2ROOT
     {
@@ -183,6 +185,12 @@ namespace Katydid
             static void LoadSequentialLineData(const KTSequentialLineData& seqData, TSequentialLineData& rootSEQData);
             static void LoadLongTrackData(const KTLongTrackData& ktData, Katydid::TLongTrackData& rootData);
             // static void UnloadSequentialLineData(KTSequentialLineData& seqData, const TSequentialLineData& rootSEQData);
+
+            //*********************************
+            // Multi Band Event Data
+            //*********************************
+
+            static void LoadMultiBandEventData(const KTMultiBandEventData& mbeData, TMultiBandEventData& rootMBEData);
 
     };
 

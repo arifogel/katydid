@@ -209,12 +209,14 @@ namespace Katydid
             void WriteLinearFitResultData(Nymph::KTDataPtr data);
             void WritePowerFitData(Nymph::KTDataPtr data);
             void WriteLongTrack(Nymph::KTDataPtr data);
+            void WriteMultiBandEvent(Nymph::KTDataPtr data);
 
         public:
             TTree* GetFrequencyCandidateTree() const;
             TTree* GetWaterfallCandidateTree() const;
             TTree* GetSparseWaterfallCandidateTree() const;
             TTree* GetSequentialLineTree() const;
+            TTree* GetMultiBandEventTree() const;
             TTree* GetProcessedMPTTree() const;
             TTree* GetProcessedTrackTree() const;
             TTree* GetMultiPeakTrackTree() const;
@@ -228,6 +230,7 @@ namespace Katydid
             bool SetupWaterfallCandidateTree();
             bool SetupSparseWaterfallCandidateTree();
             bool SetupSequentialLineTree();
+            bool SetupMultiBandEventTree();
             bool SetupProcessedMPTTree();
             bool SetupProcessedTrackTree();
             bool SetupMultiPeakTrackTree();
@@ -240,6 +243,7 @@ namespace Katydid
             TTree* fWaterfallCandidateTree;
             TTree* fSparseWaterfallCandidateTree;
             TTree* fSequentialLineTree;
+            TTree* fMultiBandEventTree;
             TTree* ftrackTree;
             TTree* fProcessedMPTTree;
             TTree* fProcessedTrackTree;
@@ -254,6 +258,7 @@ namespace Katydid
             TSparseWaterfallCandidateData* fSparseWaterfallCandidateDataPtr;
             TLongTrackData* fLongTrackDataPtr;
             TSequentialLineData* fSequentialLineDataPtr;
+            TMultiBandEventData* fMultiBandEventDataPtr;
             Cicada::TProcessedTrackData* fProcessedTrackDataPtr;
             Cicada::TProcessedMPTData* fProcessedMPTDataPtr;
             TMultiPeakTrackData fMultiPeakTrackData;
@@ -286,6 +291,11 @@ namespace Katydid
     inline TTree* KTROOTTreeTypeWriterEventAnalysis::GetProcessedMPTTree() const
     {
         return fProcessedMPTTree;
+    }
+
+    inline TTree* KTROOTTreeTypeWriterEventAnalysis::GetMultiBandEventTree() const
+    {
+        return fMultiBandEventTree;
     }
 
     inline TTree* KTROOTTreeTypeWriterEventAnalysis::GetProcessedTrackTree() const

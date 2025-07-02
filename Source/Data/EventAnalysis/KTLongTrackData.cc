@@ -1,7 +1,7 @@
 /**
  @file KTLongTrackData.cc
  @brief Contains KTLongTrackData
- @details KTDiscriminatedPoint cluster with some track properties
+ @details Discriminated Point cluster with some track properties
  @Authors: A. Gorman, H.S. Harrington
  @date: March 7, 2024
  */
@@ -20,7 +20,9 @@ namespace Katydid
 	KTLOGGER(seqlog, "KTLongTrack");
 
     KTLongTrackData::KTLongTrackData():
-        TrackId()
+        fTrackId(),
+        fEventId(),
+        fBandNumber()
         {}
 
     KTLongTrackData::~KTLongTrackData() = default;

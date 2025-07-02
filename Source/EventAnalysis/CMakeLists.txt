@@ -26,6 +26,7 @@ set (EVENTANALYSIS_HEADERFILES
     CutClasses/KTTrackTimeCut.hh
 
     KTCollinearTrackClustering.hh
+    KTMultiBandEventBuilder.hh
     KTDataCutter.hh
     KTDistanceMatrix.hh
     KTDBSCANEventSIDClustering.hh
@@ -73,6 +74,7 @@ set (EVENTANALYSIS_SOURCEFILES
     KTDBSCANEventClustering.cc
     KTDBSCANTrackClustering.cc
     KTDBSCANLongTrackCollinearClustering.cc
+    KTMultiBandEventBuilder.cc
     KTFrequencyCandidateIdentifier.cc
     KTIterativeTrackClustering.cc
     KTMultiPeakEventBuilder.cc
