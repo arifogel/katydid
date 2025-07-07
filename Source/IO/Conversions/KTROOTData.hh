@@ -160,8 +160,10 @@ namespace Katydid
         MEMBERVARIABLE(Double_t, MinPower);
         MEMBERVARIABLE(Double_t, StdDevPower);
         MEMBERVARIABLE(Double_t, ManhattanLength);
+        MEMBERVARIABLE(Double_t, Density);
         MEMBERVARIABLE(Double_t, NSPPerUnitLength);
-        MEMBERVARIABLE(Double_t, BestSNR);
+        MEMBERVARIABLE(Double_t, DensityEstSNR);
+        MEMBERVARIABLE(Double_t, MLEPowerSNR);
 
 
         struct Point : public TObject {

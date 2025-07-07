@@ -13,6 +13,9 @@
 #include <cmath>
 #include <algorithm>
 #include <boost/math/special_functions/bessel.hpp>
+#include <boost/math/distributions/non_central_chi_squared.hpp>
+#include <numeric>
+#include <functional>
 
 namespace Katydid
 {
@@ -165,9 +168,10 @@ namespace Katydid
         ComputePowerStats(fTrackStats);
         
         fTrackStats.ManhattanLength = nTimeBins+nFreqBins;
-        fTrackStats.NSPPerUnitLength = 2*fTrackStats.TotalNsp/fTrackStats.ManhattanLength;
-
-        fTrackStats.BestSNR = ComputeMaxLoglikelihoodLambda();
+        fTrackStats.Density = points.size()/fTrackStats.ManhattanLength; //using half the manhattan distance as number of bin length est.
+        fTrackStats.NSPPerUnitLength = fTrackStats.TotalNsp/fTrackStats.ManhattanLength;
+        fTrackStats.DensityEstSNR = EstimateLambdaFromDensity(fTrackStats.Density);
+        fTrackStats.MLEPowerSNR = ComputeMaxLoglikelihoodLambda();
 
         return fTrackStats;
     }
@@ -247,5 +251,54 @@ namespace Katydid
         return best_lambda/2;
     }
 
+    // Find best guess lambda from track density as another SNR estimator
+    double KTLongTrackData::EstimateLambdaFromDensity(double Density)
+    {
+        double k = 2.0;
+        double sum_tau = 0.0;
+        double sum_threshold_ratio = 0.0;
+        for (const auto& pt : points)
+        {
+            sum_tau += pt.NoiseTau;
+            sum_threshold_ratio += pt.Threshold / pt.NoiseTau;
+        }
+        double mean_tau = sum_tau / points.size();
+        double mean_threshold_ratio = sum_threshold_ratio / points.size();
+
+        // Define function to find root. prob(lambda)-obs density
+        auto f = [&](double lambda) {
+            boost::math::non_central_chi_squared dist(k, lambda);
+            double x_thresh = 2.0 * mean_threshold_ratio;
+            double p_pass = 1.0 - cdf(dist, x_thresh);
+            return p_pass - Density;
+        };
+
+        // Root finding using Brent's method for speed
+        double lambda_lo = 0.0;
+        double lambda_hi = 60.0;
+
+        double tol = 1e-5;
+        int max_iter = 100;
+
+        for (int i = 0; i < max_iter; ++i)
+        {
+            double mid = 0.5 * (lambda_lo + lambda_hi);
+            double f_lo = f(lambda_lo);
+            double f_mid = f(mid);
+
+            if (std::abs(f_mid) < tol)
+                return mid;
+
+            if (f_lo * f_mid < 0)
+                lambda_hi = mid;
+            else
+                lambda_lo = mid;
+        }
+
+        double density_lambda = 0.5 * (lambda_lo + lambda_hi);
+
+        //std::cout << "Est of lambda from density: " << density_lambda << std::endl;
+        return density_lambda/2;
+    }
 
 } /* namespace Katydid */

@@ -1026,8 +1026,10 @@ namespace Katydid
         rootData.SetMinPower(stats.MinPower);
         rootData.SetStdDevPower(stats.StdDevPower);
         rootData.SetManhattanLength(stats.ManhattanLength);
+        rootData.SetDensity(stats.Density);
         rootData.SetNSPPerUnitLength(stats.NSPPerUnitLength);
-        rootData.SetBestSNR(stats.BestSNR);
+        rootData.SetDensityEstSNR(stats.DensityEstSNR);
+        rootData.SetMLEPowerSNR(stats.MLEPowerSNR);
     }
 
     void KT2ROOT::LoadMultiBandEventData(const KTMultiBandEventData& mbeData, TMultiBandEventData& rootMBEData)

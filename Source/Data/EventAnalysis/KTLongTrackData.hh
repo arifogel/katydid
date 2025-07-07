@@ -51,8 +51,10 @@ namespace Katydid
             double TimeBinWidth;
             double FreqBinWidth;
             double ManhattanLength;
+            double Density;
             double NSPPerUnitLength;
-            double BestSNR;
+            double DensityEstSNR;
+            double MLEPowerSNR;
         };
 
         struct Point {
@@ -98,6 +100,7 @@ namespace Katydid
         double ComputeAcqFreqIntercept() const;
         double LogLikelihood(double lambda, const std::vector<double>& chi_vals);
         double ComputeMaxLoglikelihoodLambda();
+        double EstimateLambdaFromDensity(double Density);
         void SetPoints(const std::vector<KTLongTrackData::Point> &vector);
 
     private:
