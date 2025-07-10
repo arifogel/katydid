@@ -18,10 +18,12 @@
 #include "KTMultiBandEventData.hh"
 #include "KTLongTrackData.hh"
 
-#include <set>
-#include <vector>
+//#include <set>
 #include <map>
 #include <memory>
+#include <vector>
+
+using partition = std::vector<std::vector<unsigned short>>;
 
 namespace Katydid
 {
@@ -30,14 +32,13 @@ namespace Katydid
      @class KTMultiBandEventBuilder
      @authors H.S. Harrington and N. Buzinsky
 
-     @brief looks for events within tracks in the same aquisition
+     @brief looks for events within tracks in the same acquisition
 
-     @details TODO
-     
+     @details
      Configuration name: "multi-band-event-builder"
 
      Available configuration values:
-     - "epsilon": double -- some distance tbd
+     - "expected-tracks-per-acq": double -- prior expectation on the number of reconstructed bands per trap acq.
 
      Slots:
      - "long-track-cand": void (KTDataPtr) -- If this is a new acquisition; Adds track candidates to the internally-stored set of points; guarantees KTLongTrackData
@@ -56,10 +57,13 @@ namespace Katydid
             virtual ~KTMultiBandEventBuilder();
 
             bool Configure(const scarab::param_node* node);
-            MEMBERVARIABLE(double, Epsilon);
+            MEMBERVARIABLE(double, ExpectedTracksPerAcq);
+            MEMBERVARIABLE(std::vector<double>, TrackFrequencyBandwidths);
+            MEMBERVARIABLE(std::vector<double>, LogPoisson);
             // Internal tracking
             MEMBERVARIABLE_PROTECTED(unsigned, NEventsEmitted);
             MEMBERVARIABLE_PROTECTED(unsigned, MinTracksInAcqToRun);
+            MEMBERVARIABLE_PROTECTED(unsigned, MaxTracksInAcqToRun);
             double fTimeBinWidth = 0.0;
             double fFreqBinWidth = 0.0;
 
@@ -68,6 +72,8 @@ namespace Katydid
             bool BuildEvents();
             bool Run();
             void EmitEvents(const std::vector<std::vector<KTLongTrackData*>>& groupsInAcq);
+            std::vector<partition> GetAllPartitions(const int &nTracks);
+            void RecursivePartitionGenerator(const int &nTracks, unsigned short current, const partition& current_partition, std::vector<partition>& result);
 
         private:
             /// Map of AcqID -> vector of tracks

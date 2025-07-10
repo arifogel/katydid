@@ -5,13 +5,19 @@
 #include "KTLongTrackData.hh"
 #include "KTMultiBandEventData.hh"
 
-#include <cmath>
-#include <numeric>
 #include <algorithm>
+#include <cmath>
 #include <memory>
+#include <numeric>
+#include <stdexcept>
 
-using std::set;
-using std::vector;
+//using std::set;
+//using std::vector;
+
+//bands are sorted by FreqIntInTrapAcq and assigned integers starting at 0
+//We would have (for proposed events): event = vector<band>
+//Then a given "partition" is a vector<event>, in which we organize all bands in a trap acq. into events
+//We have vector<partition> to consider all partitions from which choose the maximal likelihood partition
 
 namespace Katydid
 {
@@ -21,17 +27,23 @@ namespace Katydid
     // Constructor
     KTMultiBandEventBuilder::KTMultiBandEventBuilder(const std::string& name) :
         KTProcessor(name),
-        fEpsilon(0.5),
+        fExpectedTracksPerAcq(0.05),
         fMinTracksInAcqToRun(1),
+        fMaxTracksInAcqToRun(15),
         fTimeBinWidth(0.0),
         fFreqBinWidth(0.0),
         fTracksPerAcq(),
         fNEventsEmitted(0),
+        fLogPoisson(fMaxTracksInAcqToRun),
+        fTrackFrequencyBandwidths({2300,360,3}),
         fMBESignal("mbe-cand", this),
         fEventBuilderDoneSignal("event-builder-done", this),
         fInputTrackSlot("long-track-cand", this, &KTMultiBandEventBuilder::ReceiveLongTrackCandidate)
     {
         RegisterSlot("build-events", this, &KTMultiBandEventBuilder::BuildEventsSlot);
+
+        for(unsigned k = 0; k < fMaxTracksInAcqToRun; ++k)
+            fLogPoisson[k] = k*std::log(fExpectedTracksPerAcq) - fExpectedTracksPerAcq - std::log(std::tgamma(k+1));
     }
 
     // Destructor
@@ -51,7 +63,7 @@ namespace Katydid
     bool KTMultiBandEventBuilder::Configure(const scarab::param_node* node)
     {
         if (node == NULL) return false;
-        SetEpsilon(node->get_value("epsilon", GetEpsilon()));
+        //SetEpsilon(node->get_value("epsilon", GetEpsilon()));
         return true;
     }
 
@@ -117,6 +129,38 @@ namespace Katydid
         return true;
     }
 
+
+    void KTMultiBandEventBuilder::RecursivePartitionGenerator(const int &nTracks, unsigned short current, const partition& current_partition, std::vector<partition>& result)
+    {
+       if(current > nTracks)
+       {
+           result.push_back(current_partition);
+           return;
+       }
+
+        for (size_t i = 0; i < current_partition.size(); ++i)
+        {
+            partition new_partition = current_partition;
+            new_partition[i].push_back(current);
+            RecursivePartitionGenerator(nTracks, current + 1, new_partition, result);
+        }
+
+        partition new_partition = current_partition;
+        new_partition.push_back({current});
+        RecursivePartitionGenerator(nTracks, current + 1, new_partition, result);
+    }
+
+    std::vector<partition> KTMultiBandEventBuilder::GetAllPartitions(const int &nTracks)
+    {
+        //if nTracks > ~15 throw an error so that we don't wait longer than universe lifetime to list all possibilities
+        if( nTracks > 15)
+            throw std::runtime_error("Number of bands in trap acq > 15! Requires ~GB of storage for all possibilities");
+        std::vector<partition> result;
+        partition current_partition;
+        RecursivePartitionGenerator(nTracks, 0, current_partition, result);
+        return result;
+    }
+
     // Placeholder clustering method
     std::vector<std::vector<KTLongTrackData*>> KTMultiBandEventBuilder::FindGroupsInAcq(const std::vector<KTLongTrackData*>& tracks)
     {
@@ -128,6 +172,13 @@ namespace Katydid
         {
             groupsInAcq.push_back(tracks);
         }
+
+        const int nTracksInAcq = tracks.size();
+        KTINFO(tclog, "nTracks: " << nTracksInAcq << " ack.");
+
+        //auto partitions = get_all_partitions(nTracksInAcqnBandsInTrapAcq);
+
+        //const int nPartitions = partitions.size();
 
         return groupsInAcq;
     }
@@ -145,7 +196,7 @@ namespace Katydid
             {
                 if (!track) continue;
                 track->SetEventId(fNEventsEmitted);
-                track->SetBandNumber(0); //Nick, this is where you assign the band number to a track object within the event. Or could be moved to FindGroupsInAcq
+                track->SetBandNumber(0);
                 eventData.AddTrack(track);
             }
 
