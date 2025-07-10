@@ -8,7 +8,7 @@
  */
 
 #ifndef KTMULTIBANDEVENTBUILDER_HH_
-#define KTMULTIBANDEVENTBUILDER_HH_ 
+#define KTMULTIBANDEVENTBUILDER_HH_
 
 #include "KTProcessor.hh"
 
@@ -18,7 +18,6 @@
 #include "KTMultiBandEventData.hh"
 #include "KTLongTrackData.hh"
 
-//#include <set>
 #include <map>
 #include <memory>
 #include <vector>
@@ -51,7 +50,6 @@ namespace Katydid
 
     class KTMultiBandEventBuilder : public Nymph::KTProcessor
     {
-
         public:
             KTMultiBandEventBuilder(const std::string& name = "multi-band-event-builder");
             virtual ~KTMultiBandEventBuilder();

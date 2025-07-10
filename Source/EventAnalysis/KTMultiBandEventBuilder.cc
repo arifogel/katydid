@@ -11,9 +11,7 @@
 #include <numeric>
 #include <stdexcept>
 
-//using std::set;
-//using std::vector;
-
+//From https://en.wikipedia.org/wiki/Partition_of_a_set: A partition of a set is a grouping of its elements into non-empty subsets, in such a way that every element is included in exactly one subset
 //bands are sorted by FreqIntInTrapAcq and assigned integers starting at 0
 //We would have (for proposed events): event = vector<band>
 //Then a given "partition" is a vector<event>, in which we organize all bands in a trap acq. into events
@@ -34,7 +32,6 @@ namespace Katydid
         fFreqBinWidth(0.0),
         fTracksPerAcq(),
         fNEventsEmitted(0),
-        fLogPoisson(fMaxTracksInAcqToRun),
         fTrackFrequencyBandwidths({2300,360,3}),
         fMBESignal("mbe-cand", this),
         fEventBuilderDoneSignal("event-builder-done", this),
@@ -42,8 +39,11 @@ namespace Katydid
     {
         RegisterSlot("build-events", this, &KTMultiBandEventBuilder::BuildEventsSlot);
 
-        for(unsigned k = 0; k < fMaxTracksInAcqToRun; ++k)
-            fLogPoisson[k] = k*std::log(fExpectedTracksPerAcq) - fExpectedTracksPerAcq - std::log(std::tgamma(k+1));
+        for(unsigned k = 0; k <= fMaxTracksInAcqToRun; ++k)
+        {
+            fLogPoisson.push_back(k*std::log(fExpectedTracksPerAcq) - fExpectedTracksPerAcq - std::log(std::tgamma(k+1)));
+            KTINFO(tclog,"Poisson log-likelihood("<<k<<")= "<<fLogPoisson[k]);
+        }
     }
 
     // Destructor
@@ -63,7 +63,7 @@ namespace Katydid
     bool KTMultiBandEventBuilder::Configure(const scarab::param_node* node)
     {
         if (node == NULL) return false;
-        //SetEpsilon(node->get_value("epsilon", GetEpsilon()));
+        SetExpectedTracksPerAcq(node->get_value("expected-tracks-per-acq", GetExpectedTracksPerAcq()));
         return true;
     }
 
@@ -71,7 +71,7 @@ namespace Katydid
     bool KTMultiBandEventBuilder::ReceiveLongTrackCandidate(KTLongTrackData& trackData)
     {
         const auto& stats = trackData.GetTrackStats();
-        KTDEBUG(tclog, "Received track with AcqID " << stats.StartAcqID << ", freq intercept = " << stats.AcqFreqIntercept );
+        KTWARN(tclog, "Received track with AcqID " << stats.StartAcqID << ", freq intercept = " << stats.AcqFreqIntercept );
 
         // Initialize bin widths from first track
         if (fTimeBinWidth == 0.0 && fFreqBinWidth == 0.0)
@@ -152,8 +152,8 @@ namespace Katydid
 
     std::vector<partition> KTMultiBandEventBuilder::GetAllPartitions(const int &nTracks)
     {
-        //if nTracks > ~15 throw an error so that we don't wait longer than universe lifetime to list all possibilities
-        if( nTracks > 15)
+        //returns a vector with all possible partitions of (integer-labelled) tracks in an acq [vec<vec<vec<int>>>]
+        if(nTracks > fMaxTracksInAcqToRun)
             throw std::runtime_error("Number of bands in trap acq > 15! Requires ~GB of storage for all possibilities");
         std::vector<partition> result;
         partition current_partition;
@@ -166,19 +166,44 @@ namespace Katydid
     {
         std::vector<std::vector<KTLongTrackData*>> groupsInAcq;
 
-        // TODO: Nick, implement real algorithm to cluster tracks into events here.
-        // For now: treat all tracks in an aquisition as one single event
-        if (!tracks.empty())
+        const int nTracksInAcq = tracks.size();
+        KTWARN(tclog, "nTracks: " << nTracksInAcq << " ack.");
+
+        // If one track in acq, treat all tracks in an acquisition as one single event
+        if(nTracksInAcq <= 1)
         {
             groupsInAcq.push_back(tracks);
         }
+        else if(nTracksInAcq > fMaxTracksInAcqToRun)
+        {
+            //if nTracks > ~15 throw an error: too memory-intensive to list all possible partitions
+            //Treat all tracks as a single event so that it is easy to find, if it ever happens
+            groupsInAcq.push_back(tracks);
+            KTWARN(tclog, nTracksInAcq << " tracks were found in trap acq! Brute force failed, clustering skipped!");
+        }
+        else
+        {
+            //"standard" and non-trivial case for track clustering
+            auto partitions = GetAllPartitions(nTracksInAcq);
+            const int nPartitions = partitions.size(); //Bell number: B_nTracksInAcq
+            std::vector<double> logLikelihoods(nPartitions); //vector of zeros for each proposed partition
 
-        const int nTracksInAcq = tracks.size();
-        KTINFO(tclog, "nTracks: " << nTracksInAcq << " ack.");
+            //For each proposed partition, count how many events are proposed
+            std::vector<int> nEvents(nPartitions);
+            //For each proposed partition, count how many events are proposed
+            std::vector<std::vector<int>> bands(nPartitions);
+            for(int i = 0; i<nPartitions;++i)
+            {
+                nEvents.push_back(partitions[i].size());
+                for (const auto& subset : partitions[i])
+                {
+                    bands[i].push_back(subset.size());
+                }
+            }
 
-        //auto partitions = get_all_partitions(nTracksInAcqnBandsInTrapAcq);
 
-        //const int nPartitions = partitions.size();
+            groupsInAcq.push_back(tracks);
+        }
 
         return groupsInAcq;
     }
