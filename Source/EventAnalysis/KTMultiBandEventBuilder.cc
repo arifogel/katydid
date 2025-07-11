@@ -25,6 +25,7 @@ namespace Katydid
     // Constructor
     KTMultiBandEventBuilder::KTMultiBandEventBuilder(const std::string& name) :
         KTProcessor(name),
+        fEventTopologies({"00000","00100","01010","01110","11011","1101","1011","11001","10011"}),
         fExpectedTracksPerAcq(0.05),
         fMinTracksInAcqToRun(1),
         fMaxTracksInAcqToRun(15),
@@ -234,6 +235,7 @@ namespace Katydid
                 if (!track) continue;
                 track->SetEventId(fNEventsEmitted);
                 track->SetBandNumber(0);
+                //track->SetEventType(1);
                 eventData.AddTrack(track);
             }
 

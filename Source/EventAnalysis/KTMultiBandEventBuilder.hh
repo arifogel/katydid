@@ -18,6 +18,7 @@
 #include "KTMultiBandEventData.hh"
 #include "KTLongTrackData.hh"
 
+#include <bitset>
 #include <map>
 #include <memory>
 #include <vector>
@@ -48,6 +49,33 @@ namespace Katydid
      - "event-builder-done": void () -- Emitted when the event builder is done with ALL aquisitions
     */
 
+
+    class EventTopology
+    {
+        public:
+            std::bitset<5> binaryID;
+            unsigned decimalID;
+            unsigned nBands;
+            std::string label;
+            std::vector<unsigned> bands;
+
+            EventTopology(const char *aCharLabel): label(aCharLabel)
+            {
+                binaryID = std::bitset<5>(label);
+                decimalID = binaryID.to_ulong();
+                nBands = binaryID.count();
+
+                // Reverse indexing because bitset stores from right to left
+                for (int i = 0; i < 5; ++i)
+                {
+                    //Maps index 0->-2, 1->-1, 2->0, 3->1, 4->2
+                    if (binaryID[4 - i])
+                        bands.push_back(i - 2);
+                }
+            }
+
+    };
+
     class KTMultiBandEventBuilder : public Nymph::KTProcessor
     {
         public:
@@ -77,6 +105,7 @@ namespace Katydid
             /// Map of AcqID -> vector of tracks
             std::map<unsigned, std::vector<KTLongTrackData*>> fTracksPerAcq;
             std::vector<std::vector<KTLongTrackData*>> FindGroupsInAcq(const std::vector<KTLongTrackData*>& tracks);
+            std::vector<EventTopology> fEventTopologies;
 
 
         private:
