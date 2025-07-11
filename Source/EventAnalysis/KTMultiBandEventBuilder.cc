@@ -71,7 +71,7 @@ namespace Katydid
     bool KTMultiBandEventBuilder::ReceiveLongTrackCandidate(KTLongTrackData& trackData)
     {
         const auto& stats = trackData.GetTrackStats();
-        KTWARN(tclog, "Received track with AcqID " << stats.StartAcqID << ", freq intercept = " << stats.AcqFreqIntercept );
+        KTINFO(tclog, "Received track with AcqID " << stats.StartAcqID << ", freq intercept = " << stats.AcqFreqIntercept );
 
         // Initialize bin widths from first track
         if (fTimeBinWidth == 0.0 && fFreqBinWidth == 0.0)
@@ -105,12 +105,15 @@ namespace Katydid
     {
         KTINFO(tclog, "Building events from all acquisitions...");
 
-        for (const auto& acqEntry : fTracksPerAcq)
+        for (auto& acqEntry : fTracksPerAcq)
         {
             unsigned acqID = acqEntry.first;
-            const auto& tracks = acqEntry.second;
+            auto& tracks = acqEntry.second;
 
-            KTINFO(tclog, "Processing AcqID " << acqID << " with " << tracks.size() << " tracks.");
+            KTINFO(tclog, "Sorting AcqID " << acqID << " with " << tracks.size() << " tracks.");
+
+            std::sort(tracks.begin(), tracks.end(), [](const auto& a, const auto& b) {return a->GetTrackStats().AcqFreqIntercept < b->GetTrackStats().AcqFreqIntercept;});
+
 
             if (tracks.size() < fMinTracksInAcqToRun)
             {
@@ -118,7 +121,15 @@ namespace Katydid
                 continue;
             }
 
+            if (tracks.size() > 1)
+            {
+                for(int i=0;i<tracks.size();++i)
+                    KTINFO(tclog, "AcqID " << acqID << ", Sorted Track "<< i << ", AcqFreqIntercept: "<< tracks[i]->GetTrackStats().AcqFreqIntercept);
+            }
+
             // Cluster the tracks
+            // TODO: If there is a gap > fTrackFrequencyBandwidths[1], split up tracks into multiple calls.
+            //since there are no possible clusters between
             std::vector<std::vector<KTLongTrackData*>> groupsInAcq = this->FindGroupsInAcq(tracks);
             EmitEvents(groupsInAcq);
         }
@@ -190,16 +201,17 @@ namespace Katydid
 
             //For each proposed partition, count how many events are proposed
             std::vector<int> nEvents(nPartitions);
-            //For each proposed partition, count how many events are proposed
-            std::vector<std::vector<int>> bands(nPartitions);
+            //For each proposed partition, count how many bands are in each proposed event
+            std::vector<std::vector<int>> nBands(nPartitions);
             for(int i = 0; i<nPartitions;++i)
             {
                 nEvents.push_back(partitions[i].size());
                 for (const auto& subset : partitions[i])
                 {
-                    bands[i].push_back(subset.size());
+                    nBands[i].push_back(subset.size());
                 }
             }
+            std::vector<std::vector<int>> labels = nBands;
 
 
             groupsInAcq.push_back(tracks);
