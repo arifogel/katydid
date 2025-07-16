@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <memory>
 #include <numeric>
 #include <stdexcept>
@@ -25,7 +26,7 @@ namespace Katydid
     // Constructor
     KTMultiBandEventBuilder::KTMultiBandEventBuilder(const std::string& name) :
         KTProcessor(name),
-        fEventTopologies({"00000","00100","01010","01110","11011","1101","1011","11001","10011"}),
+        //fEventTopologies({"00000","00100","01010","01110","11011","1101","1011","11001","10011"}),
         fExpectedTracksPerAcq(0.05),
         fMinTracksInAcqToRun(1),
         fMaxTracksInAcqToRun(15),
@@ -33,18 +34,37 @@ namespace Katydid
         fFreqBinWidth(0.0),
         fTracksPerAcq(),
         fNEventsEmitted(0),
-        fTrackFrequencyBandwidths({2300,360,3}),
+        fTrackFrequencyBandwidths({2300e6,360e6,3e6}),
+        fLogTrackFrequencyBandwidths(),
         fMBESignal("mbe-cand", this),
         fEventBuilderDoneSignal("event-builder-done", this),
         fInputTrackSlot("long-track-cand", this, &KTMultiBandEventBuilder::ReceiveLongTrackCandidate)
     {
         RegisterSlot("build-events", this, &KTMultiBandEventBuilder::BuildEventsSlot);
 
+        //Need MaxTracks + 1 to prevent segfaults if there are exactly maxTracks in the trap acq
+        fLogEventSizePrior = std::vector<double>(fMaxTracksInAcqToRun + 1);
+        fLogTrackFrequencyBandwidths = std::vector<double>(fMaxTracksInAcqToRun + 1);
+        //manual hardcoding of priors (could change, via config list with remaining entries set to -inf
+        //normalized so that over all eventTypes, sum is 1. Only relative values really matter for selection
+        fLogEventSizePrior[1] = 0.3;
+        fLogEventSizePrior[2] = 0.5;
+        fLogEventSizePrior[3] = 0.18 / 5.;
+        fLogEventSizePrior[4] = 0.02;
+
+        const unsigned nTrackFrequencyBandwidths = fTrackFrequencyBandwidths.size();
         for(unsigned k = 0; k <= fMaxTracksInAcqToRun; ++k)
         {
             fLogPoisson.push_back(k*std::log(fExpectedTracksPerAcq) - fExpectedTracksPerAcq - std::log(std::tgamma(k+1)));
             KTINFO(tclog,"Poisson log-likelihood("<<k<<")= "<<fLogPoisson[k]);
+
+            fLogEventSizePrior[k] = std::log(fLogEventSizePrior[k]);
+            KTINFO(tclog,"Event Prior log-likelihood("<<k<<")= "<<fLogEventSizePrior[k]);
+
+            fLogTrackFrequencyBandwidths[k] = -std::log(fTrackFrequencyBandwidths[std::min(k, nTrackFrequencyBandwidths)]);
+            //KTINFO(tclog,"Event Prior log-likelihood("<<k<<")= "<<fLogEventSizePrior[k]);
         }
+
     }
 
     // Destructor
@@ -173,6 +193,82 @@ namespace Katydid
         return result;
     }
 
+    std::vector<unsigned> KTMultiBandEventBuilder::GetMaxLIndices(const std::vector<double>& logLikelihoods, const double &tolerance)
+    {
+        //returns the partition indices of all likelihoods within tol of the max
+        std::vector<unsigned> indices;
+        //this is unironically how C++ does this: max doesn't work for vectors
+        double maxL = *std::max_element(logLikelihoods.begin(), logLikelihoods.end());
+
+        for (size_t i = 0; i < logLikelihoods.size(); ++i)
+        {
+            if (std::fabs(logLikelihoods[i] - maxL) <= tolerance)
+                indices.push_back(i);
+        }
+
+        return indices;
+    }
+
+    std::pair<unsigned, double> KTMultiBandEventBuilder::LLHDataGivenEvent(const std::vector<KTLongTrackData*>& tracks)
+    {
+        //key function that given a vector of track objects, evalautes the logLikelihood of the data being consistent with the proposed event clustering
+        // return pair for the event class label (which we need for len(3) events) and the LLH
+        const unsigned nTracks = tracks.size();
+        double logL = fLogTrackFrequencyBandwidths[0];
+        unsigned label = nTracks;
+        const double neg_inf = -std::numeric_limits<double>::infinity();
+        std::pair<unsigned, double> outputInfo = {label, logL};
+
+        if(nTracks == 1)
+            return outputInfo;
+
+        //Get vector of freqs
+        std::vector<double> freqs(nTracks);
+        std::transform(tracks.begin(), tracks.end(), freqs.begin(), [](const auto& a){return a->GetTrackStats().AcqFreqIntercept;});
+
+        //Get vector of freq differences
+        std::vector<double> dfreqs(nTracks-1);
+        std::transform(freqs.begin() + 1, freqs.end(), freqs.begin(), dfreqs.begin(), std::minus<>());
+
+        return outputInfo;
+    }
+
+
+    bool KTMultiBandEventBuilder::CheckEventGoodness(const std::vector<KTLongTrackData*>& tracks)
+    {
+        const unsigned nTracks = tracks.size();
+        //For any condition which is "not allowed", set LLH to negative infinity
+        //There will always be a non-neg-inf partition, if all tracks are separate events (nTracks == 1) for all tracks
+        //because we already sorted tracks by AcqFreqIntercept (ascending)
+        if((tracks.back()->GetTrackStats().AcqFreqIntercept - tracks.front()->GetTrackStats().AcqFreqIntercept) > fTrackFrequencyBandwidths[1])
+            return false;
+
+        //Get copy of tracks sorted by start time (ascending)
+        auto tracksStartTimeSort = tracks;
+        std::sort(tracksStartTimeSort.begin(), tracksStartTimeSort.end(), [](const auto& a, const auto& b) {return a->GetTrackStats().StartTimeInRunC < b->GetTrackStats().StartTimeInRunC;});
+        //Given list of tracks sorted by start times, if the next start time is after the maximum end time of the tracks seen so far
+        //there is a time gap in the event structure, and we are saying the event is not allowed
+        double maxEndTime = tracksStartTimeSort[0]->GetTrackStats().EndTimeInRunC;
+        for(unsigned i=1;i<nTracks;++i)
+        {
+            if(tracks[i]->GetTrackStats().StartTimeInRunC > maxEndTime)
+                return false;
+
+            maxEndTime = std::max(maxEndTime, tracks[i]->GetTrackStats().EndTimeInRunC);
+        }
+
+        //Check if any pairs of bands are projected to cross over the trap acq. If so, the event should not be joined together
+        //XXX: Save me Heather
+        const double voltageOffTime = 2e-3;
+        std::vector<double> endFreqInts(nTracks);
+        std::transform(tracks.begin(), tracks.end(), endFreqInts.begin(), [voltageOffTime](const auto& a){return a->GetTrackStats().AcqFreqIntercept + a->GetTrackStats().BulkSlope * voltageOffTime;});
+        if(!std::is_sorted(endFreqInts.begin(), endFreqInts.end()))
+            return false;
+
+        //if none of the (bad) conditions above are hit, the event is "allowable". It may still be killed later.
+        return true;
+    }
+
     // Placeholder clustering method
     std::vector<std::vector<KTLongTrackData*>> KTMultiBandEventBuilder::FindGroupsInAcq(const std::vector<KTLongTrackData*>& tracks)
     {
@@ -200,20 +296,28 @@ namespace Katydid
             const int nPartitions = partitions.size(); //Bell number: B_nTracksInAcq
             std::vector<double> logLikelihoods(nPartitions); //vector of zeros for each proposed partition
 
+            //DO WE ACTUALLY USE THESE, EVER???
             //For each proposed partition, count how many events are proposed
-            std::vector<int> nEvents(nPartitions);
+            //std::vector<int> nEvents(nPartitions);
             //For each proposed partition, count how many bands are in each proposed event
-            std::vector<std::vector<int>> nBands(nPartitions);
+            //std::vector<std::vector<int>> nBands(nPartitions);
+            std::vector<std::vector<unsigned>> labels(nPartitions);
+
             for(int i = 0; i<nPartitions;++i)
             {
-                nEvents.push_back(partitions[i].size());
+                //nEvents.push_back(partitions[i].size());
+                //partitions[i].size() is number of events in the proposed partition. Add poisson prob. of this
+                logLikelihoods[i] += fLogPoisson[partitions[i].size()];
+
                 for (const auto& subset : partitions[i])
                 {
-                    nBands[i].push_back(subset.size());
+                    //nBands[i].push_back(subset.size());
+                    labels[i].push_back(subset.size());
+                    //subset.size() is number of bands in a proposed event, in the proposed partition. Add log prior for this
+                    //By assumption, we use equal priors for all events with the same number of bands
+                    logLikelihoods[i] += fLogEventSizePrior[subset.size()];
                 }
             }
-            std::vector<std::vector<int>> labels = nBands;
-
 
             groupsInAcq.push_back(tracks);
         }
@@ -235,7 +339,7 @@ namespace Katydid
                 if (!track) continue;
                 track->SetEventId(fNEventsEmitted);
                 track->SetBandNumber(0);
-                //track->SetEventType(1);
+                //track->SetEventType(1); //XXX: Save me Heather. I'm not able to introduce this variable in the root files (coding by analogy to BandNumber) w/o segfaults :(
                 eventData.AddTrack(track);
             }
 

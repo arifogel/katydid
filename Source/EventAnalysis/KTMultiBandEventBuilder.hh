@@ -49,33 +49,6 @@ namespace Katydid
      - "event-builder-done": void () -- Emitted when the event builder is done with ALL aquisitions
     */
 
-
-    class EventTopology
-    {
-        public:
-            std::bitset<5> binaryID;
-            unsigned decimalID;
-            unsigned nBands;
-            std::string label;
-            std::vector<unsigned> bands;
-
-            EventTopology(const char *aCharLabel): label(aCharLabel)
-            {
-                binaryID = std::bitset<5>(label);
-                decimalID = binaryID.to_ulong();
-                nBands = binaryID.count();
-
-                // Reverse indexing because bitset stores from right to left
-                for (int i = 0; i < 5; ++i)
-                {
-                    //Maps index 0->-2, 1->-1, 2->0, 3->1, 4->2
-                    if (binaryID[4 - i])
-                        bands.push_back(i - 2);
-                }
-            }
-
-    };
-
     class KTMultiBandEventBuilder : public Nymph::KTProcessor
     {
         public:
@@ -86,6 +59,8 @@ namespace Katydid
             MEMBERVARIABLE(double, ExpectedTracksPerAcq);
             MEMBERVARIABLE(std::vector<double>, TrackFrequencyBandwidths);
             MEMBERVARIABLE(std::vector<double>, LogPoisson);
+            MEMBERVARIABLE(std::vector<double>, LogEventSizePrior);
+            MEMBERVARIABLE(std::vector<double>, LogTrackFrequencyBandwidths);
             // Internal tracking
             MEMBERVARIABLE_PROTECTED(unsigned, NEventsEmitted);
             MEMBERVARIABLE_PROTECTED(unsigned, MinTracksInAcqToRun);
@@ -100,13 +75,14 @@ namespace Katydid
             void EmitEvents(const std::vector<std::vector<KTLongTrackData*>>& groupsInAcq);
             std::vector<partition> GetAllPartitions(const int &nTracks);
             void RecursivePartitionGenerator(const int &nTracks, unsigned short current, const partition& current_partition, std::vector<partition>& result);
+            bool CheckEventGoodness(const std::vector<KTLongTrackData*>& tracks);
+            std::vector<unsigned> GetMaxLIndices(const std::vector<double>& logLikelihoods, const double &tolerance);
+            std::pair<unsigned, double> LLHDataGivenEvent(const std::vector<KTLongTrackData*>& tracks);
 
         private:
             /// Map of AcqID -> vector of tracks
             std::map<unsigned, std::vector<KTLongTrackData*>> fTracksPerAcq;
             std::vector<std::vector<KTLongTrackData*>> FindGroupsInAcq(const std::vector<KTLongTrackData*>& tracks);
-            std::vector<EventTopology> fEventTopologies;
-
 
         private:
             //***************
