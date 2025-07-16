@@ -221,6 +221,13 @@ namespace Katydid
 
         if(nTracks == 1)
             return outputInfo;
+        else if(nTracks > 4)
+            return std::pair<unsigned, double>(label,neg_inf);
+
+        //Checks if any pairs of bands are too far apart, slopes cross, or times don't overlap
+        //Returns false if proposed event is bad in anyway, set LLH to -inf
+        if(!CheckEventGoodness(tracks))
+            return std::pair<unsigned, double>(label,neg_inf);
 
         //Get vector of freqs
         std::vector<double> freqs(nTracks);
@@ -229,6 +236,35 @@ namespace Katydid
         //Get vector of freq differences
         std::vector<double> dfreqs(nTracks-1);
         std::transform(freqs.begin() + 1, freqs.end(), freqs.begin(), dfreqs.begin(), std::minus<>());
+
+        if(nTracks == 4)
+        {
+            //Should first condition be 2x looser? Unsure... throw out proposal if spacings inconsistent w/ 11011 event
+            if((std::fabs(dfreqs[1] - 2*dfreqs[0]) > fTrackFrequencyBandwidths[2]) or (std::fabs(dfreqs[2] - dfreqs[0]) > fTrackFrequencyBandwidths[2]))
+                return std::pair<unsigned, double>(label,neg_inf);
+        }
+        else if(nTracks == 3)
+        {
+            //look for 3-band events: 111,1101,1011,11001,10011. To do this, we see which frequency gap is bigger, and the ratio of the frequency gaps
+            //The ratio will be 1:1, 1:2, 2:1, 1:3, 3:1 respectively
+            // for the 3 bands [0,1,2], set this variable to 1 if 01 freq gap is bigger than 12 freq. gap
+            int biggerFirstDeltaFreq = (dfreqs[0] > dfreqs[1]);
+            std::pair<double, double> sortedDFreqs = std::minmax(dfreqs[0], dfreqs[1]);
+
+            std::vector<unsigned> validDFratio;
+            for(unsigned allowed_ratio = 1; allowed_ratio <= 3; ++allowed_ratio)
+            {
+                if(std::fabs(sortedDFreqs.second - allowed_ratio * sortedDFreqs.first) < fTrackFrequencyBandwidths[2])
+                    validDFratio.push_back(allowed_ratio);
+            }
+
+            if(!validDFratio.size())
+                return std::pair<unsigned, double>(label,neg_inf);
+
+            //event_topologies = [["111","111"],["1101","1011"],["11001","10011"]]
+            std::vector<std::vector<unsigned>> lenThreeEventLabels = {{3,3},{5,6},{7,8}};
+            outputInfo.first = lenThreeEventLabels[validDFratio[0]][biggerFirstDeltaFreq];
+        }
 
         return outputInfo;
     }
