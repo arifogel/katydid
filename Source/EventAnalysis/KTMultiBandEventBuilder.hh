@@ -75,7 +75,8 @@ namespace Katydid
             void EmitEvents(const std::vector<std::vector<KTLongTrackData*>>& groupsInAcq);
             std::vector<partition> GetAllPartitions(const int &nTracks);
             void RecursivePartitionGenerator(const int &nTracks, unsigned short current, const partition& current_partition, std::vector<partition>& result);
-            bool CheckEventGoodness(const std::vector<KTLongTrackData*>& tracks);
+            bool CheckEventGoodness(const std::vector<KTLongTrackData*>& allTracks, const std::vector<unsigned short>& inds);
+            std::pair<unsigned, double> LLHDataGivenEvent(const std::vector<KTLongTrackData*>& allTracks, const std::vector<unsigned short>& inds);
             std::vector<unsigned> GetMaxLIndices(const std::vector<double>& logLikelihoods, const double &tolerance);
             std::pair<unsigned, double> LLHDataGivenEvent(const std::vector<KTLongTrackData*>& tracks);
 

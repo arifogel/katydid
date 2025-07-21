@@ -164,7 +164,7 @@ namespace Katydid
 
     void KTMultiBandEventBuilder::RecursivePartitionGenerator(const int &nTracks, unsigned short current, const partition& current_partition, std::vector<partition>& result)
     {
-       if(current > nTracks)
+       if(current >= nTracks)
        {
            result.push_back(current_partition);
            return;
@@ -209,8 +209,12 @@ namespace Katydid
         return indices;
     }
 
-    std::pair<unsigned, double> KTMultiBandEventBuilder::LLHDataGivenEvent(const std::vector<KTLongTrackData*>& tracks)
+    std::pair<unsigned, double> KTMultiBandEventBuilder::LLHDataGivenEvent(const std::vector<KTLongTrackData*>& allTracks, const std::vector<unsigned short>& inds)
     {
+        //std::transform(inds.begin(), inds.end(), tracks.begin(), [allTracks](unsigned i) { return allTracks.data() + i; });
+        std::vector<KTLongTrackData*> tracks;
+        std::transform(inds.begin(), inds.end(), std::back_inserter(tracks), [allTracks](unsigned i) { return allTracks[i];});
+
         //key function that given a vector of track objects, evalautes the logLikelihood of the data being consistent with the proposed event clustering
         // return pair for the event class label (which we need for len(3) events) and the LLH
         const unsigned nTracks = tracks.size();
@@ -226,7 +230,7 @@ namespace Katydid
 
         //Checks if any pairs of bands are too far apart, slopes cross, or times don't overlap
         //Returns false if proposed event is bad in anyway, set LLH to -inf
-        if(!CheckEventGoodness(tracks))
+        if(!CheckEventGoodness(allTracks, inds))
             return std::pair<unsigned, double>(label,neg_inf);
 
         //Get vector of freqs
@@ -270,15 +274,17 @@ namespace Katydid
     }
 
 
-    bool KTMultiBandEventBuilder::CheckEventGoodness(const std::vector<KTLongTrackData*>& tracks)
+    bool KTMultiBandEventBuilder::CheckEventGoodness(const std::vector<KTLongTrackData*>& allTracks, const std::vector<unsigned short>& inds)
     {
+        std::vector<KTLongTrackData*> tracks;
+        std::transform(inds.begin(), inds.end(), std::back_inserter(tracks), [allTracks](unsigned i) { return allTracks[i];});
+
         const unsigned nTracks = tracks.size();
         //For any condition which is "not allowed", set LLH to negative infinity
         //There will always be a non-neg-inf partition, if all tracks are separate events (nTracks == 1) for all tracks
         //because we already sorted tracks by AcqFreqIntercept (ascending)
         if((tracks.back()->GetTrackStats().AcqFreqIntercept - tracks.front()->GetTrackStats().AcqFreqIntercept) > fTrackFrequencyBandwidths[1])
             return false;
-
         //Get copy of tracks sorted by start time (ascending)
         auto tracksStartTimeSort = tracks;
         std::sort(tracksStartTimeSort.begin(), tracksStartTimeSort.end(), [](const auto& a, const auto& b) {return a->GetTrackStats().StartTimeInRunC < b->GetTrackStats().StartTimeInRunC;});
@@ -355,8 +361,39 @@ namespace Katydid
                 }
             }
 
+            ////////////////////////Actually evaluate the LLHs, given data //////////////////////
+            for(int i = 0; i<nPartitions;++i)
+            {
+                //for (const auto& ev: partitions[i])
+                for(int j = 0; j<partitions[i].size();++j)
+                {
+                    std::pair<unsigned, double> llhResult =  LLHDataGivenEvent(tracks,partitions[i][j]);
+                    if(std::isinf(llhResult.second))
+                        break;
+
+                    logLikelihoods[i] += llhResult.second;
+                    labels[i][j] = llhResult.first;
+                }
+            }
+
+            ////////////////////////Pick out the best partition//////////////////////
+            std::vector<unsigned> bestPartitionIndices = GetMaxLIndices(logLikelihoods, 1e-2);
+            if(bestPartitionIndices.size() == 0) 
+            {
+                KTERROR(tclog, "No optimal event partition found! Should never happen!");
+            }
+            else if(bestPartitionIndices.size() > 1) 
+            {
+                KTWARN(tclog, "Multiple optimal partitions found! Just returning first (for now)")
+            }
+
+            partition bestPartition = partitions[bestPartitionIndices.front()];
+            //std::vector<KTLongTrackData*>& optimalTracks;
+            //groupsInAcq.push_back(optimalTracks);
+
             groupsInAcq.push_back(tracks);
         }
+
 
         return groupsInAcq;
     }
