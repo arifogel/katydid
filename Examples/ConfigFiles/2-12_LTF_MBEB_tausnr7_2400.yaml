@@ -158,5 +158,5 @@ dbscan-trackclust:
     freq-int-epsilon: 4e6 # epsilon used for DBScan clustering on AcqFreqIntercept. In Hz
 
 mbeb:
-    epsilon: 4e6 # epsilon used for something tbd. In Hz
+    expected-tracks-per-acq: 0.05
 
