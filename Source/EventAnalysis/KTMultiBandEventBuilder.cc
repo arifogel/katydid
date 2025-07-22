@@ -211,7 +211,6 @@ namespace Katydid
 
     std::pair<unsigned, double> KTMultiBandEventBuilder::LLHDataGivenEvent(const std::vector<KTLongTrackData*>& allTracks, const std::vector<unsigned short>& inds)
     {
-        //std::transform(inds.begin(), inds.end(), tracks.begin(), [allTracks](unsigned i) { return allTracks.data() + i; });
         std::vector<KTLongTrackData*> tracks;
         std::transform(inds.begin(), inds.end(), std::back_inserter(tracks), [allTracks](unsigned i) { return allTracks[i];});
 
@@ -388,10 +387,14 @@ namespace Katydid
             }
 
             partition bestPartition = partitions[bestPartitionIndices.front()];
-            //std::vector<KTLongTrackData*>& optimalTracks;
-            //groupsInAcq.push_back(optimalTracks);
+            unsigned nEventsBest = bestPartition.size();
 
-            groupsInAcq.push_back(tracks);
+            std::vector<std::vector<KTLongTrackData*>> optimalTracks(nEventsBest);
+
+            for(unsigned i = 0; i < nEventsBest;++i)
+                std::transform(bestPartition[i].begin(), bestPartition[i].end(), std::back_inserter(optimalTracks[i]), [tracks](unsigned i) { return tracks[i];});
+
+            return optimalTracks;
         }
 
 
