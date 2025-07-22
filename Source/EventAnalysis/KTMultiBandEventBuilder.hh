@@ -57,6 +57,7 @@ namespace Katydid
 
             bool Configure(const scarab::param_node* node);
             MEMBERVARIABLE(double, ExpectedTracksPerAcq);
+            MEMBERVARIABLE(std::vector<std::vector<int>>, BandLabels);
             MEMBERVARIABLE(std::vector<double>, TrackFrequencyBandwidths);
             MEMBERVARIABLE(std::vector<double>, LogPoisson);
             MEMBERVARIABLE(std::vector<double>, LogEventSizePrior);

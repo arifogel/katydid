@@ -27,6 +27,7 @@ namespace Katydid
     KTMultiBandEventBuilder::KTMultiBandEventBuilder(const std::string& name) :
         KTProcessor(name),
         //fEventTopologies({"00000","00100","01010","01110","11011","1101","1011","11001","10011"}),
+        fBandLabels({{},{0},{-1,1},{-1,0,1},{-2,-1,1,2},{-2,-1,1},{-1,1,2},{-2,-1,2},{-2,1,2}}),
         fExpectedTracksPerAcq(0.05),
         fMinTracksInAcqToRun(1),
         fMaxTracksInAcqToRun(15),
@@ -386,7 +387,8 @@ namespace Katydid
                 KTWARN(tclog, "Multiple optimal partitions found! Just returning first (for now)")
             }
 
-            partition bestPartition = partitions[bestPartitionIndices.front()];
+            unsigned bestIndex = bestPartitionIndices.front();
+            partition bestPartition = partitions[bestIndex];
             unsigned nEventsBest = bestPartition.size();
 
             std::vector<std::vector<KTLongTrackData*>> optimalTracks(nEventsBest);
@@ -395,7 +397,13 @@ namespace Katydid
             {
                 std::transform(bestPartition[i].begin(), bestPartition[i].end(), std::back_inserter(optimalTracks[i]), [tracks](unsigned i) { return tracks[i];});
 
-                KTWARN(tclog, "Event found with label "<<labels[bestPartitionIndices.front()][i]);
+                unsigned eventLabel = labels[bestIndex][i];
+                KTINFO(tclog, "Event found with label "<<eventLabel);
+                for(unsigned j=0;j<optimalTracks[i].size();++j)
+                {
+                    optimalTracks[i][j]->SetBandNumber(fBandLabels[eventLabel][j]);
+                    KTWARN(tclog, "Band "<<j<<" labelled with "<<fBandLabels[eventLabel][j]);
+                }
             }
 
             return optimalTracks;
@@ -417,7 +425,6 @@ namespace Katydid
             {
                 if (!track) continue;
                 track->SetEventId(fNEventsEmitted);
-                track->SetBandNumber(0);
                 //track->SetEventType(1); //XXX: Save me Heather. I'm not able to introduce this variable in the root files (coding by analogy to BandNumber) w/o segfaults :(
                 eventData.AddTrack(track);
             }
