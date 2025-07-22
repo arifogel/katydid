@@ -266,7 +266,7 @@ namespace Katydid
 
             //event_topologies = [["111","111"],["1101","1011"],["11001","10011"]]
             std::vector<std::vector<unsigned>> lenThreeEventLabels = {{3,3},{5,6},{7,8}};
-            outputInfo.first = lenThreeEventLabels[validDFratio[0]][biggerFirstDeltaFreq];
+            outputInfo.first = lenThreeEventLabels[validDFratio[0] - 1][biggerFirstDeltaFreq];
         }
 
         return outputInfo;
@@ -316,7 +316,7 @@ namespace Katydid
         std::vector<std::vector<KTLongTrackData*>> groupsInAcq;
 
         const int nTracksInAcq = tracks.size();
-        KTWARN(tclog, "nTracks: " << nTracksInAcq << " ack.");
+        KTWARN(tclog, "nTracksInAcq: " << nTracksInAcq);
 
         // If one track in acq, treat all tracks in an acquisition as one single event
         if(nTracksInAcq <= 1)
@@ -392,11 +392,14 @@ namespace Katydid
             std::vector<std::vector<KTLongTrackData*>> optimalTracks(nEventsBest);
 
             for(unsigned i = 0; i < nEventsBest;++i)
+            {
                 std::transform(bestPartition[i].begin(), bestPartition[i].end(), std::back_inserter(optimalTracks[i]), [tracks](unsigned i) { return tracks[i];});
+
+                KTWARN(tclog, "Event found with label "<<labels[bestPartitionIndices.front()][i]);
+            }
 
             return optimalTracks;
         }
-
 
         return groupsInAcq;
     }
