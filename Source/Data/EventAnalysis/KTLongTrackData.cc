@@ -171,7 +171,7 @@ namespace Katydid
         fTrackStats.Density = points.size()/fTrackStats.ManhattanLength; //using half the manhattan distance as number of bin length est.
         fTrackStats.NSPPerUnitLength = fTrackStats.TotalNsp/fTrackStats.ManhattanLength;
         fTrackStats.DensityEstSNR = EstimateLambdaFromDensity(fTrackStats.Density);
-        fTrackStats.MLEPowerSNR = ComputeMaxLoglikelihoodLambda();
+        fTrackStats.MLEPowerSNR = ComputeMaxLoglikelihoodLambda(fTrackStats.ManhattanLength);
 
         return fTrackStats;
     }
@@ -208,7 +208,7 @@ namespace Katydid
     }
 
     // Define the log-likelihood function
-    double KTLongTrackData::LogLikelihood(double lambda, const std::vector<double>& chi_vals)
+    double KTLongTrackData::LogLikelihood(double lambda, const std::vector<double>& chi_vals, const unsigned& nManhattan)
     {
         if (lambda <= 0.0) return -std::numeric_limits<double>::infinity();  // log-likelihood undefined for λ ≤ 0
 
@@ -221,11 +221,32 @@ namespace Katydid
 
             logL += -lambda / 2.0 + std::log(bessel);
         }
+
+        //account for the empty bins
+        const int nccs_dof = 2;
+        double sum_tau = 0.0;
+        double sum_threshold_ratio = 0.0;
+        for (const auto& pt : points)
+        {
+            sum_tau += pt.NoiseTau;
+            sum_threshold_ratio += pt.Threshold / pt.NoiseTau;
+        }
+        double mean_tau = sum_tau / points.size();
+        double mean_threshold_ratio = sum_threshold_ratio / points.size();
+
+        const double x_thresh = 2.0 * mean_threshold_ratio;
+        auto pBelowThreshold = [nccs_dof,x_thresh](double lambda) {
+            boost::math::non_central_chi_squared dist(nccs_dof, lambda);
+            return cdf(dist, x_thresh);
+        };
+
+        logL += (nManhattan - chi_vals.size()) * std::log(pBelowThreshold(lambda));
+
         return logL;
     }
 
     // Maximize the log-likelihood with a simple grid search (replace with a better optimizer if needed)
-    double KTLongTrackData::ComputeMaxLoglikelihoodLambda()
+    double KTLongTrackData::ComputeMaxLoglikelihoodLambda(const unsigned &nManhattan)
     {
         std::vector<double> chi_vals;
         chi_vals.reserve(points.size());
@@ -239,7 +260,7 @@ namespace Katydid
 
         for (double lambda = 0.01; lambda <= 100.0; lambda += 0.01)
         {
-            double logL = LogLikelihood(lambda, chi_vals);
+            double logL = LogLikelihood(lambda, chi_vals, nManhattan);
             if (logL > best_logL)
             {
                 best_logL = logL;
