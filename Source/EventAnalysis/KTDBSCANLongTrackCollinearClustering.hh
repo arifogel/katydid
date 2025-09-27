@@ -65,6 +65,7 @@ namespace Katydid
 
             bool Configure(const scarab::param_node* node);
             MEMBERVARIABLE(double, Epsilon);  // 1D clustering, so scalar
+            MEMBERVARIABLE(double, EmptyTime);
             // Internal tracking
             MEMBERVARIABLE_PROTECTED(unsigned, NCandidatesEmitted);
             MEMBERVARIABLE_PROTECTED(unsigned, MinTracksInAcqToRun);

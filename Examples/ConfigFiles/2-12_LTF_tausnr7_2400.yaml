@@ -8,8 +8,6 @@ processor-toolbox:
         - { type: "rf-slew-to-vec",                         name: "stv" }
         - { type: "variable-spectrum-discriminator",        name: "discrim" }
         - { type: "long-track-finder",                      name: "long-tr-find"}
-        - { type: "dbscan-longtrack-collinear-clustering",  name: "dbscan-trackclust"}
-        - { type: "multi-band-event-builder",               name: "mbeb"}
         - { type: "basic-root-writer",                      name: "brw" }
         #- { type: "root-spectrogram-writer",               name: "rsw"}
         - { type: "root-tree-writer",                       name: "rtw"}
@@ -63,29 +61,9 @@ processor-toolbox:
             - signal: "spec2:spec-done"
               slot: "long-tr-find:done"
               
-              # Send long track data to colinear clustering
             - signal: "long-tr-find:long-track-cand"
-              slot: "dbscan-trackclust:long-track-cand"
-
-              # Send signal to DBSCAN clustering algorithm to run
-            - signal: "long-tr-find:clustering-done"
-              slot: "dbscan-trackclust:do-clustering"
-
-              # Write clustered long tracks to root tree
-            - signal: "dbscan-trackclust:clust-long-track-cand"
               slot: "rtw:long-track"
 
-              # Send clustered long track data to event builder
-            - signal: "dbscan-trackclust:clust-long-track-cand"
-              slot: "mbeb:long-track-cand"
-
-              # Send signal to the multi band event builder to run
-            - signal: "dbscan-trackclust:clustering-done"
-              slot: "mbeb:build-events"
-
-              # Write long track data to root tree
-            - signal: "mbeb:mbe-cand"
-              slot: "rtw:mb-event"
  
     run-queue:
         - spec1
@@ -153,12 +131,6 @@ long-tr-find:
     time-gap-tolerance: 1.0e-4 # max gap between points in a line (in sec.) one time slice is 5.46×10^-5 seconds
     frequency-acceptance: 8e5 # max freq gap between point and extrapolated line (in Hz) Each frequency bin is 2.9e5, so it needs to be more than that or all tracks will have a slope of 1 freq bin/1 time bin
     min-points: 8 # line is converted to a track iff it has >= this # of points
-    min-slope: -8060640017.675459 # line is converted to a track iff line slope is > than this (in Hz/s)
+    min-slope: -1e10 # line is converted to a track iff line slope is > than this (in Hz/s)
     rel-slope-diff-to-expand: 0.2 #If the relative difference between the local slopes at the previous two time slices was greater than this, double the frequency acceptance. To recover from adding noise or to follow resonance.
-
-dbscan-trackclust:
-    freq-int-epsilon: 30e6 # epsilon used for DBScan clustering on AcqFreqIntercept. In Hz
-
-mbeb:
-    epsilon: 4e6 # epsilon used for something tbd. In Hz
 
