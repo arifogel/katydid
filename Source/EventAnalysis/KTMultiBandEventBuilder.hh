@@ -8,7 +8,7 @@
  */
 
 #ifndef KTMULTIBANDEVENTBUILDER_HH_
-#define KTMULTIBANDEVENTBUILDER_HH_ 
+#define KTMULTIBANDEVENTBUILDER_HH_
 
 #include "KTProcessor.hh"
 
@@ -18,10 +18,12 @@
 #include "KTMultiBandEventData.hh"
 #include "KTLongTrackData.hh"
 
-#include <set>
-#include <vector>
+#include <bitset>
 #include <map>
 #include <memory>
+#include <vector>
+
+using partition = std::vector<std::vector<unsigned short>>;
 
 namespace Katydid
 {
@@ -30,14 +32,16 @@ namespace Katydid
      @class KTMultiBandEventBuilder
      @authors H.S. Harrington and N. Buzinsky
 
-     @brief looks for events within tracks in the same aquisition
+     @brief looks for events within tracks in the same acquisition
 
-     @details TODO
-     
+     @details
      Configuration name: "multi-band-event-builder"
 
      Available configuration values:
-     - "epsilon": double -- some distance tbd
+     - "expected-tracks-per-acq": double -- prior expectation on the number of reconstructed bands per trap acq.
+     - "set-field": double -- Approx set field used to distinguish between band topologies with the same number of reconstructed tracks.
+     - "voltage-on-time": double -- time in cycle that exb electrode voltage turns on
+     - "voltage-off-time": double -- time in cycle that exb electrode voltage turns off. = Cycle period
 
      Slots:
      - "long-track-cand": void (KTDataPtr) -- If this is a new acquisition; Adds track candidates to the internally-stored set of points; guarantees KTLongTrackData
@@ -50,16 +54,24 @@ namespace Katydid
 
     class KTMultiBandEventBuilder : public Nymph::KTProcessor
     {
-
         public:
             KTMultiBandEventBuilder(const std::string& name = "multi-band-event-builder");
             virtual ~KTMultiBandEventBuilder();
 
             bool Configure(const scarab::param_node* node);
-            MEMBERVARIABLE(double, Epsilon);
+            MEMBERVARIABLE(double, ExpectedTracksPerAcq);
+            MEMBERVARIABLE(double, SetField);
+            MEMBERVARIABLE(double, VoltageOnTime);
+            MEMBERVARIABLE(double, VoltageOffTime);
+            MEMBERVARIABLE(std::vector<std::vector<int>>, BandLabels);
+            MEMBERVARIABLE(std::vector<double>, TrackFrequencyBandwidths);
+            MEMBERVARIABLE(std::vector<double>, LogPoisson);
+            MEMBERVARIABLE(std::vector<double>, LogEventSizePrior);
+            MEMBERVARIABLE(std::vector<double>, LogTrackFrequencyBandwidths);
             // Internal tracking
             MEMBERVARIABLE_PROTECTED(unsigned, NEventsEmitted);
             MEMBERVARIABLE_PROTECTED(unsigned, MinTracksInAcqToRun);
+            MEMBERVARIABLE_PROTECTED(unsigned, MaxTracksInAcqToRun);
             double fTimeBinWidth = 0.0;
             double fFreqBinWidth = 0.0;
 
@@ -68,12 +80,17 @@ namespace Katydid
             bool BuildEvents();
             bool Run();
             void EmitEvents(const std::vector<std::vector<KTLongTrackData*>>& groupsInAcq);
+            std::vector<partition> GetAllPartitions(const int &nTracks);
+            void RecursivePartitionGenerator(const int &nTracks, unsigned short current, const partition& current_partition, std::vector<partition>& result);
+            bool CheckEventGoodness(const std::vector<KTLongTrackData*>& allTracks, const std::vector<unsigned short>& inds);
+            std::pair<unsigned, double> LLHDataGivenEvent(const std::vector<KTLongTrackData*>& allTracks, const std::vector<unsigned short>& inds);
+            std::vector<unsigned> GetMaxLIndices(const std::vector<double>& logLikelihoods, const double &tolerance);
+            std::pair<unsigned, double> LLHDataGivenEvent(const std::vector<KTLongTrackData*>& tracks);
 
         private:
             /// Map of AcqID -> vector of tracks
             std::map<unsigned, std::vector<KTLongTrackData*>> fTracksPerAcq;
             std::vector<std::vector<KTLongTrackData*>> FindGroupsInAcq(const std::vector<KTLongTrackData*>& tracks);
-
 
         private:
             //***************
