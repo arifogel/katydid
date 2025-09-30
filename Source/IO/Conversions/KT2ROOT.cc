@@ -1000,6 +1000,7 @@ namespace Katydid
         rootData.SetEventId(ktData.GetEventId());
         rootData.SetBandNumber(ktData.GetBandNumber());
         rootData.SetEventType(ktData.GetEventType());
+        rootData.SetAxialFreq(ktData.GetAxialFreq());
         const auto& stats = ktData.GetTrackStats();
         rootData.SetStartFrequency(stats.StartFrequency);
         rootData.SetEndFrequency(stats.EndFrequency);

@@ -26,7 +26,8 @@ namespace Katydid
         fTrackId(),
         fEventId(),
         fBandNumber(),
-        fEventType()
+        fEventType(),
+        fAxialFreq()
         {}
 
     KTLongTrackData::~KTLongTrackData() = default;

@@ -456,7 +456,7 @@ namespace Katydid
             {
                 if (!track) continue;
                 track->SetEventId(fNEventsEmitted);
-                track->SetEventType(1); //XXX: Save me Heather. I'm not able to introduce this variable in the root files (coding by analogy to BandNumber) w/o segfaults :(
+                track->SetEventType(1); 
                 eventData.AddTrack(track);
             }
 
