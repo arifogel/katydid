@@ -68,6 +68,7 @@ namespace Katydid
             MEMBERVARIABLE_PROTECTED(unsigned, MaxTracksInAcqToRun);
             double fTimeBinWidth = 0.0;
             double fFreqBinWidth = 0.0;
+            double fEmptyTime = 0.0;
 
         public:
             bool ReceiveLongTrackCandidate(KTLongTrackData& trackData);

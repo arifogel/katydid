@@ -29,6 +29,7 @@ namespace Katydid
         //fEventTopologies({"00000","00100","01010","01110","11011","1101","1011","11001","10011"}),
         fBandLabels({{},{0},{-1,1},{-1,0,1},{-2,-1,1,2},{-2,-1,1},{-1,1,2},{-2,-1,2},{-2,1,2}}),
         fExpectedTracksPerAcq(0.05),
+        fEmptyTime(0.0018296),
         fMinTracksInAcqToRun(1),
         fMaxTracksInAcqToRun(15),
         fTimeBinWidth(0.0),
@@ -311,24 +312,44 @@ namespace Katydid
         return true;
     }
 
-    // Placeholder clustering method
+    // clustering method
     std::vector<std::vector<KTLongTrackData*>> KTMultiBandEventBuilder::FindGroupsInAcq(const std::vector<KTLongTrackData*>& tracks)
     {
         std::vector<std::vector<KTLongTrackData*>> groupsInAcq;
 
-        const int nTracksInAcq = tracks.size();
+        // Separate tracks into two groups: clusterable vs immediate emit
+        std::vector<KTLongTrackData*> clusterable;
+
+        for (auto* track : tracks)
+        {
+            double start = track->GetTrackStats().StartTimeInAcqC;
+            KTWARN(tclog, "Track start time: " << start << ", fEmptyTime: " << fEmptyTime);
+
+            if (start < fEmptyTime)
+            {
+                clusterable.push_back(track);
+            }
+            else
+            {
+                std::vector<KTLongTrackData*> emptying_track{track};
+                // Each track that starts in the exb emptying emmited as it's own event. (BN=0)
+                groupsInAcq.push_back(emptying_track);
+            }
+        }
+
+        const int nTracksInAcq = clusterable.size();
         KTWARN(tclog, "nTracksInAcq: " << nTracksInAcq);
 
         // If one track in acq, treat all tracks in an acquisition as one single event
         if(nTracksInAcq <= 1)
         {
-            groupsInAcq.push_back(tracks);
+            groupsInAcq.push_back(clusterable);
         }
         else if(nTracksInAcq > fMaxTracksInAcqToRun)
         {
             //if nTracks > ~15 throw an error: too memory-intensive to list all possible partitions
             //Treat all tracks as a single event so that it is easy to find, if it ever happens
-            groupsInAcq.push_back(tracks);
+            groupsInAcq.push_back(clusterable);
             KTWARN(tclog, nTracksInAcq << " tracks were found in trap acq! Brute force failed, clustering skipped!");
         }
         else
@@ -367,7 +388,7 @@ namespace Katydid
                 //for (const auto& ev: partitions[i])
                 for(int j = 0; j<partitions[i].size();++j)
                 {
-                    std::pair<unsigned, double> llhResult =  LLHDataGivenEvent(tracks,partitions[i][j]);
+                    std::pair<unsigned, double> llhResult =  LLHDataGivenEvent(clusterable,partitions[i][j]);
                     if(std::isinf(llhResult.second))
                         break;
 
@@ -395,7 +416,7 @@ namespace Katydid
 
             for(unsigned i = 0; i < nEventsBest;++i)
             {
-                std::transform(bestPartition[i].begin(), bestPartition[i].end(), std::back_inserter(optimalTracks[i]), [tracks](unsigned i) { return tracks[i];});
+                std::transform(bestPartition[i].begin(), bestPartition[i].end(), std::back_inserter(optimalTracks[i]), [clusterable](unsigned i) { return clusterable[i];});
 
                 unsigned eventLabel = labels[bestIndex][i];
                 KTINFO(tclog, "Event found with label "<<eventLabel);
@@ -406,8 +427,11 @@ namespace Katydid
                 }
             }
 
-            return optimalTracks;
-        }
+            //return optimalTracks;
+            groupsInAcq.insert(groupsInAcq.end(),
+                   std::make_move_iterator(optimalTracks.begin()),
+                   std::make_move_iterator(optimalTracks.end()));
+            }
 
         return groupsInAcq;
     }
