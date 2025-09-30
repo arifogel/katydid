@@ -29,6 +29,7 @@ namespace Katydid
         //fEventTopologies({"00000","00100","01010","01110","11011","1101","1011","11001","10011"}),
         fBandLabels({{},{0},{-1,1},{-1,0,1},{-2,-1,1,2},{-2,-1,1},{-1,1,2},{-2,-1,2},{-2,1,2}}),
         fExpectedTracksPerAcq(0.05),
+        fSetField(1.0),
         fEmptyTime(0.0018296),
         fMinTracksInAcqToRun(1),
         fMaxTracksInAcqToRun(15),
@@ -87,6 +88,7 @@ namespace Katydid
     {
         if (node == NULL) return false;
         SetExpectedTracksPerAcq(node->get_value("expected-tracks-per-acq", GetExpectedTracksPerAcq()));
+        SetSetField(node->get_value("set-field", GetSetField()));
         return true;
     }
 

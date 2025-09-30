@@ -39,6 +39,7 @@ namespace Katydid
 
      Available configuration values:
      - "expected-tracks-per-acq": double -- prior expectation on the number of reconstructed bands per trap acq.
+     - "set-field": double -- Approx set field used to distinguish between band topologies with the same number of reconstructed tracks.
 
      Slots:
      - "long-track-cand": void (KTDataPtr) -- If this is a new acquisition; Adds track candidates to the internally-stored set of points; guarantees KTLongTrackData
@@ -57,6 +58,7 @@ namespace Katydid
 
             bool Configure(const scarab::param_node* node);
             MEMBERVARIABLE(double, ExpectedTracksPerAcq);
+            MEMBERVARIABLE(double, SetField);
             MEMBERVARIABLE(std::vector<std::vector<int>>, BandLabels);
             MEMBERVARIABLE(std::vector<double>, TrackFrequencyBandwidths);
             MEMBERVARIABLE(std::vector<double>, LogPoisson);

@@ -161,4 +161,5 @@ dbscan-trackclust:
 
 mbeb:
     expected-tracks-per-acq: 0.05
+    set-field: 0.92447129
 
