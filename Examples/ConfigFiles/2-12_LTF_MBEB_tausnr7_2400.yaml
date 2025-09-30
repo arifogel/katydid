@@ -162,4 +162,6 @@ dbscan-trackclust:
 mbeb:
     expected-tracks-per-acq: 0.05
     set-field: 0.92447129
+    voltage-on-time: 0.0018296
+    voltage-off-time: 0.002
 

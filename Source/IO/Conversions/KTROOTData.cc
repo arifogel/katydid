@@ -154,7 +154,8 @@ namespace Katydid
             TObject(),
             fTrackId(0),
             fEventId(0),
-            fBandNumber(0)
+            fBandNumber(0),
+            fEventType(0)
     {
         // this cannot be initialized in the initializer list because ROOT
         fPoints = new TClonesArray("Katydid::TLongTrackData::Point", 20);
@@ -164,7 +165,8 @@ namespace Katydid
             TObject(orig),
             fTrackId(orig.fTrackId),
             fEventId(orig.fEventId),
-            fBandNumber(orig.fBandNumber)
+            fBandNumber(orig.fBandNumber),
+            fEventType(orig.fEventType)
     {
         fPoints = new TClonesArray(*orig.fPoints);
     }
@@ -182,6 +184,7 @@ namespace Katydid
         fTrackId = rhs.fTrackId;
         fEventId = rhs.fEventId;
         fBandNumber = rhs.fBandNumber;
+        fEventType = rhs.fEventType;
         fPoints->Clear(); (*fPoints) = *(rhs.fPoints);
         return *this;
     }

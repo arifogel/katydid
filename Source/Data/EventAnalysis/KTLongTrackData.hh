@@ -81,6 +81,7 @@ namespace Katydid
             MEMBERVARIABLE(unsigned, TrackId);
             MEMBERVARIABLE(unsigned, EventId);
             MEMBERVARIABLE(int, BandNumber);
+            MEMBERVARIABLE(int, EventType);
     public:
         static const std::string sName;
 

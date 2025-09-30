@@ -30,7 +30,8 @@ namespace Katydid
         fBandLabels({{},{0},{-1,1},{-1,0,1},{-2,-1,1,2},{-2,-1,1},{-1,1,2},{-2,-1,2},{-2,1,2}}),
         fExpectedTracksPerAcq(0.05),
         fSetField(1.0),
-        fEmptyTime(0.0018296),
+        fVoltageOnTime(0.0018296),
+        fVoltageOffTime(0.002),
         fMinTracksInAcqToRun(1),
         fMaxTracksInAcqToRun(15),
         fTimeBinWidth(0.0),
@@ -89,6 +90,8 @@ namespace Katydid
         if (node == NULL) return false;
         SetExpectedTracksPerAcq(node->get_value("expected-tracks-per-acq", GetExpectedTracksPerAcq()));
         SetSetField(node->get_value("set-field", GetSetField()));
+        SetVoltageOnTime(node->get_value("voltage-on-time", GetVoltageOnTime()));
+        SetVoltageOffTime(node->get_value("voltage-off-time", GetVoltageOffTime()));
         return true;
     }
 
@@ -303,10 +306,12 @@ namespace Katydid
         }
 
         //Check if any pairs of bands are projected to cross over the trap acq. If so, the event should not be joined together
-        //XXX: Save me Heather
-        const double voltageOffTime = 2e-3;
         std::vector<double> endFreqInts(nTracks);
-        std::transform(tracks.begin(), tracks.end(), endFreqInts.begin(), [voltageOffTime](const auto& a){return a->GetTrackStats().AcqFreqIntercept + a->GetTrackStats().BulkSlope * voltageOffTime;});
+        std::transform(tracks.begin(), tracks.end(), endFreqInts.begin(),
+            [this](const auto& a) {
+                return a->GetTrackStats().AcqFreqIntercept +
+                       a->GetTrackStats().BulkSlope * fVoltageOffTime;
+            });
         if(!std::is_sorted(endFreqInts.begin(), endFreqInts.end()))
             return false;
 
@@ -325,9 +330,9 @@ namespace Katydid
         for (auto* track : tracks)
         {
             double start = track->GetTrackStats().StartTimeInAcqC;
-            KTWARN(tclog, "Track start time: " << start << ", fEmptyTime: " << fEmptyTime);
+            KTINFO(tclog, "Track start time: " << start << ", fVoltageOnTime: " << fVoltageOnTime);
 
-            if (start < fEmptyTime)
+            if (start < fVoltageOnTime)
             {
                 clusterable.push_back(track);
             }
@@ -451,7 +456,7 @@ namespace Katydid
             {
                 if (!track) continue;
                 track->SetEventId(fNEventsEmitted);
-                //track->SetEventType(1); //XXX: Save me Heather. I'm not able to introduce this variable in the root files (coding by analogy to BandNumber) w/o segfaults :(
+                track->SetEventType(1); //XXX: Save me Heather. I'm not able to introduce this variable in the root files (coding by analogy to BandNumber) w/o segfaults :(
                 eventData.AddTrack(track);
             }
 
