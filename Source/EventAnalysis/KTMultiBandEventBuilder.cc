@@ -26,7 +26,7 @@ namespace Katydid
     // Constructor
     KTMultiBandEventBuilder::KTMultiBandEventBuilder(const std::string& name) :
         KTProcessor(name),
-        //fEventTopologies({"00000","00100","01010","01110","11011","1101","1011","11001","10011"}),
+        fEventTopologies({0,1,101,111,11011,1101,1011,11001,10011}), //1 if band is present, low to high in frequency
         fBandLabels({{},{0},{-1,1},{-1,0,1},{-2,-1,1,2},{-2,-1,1},{-1,1,2},{-2,-1,2},{-2,1,2}}),
         fExpectedTracksPerAcq(0.05),
         fSetField(1.0),
@@ -410,7 +410,7 @@ namespace Katydid
             {
                 KTERROR(tclog, "No optimal event partition found! Should never happen!");
             }
-            else if(bestPartitionIndices.size() > 1) 
+            else if(bestPartitionIndices.size() > 1)
             {
                 KTWARN(tclog, "Multiple optimal partitions found! Just returning first (for now)")
             }
@@ -427,11 +427,20 @@ namespace Katydid
 
                 unsigned eventLabel = labels[bestIndex][i];
                 KTINFO(tclog, "Event found with label "<<eventLabel);
+                double max_df = (optimalTracks[i].back()->GetTrackStats().AcqFreqIntercept - optimalTracks[i].front()->GetTrackStats().AcqFreqIntercept);
+                double axial_freq = 0.;
+                //counts digits in event topology (minus 1). Divide max df spacing by this to get axial freq. Wrong for 00110 events, e.g.
+                if(eventLabel > 1)
+                    axial_freq = max_df / int(std::log10(fEventTopologies[eventLabel]));
+
                 for(unsigned j=0;j<optimalTracks[i].size();++j)
                 {
                     optimalTracks[i][j]->SetBandNumber(fBandLabels[eventLabel][j]);
+                    optimalTracks[i][j]->SetEventType(fEventTopologies[eventLabel]);
+                    optimalTracks[i][j]->SetAxialFreq(axial_freq);
                     KTWARN(tclog, "Band "<<j<<" labelled with "<<fBandLabels[eventLabel][j]);
                 }
+                KTWARN(tclog, "Event labelled with topology "<<fEventTopologies[eventLabel]);
             }
 
             //return optimalTracks;
@@ -456,7 +465,6 @@ namespace Katydid
             {
                 if (!track) continue;
                 track->SetEventId(fNEventsEmitted);
-                track->SetEventType(1); 
                 eventData.AddTrack(track);
             }
 

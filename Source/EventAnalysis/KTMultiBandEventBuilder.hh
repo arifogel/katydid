@@ -63,6 +63,7 @@ namespace Katydid
             MEMBERVARIABLE(double, SetField);
             MEMBERVARIABLE(double, VoltageOnTime);
             MEMBERVARIABLE(double, VoltageOffTime);
+            MEMBERVARIABLE(std::vector<unsigned>, EventTopologies);
             MEMBERVARIABLE(std::vector<std::vector<int>>, BandLabels);
             MEMBERVARIABLE(std::vector<double>, TrackFrequencyBandwidths);
             MEMBERVARIABLE(std::vector<double>, LogPoisson);

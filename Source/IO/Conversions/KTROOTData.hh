@@ -134,7 +134,7 @@ namespace Katydid
         MEMBERVARIABLE(UInt_t, TrackId);
         MEMBERVARIABLE(UInt_t, EventId);
         MEMBERVARIABLE(Int_t, BandNumber);
-        MEMBERVARIABLE(Int_t, EventType);
+        MEMBERVARIABLE(UInt_t, EventType);
         MEMBERVARIABLE(Double_t, AxialFreq);
         MEMBERVARIABLE(Double_t, StartFrequency);
         MEMBERVARIABLE(Double_t, EndFrequency);
