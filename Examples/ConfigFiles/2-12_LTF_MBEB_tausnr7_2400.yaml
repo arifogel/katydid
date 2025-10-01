@@ -158,10 +158,11 @@ long-tr-find:
 
 dbscan-trackclust:
     freq-int-epsilon: 30e6 # epsilon used for DBScan clustering on AcqFreqIntercept. In Hz
+    voltage-on-time: 0.0018364
 
 mbeb:
     expected-tracks-per-acq: 0.05
     set-field: 0.92447129
-    voltage-on-time: 0.0018296
-    voltage-off-time: 0.002
+    voltage-on-time: 0.0018364
+    voltage-off-time: 0.0020002
 

@@ -23,7 +23,7 @@ namespace Katydid
     KTDBSCANLongTrackCollinearClustering::KTDBSCANLongTrackCollinearClustering(const std::string& name) :
         KTProcessor(name),
         fEpsilon(0.5),
-        fEmptyTime(0.0018296),
+        fVoltageOnTime(0.0018364),
         fMinTracksInAcqToRun(1),
         fMinTracksInClust(1),
         fTracksPerAcq(),
@@ -66,7 +66,7 @@ namespace Katydid
     {
         if (node == NULL) return false;
         SetEpsilon(node->get_value("freq-int-epsilon", GetEpsilon()));
-        SetEmptyTime(node->get_value("empty-time", GetEmptyTime()));
+        SetVoltageOnTime(node->get_value("voltage-on-time", GetVoltageOnTime()));
         return true;
     }
 
@@ -112,7 +112,7 @@ bool KTDBSCANLongTrackCollinearClustering::DoClustering()
 
         for (auto* track : allTracks)
         {
-            if (track->GetTrackStats().StartTimeInAcqC < fEmptyTime)
+            if (track->GetTrackStats().StartTimeInAcqC < fVoltageOnTime)
             {
                 clusterable.push_back(track);
                 FeatureValue pt(1);

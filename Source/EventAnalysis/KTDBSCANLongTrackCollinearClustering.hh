@@ -42,6 +42,7 @@ namespace Katydid
 
      Available configuration values:
      - "freq-int-epsilon": double -- distance between two points to be clustered together
+     - "voltage-on-time": double -- time in cycle that exb electrode voltage turns on
 
      Slots:
      - "long-track-cand": void (KTDataPtr) -- If this is a new acquisition; Adds track candidates to the internally-stored set of points; guarantees KTLongTrackData
@@ -65,7 +66,7 @@ namespace Katydid
 
             bool Configure(const scarab::param_node* node);
             MEMBERVARIABLE(double, Epsilon);  // 1D clustering, so scalar
-            MEMBERVARIABLE(double, EmptyTime);
+            MEMBERVARIABLE(double, VoltageOnTime);
             // Internal tracking
             MEMBERVARIABLE_PROTECTED(unsigned, NCandidatesEmitted);
             MEMBERVARIABLE_PROTECTED(unsigned, MinTracksInAcqToRun);
