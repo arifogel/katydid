@@ -79,14 +79,55 @@ namespace Katydid
         return (denominator != 0.0) ? numerator / denominator : 0.0;
     }
 
-    double KTLongTrackData::ComputeAcqFreqIntercept() const {
-        if (points.size() < 2) return 0.0;
+    void KTLongTrackData::ComputeAcqStats(TrackStats& stats) const {
 
         const double slope = GetBulkSlope();
-        const double acqTime0 = points.front().TimeInAcqC;
-        const double freq0 = points.front().Frequency;
 
-        return freq0 - slope * acqTime0;
+        // Step 1: Look at exactly the first 8 points
+        std::unordered_map<int, int> acqCounts;
+        for (size_t i = 0; i < 8; ++i) {
+            ++acqCounts[points[i].AcquisitionID];
+        }
+
+        // Step 2: Find the majority acquisition ID
+        int majorityAcqID = points.front().AcquisitionID;
+        int maxCount = 0;
+        for (const auto& kv : acqCounts) {
+            if (kv.second > maxCount) {
+                majorityAcqID = kv.first;
+                maxCount = kv.second;
+            }
+        }
+
+        // Step 3: Find the first point in the majority acquisition
+        const KTLongTrackData::Point* firstGoodPoint = nullptr;
+        for (const auto& pt : points) {
+            if (pt.AcquisitionID == majorityAcqID) {
+                firstGoodPoint = &pt;
+                break;
+            }
+        }
+
+        // Fallback shouldn't be needed, but just in case
+        if (firstGoodPoint == nullptr) {
+            firstGoodPoint = &points.front();
+        }
+
+        // Step 4: Compute intercept
+        const double acqTime0 = firstGoodPoint->TimeInAcqC;
+        const double freq0 = firstGoodPoint->Frequency;
+        stats.AcqFreqIntercept = freq0 - slope * acqTime0;
+
+        //Establish run-time reference
+        double runTime0 = points.front().TimeInRunC;
+        // Start time relative to acquisition: may be negative
+        stats.StartTimeInAcqC = firstGoodPoint->TimeInAcqC-(firstGoodPoint->TimeInRunC - runTime0);
+
+        // End time relative to acquisition
+        stats.EndTimeInAcqC = stats.StartTimeInAcqC + stats.TimeLength;
+
+        // Acquisition ID from majority
+        stats.StartAcqID = firstGoodPoint->AcquisitionID;
     }
 
     void KTLongTrackData::ComputeLocalSlopeStats(TrackStats& stats) const {
@@ -149,12 +190,6 @@ namespace Katydid
         fTrackStats.EndTimeInRunC   = points.back().TimeInRunC;
         fTrackStats.TimeLength      = points.back().TimeInRunC-points.front().TimeInRunC;
 
-
-        fTrackStats.StartTimeInAcqC = points.front().TimeInAcqC;
-        fTrackStats.EndTimeInAcqC   = points.front().TimeInAcqC + fTrackStats.TimeLength;
-
-        fTrackStats.StartAcqID      = points.front().AcquisitionID;
-
         fTrackStats.StartFrequency  = points.front().Frequency;
         fTrackStats.EndFrequency    = points.back().Frequency;
         fTrackStats.FreqLength      = points.back().Frequency-points.front().Frequency;
@@ -163,7 +198,7 @@ namespace Katydid
         int nFreqBins = static_cast<int>(std::round(fTrackStats.FreqLength / fTrackStats.FreqBinWidth));
 
         fTrackStats.BulkSlope = GetBulkSlope();
-        fTrackStats.AcqFreqIntercept = ComputeAcqFreqIntercept();
+        ComputeAcqStats(fTrackStats);
 
         ComputeLocalSlopeStats(fTrackStats);
         ComputeNspStats(fTrackStats);
