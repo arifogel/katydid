@@ -79,14 +79,55 @@ namespace Katydid
         return (denominator != 0.0) ? numerator / denominator : 0.0;
     }
 
-    double KTLongTrackData::ComputeAcqFreqIntercept() const {
-        if (points.size() < 2) return 0.0;
+    void KTLongTrackData::ComputeAcqStats(TrackStats& stats) const {
 
         const double slope = GetBulkSlope();
-        const double acqTime0 = points.front().TimeInAcqC;
-        const double freq0 = points.front().Frequency;
 
-        return freq0 - slope * acqTime0;
+        // Step 1: Look at exactly the first 8 points
+        std::unordered_map<int, int> acqCounts;
+        for (size_t i = 0; i < 8; ++i) {
+            ++acqCounts[points[i].AcquisitionID];
+        }
+
+        // Step 2: Find the majority acquisition ID
+        int majorityAcqID = points.front().AcquisitionID;
+        int maxCount = 0;
+        for (const auto& kv : acqCounts) {
+            if (kv.second > maxCount) {
+                majorityAcqID = kv.first;
+                maxCount = kv.second;
+            }
+        }
+
+        // Step 3: Find the first point in the majority acquisition
+        const KTLongTrackData::Point* firstGoodPoint = nullptr;
+        for (const auto& pt : points) {
+            if (pt.AcquisitionID == majorityAcqID) {
+                firstGoodPoint = &pt;
+                break;
+            }
+        }
+
+        // Fallback shouldn't be needed, but just in case
+        if (firstGoodPoint == nullptr) {
+            firstGoodPoint = &points.front();
+        }
+
+        // Step 4: Compute intercept
+        const double acqTime0 = firstGoodPoint->TimeInAcqC;
+        const double freq0 = firstGoodPoint->Frequency;
+        stats.AcqFreqIntercept = freq0 - slope * acqTime0;
+
+        //Establish run-time reference
+        double runTime0 = points.front().TimeInRunC;
+        // Start time relative to acquisition: may be negative
+        stats.StartTimeInAcqC = firstGoodPoint->TimeInAcqC-(firstGoodPoint->TimeInRunC - runTime0);
+
+        // End time relative to acquisition
+        stats.EndTimeInAcqC = stats.StartTimeInAcqC + stats.TimeLength;
+
+        // Acquisition ID from majority
+        stats.StartAcqID = firstGoodPoint->AcquisitionID;
     }
 
     void KTLongTrackData::ComputeLocalSlopeStats(TrackStats& stats) const {
@@ -149,12 +190,6 @@ namespace Katydid
         fTrackStats.EndTimeInRunC   = points.back().TimeInRunC;
         fTrackStats.TimeLength      = points.back().TimeInRunC-points.front().TimeInRunC;
 
-
-        fTrackStats.StartTimeInAcqC = points.front().TimeInAcqC;
-        fTrackStats.EndTimeInAcqC   = points.front().TimeInAcqC + fTrackStats.TimeLength;
-
-        fTrackStats.StartAcqID      = points.front().AcquisitionID;
-
         fTrackStats.StartFrequency  = points.front().Frequency;
         fTrackStats.EndFrequency    = points.back().Frequency;
         fTrackStats.FreqLength      = points.back().Frequency-points.front().Frequency;
@@ -163,7 +198,7 @@ namespace Katydid
         int nFreqBins = static_cast<int>(std::round(fTrackStats.FreqLength / fTrackStats.FreqBinWidth));
 
         fTrackStats.BulkSlope = GetBulkSlope();
-        fTrackStats.AcqFreqIntercept = ComputeAcqFreqIntercept();
+        ComputeAcqStats(fTrackStats);
 
         ComputeLocalSlopeStats(fTrackStats);
         ComputeNspStats(fTrackStats);
@@ -173,7 +208,7 @@ namespace Katydid
         fTrackStats.Density = points.size()/fTrackStats.ManhattanLength; //using half the manhattan distance as number of bin length est.
         fTrackStats.NSPPerUnitLength = fTrackStats.TotalNsp/fTrackStats.ManhattanLength;
         fTrackStats.DensityEstSNR = EstimateLambdaFromDensity(fTrackStats.Density);
-        fTrackStats.MLEPowerSNR = ComputeMaxLoglikelihoodLambda();
+        fTrackStats.MLEPowerSNR = ComputeMaxLoglikelihoodLambda(fTrackStats.ManhattanLength);
 
         return fTrackStats;
     }
@@ -210,7 +245,7 @@ namespace Katydid
     }
 
     // Define the log-likelihood function
-    double KTLongTrackData::LogLikelihood(double lambda, const std::vector<double>& chi_vals)
+    double KTLongTrackData::LogLikelihood(double lambda, const std::vector<double>& chi_vals, const unsigned& nManhattan)
     {
         if (lambda <= 0.0) return -std::numeric_limits<double>::infinity();  // log-likelihood undefined for λ ≤ 0
 
@@ -223,11 +258,32 @@ namespace Katydid
 
             logL += -lambda / 2.0 + std::log(bessel);
         }
+
+        //account for the empty bins
+        const int nccs_dof = 2;
+        double sum_tau = 0.0;
+        double sum_threshold_ratio = 0.0;
+        for (const auto& pt : points)
+        {
+            sum_tau += pt.NoiseTau;
+            sum_threshold_ratio += pt.Threshold / pt.NoiseTau;
+        }
+        double mean_tau = sum_tau / points.size();
+        double mean_threshold_ratio = sum_threshold_ratio / points.size();
+
+        const double x_thresh = 2.0 * mean_threshold_ratio;
+        auto pBelowThreshold = [nccs_dof,x_thresh](double lambda) {
+            boost::math::non_central_chi_squared dist(nccs_dof, lambda);
+            return cdf(dist, x_thresh);
+        };
+
+        logL += (nManhattan - chi_vals.size()) * std::log(pBelowThreshold(lambda));
+
         return logL;
     }
 
     // Maximize the log-likelihood with a simple grid search (replace with a better optimizer if needed)
-    double KTLongTrackData::ComputeMaxLoglikelihoodLambda()
+    double KTLongTrackData::ComputeMaxLoglikelihoodLambda(const unsigned &nManhattan)
     {
         std::vector<double> chi_vals;
         chi_vals.reserve(points.size());
@@ -241,7 +297,7 @@ namespace Katydid
 
         for (double lambda = 0.01; lambda <= 100.0; lambda += 0.01)
         {
-            double logL = LogLikelihood(lambda, chi_vals);
+            double logL = LogLikelihood(lambda, chi_vals, nManhattan);
             if (logL > best_logL)
             {
                 best_logL = logL;

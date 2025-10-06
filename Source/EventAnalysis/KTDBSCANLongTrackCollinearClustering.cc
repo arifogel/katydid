@@ -23,6 +23,7 @@ namespace Katydid
     KTDBSCANLongTrackCollinearClustering::KTDBSCANLongTrackCollinearClustering(const std::string& name) :
         KTProcessor(name),
         fEpsilon(0.5),
+        fVoltageOnTime(0.0018364),
         fMinTracksInAcqToRun(1),
         fMinTracksInClust(1),
         fTracksPerAcq(),
@@ -52,7 +53,7 @@ namespace Katydid
     {
         if (! Run())
         {
-            KTERROR(tclog, "An error occurred while running the colinear track clustering");
+            KTERROR(tclog, "An error occurred while running the collinear track clustering");
         }
         return;
     }
@@ -65,13 +66,15 @@ namespace Katydid
     {
         if (node == NULL) return false;
         SetEpsilon(node->get_value("freq-int-epsilon", GetEpsilon()));
+        SetVoltageOnTime(node->get_value("voltage-on-time", GetVoltageOnTime()));
         return true;
     }
 
     bool KTDBSCANLongTrackCollinearClustering::ReceiveLongTrackCandidate(KTLongTrackData& trackData)
     {
         const auto& stats = trackData.GetTrackStats();
-        KTDEBUG(tclog, "Received track with AcqID " << stats.StartAcqID << ", freq intercept = " << stats.AcqFreqIntercept );
+        KTDEBUG(tclog, "Received track with AcqID " << stats.StartAcqID 
+            << ", freq intercept = " << stats.AcqFreqIntercept);
         
         // Set global bin widths if this is the first track ever
         if (fTimeBinWidth == 0.0 && fFreqBinWidth == 0.0)
@@ -86,84 +89,88 @@ namespace Katydid
         return true;
     }
 
-    bool KTDBSCANLongTrackCollinearClustering::DoClustering()
+bool KTDBSCANLongTrackCollinearClustering::DoClustering()
+{
+    KTINFO(tclog, "Running frequency intercept clustering on all stored track candidates. "
+                  "Will only cluster those with same AcqID!");
+
+    for (auto& entry : fTracksPerAcq) // for each acquisition
     {
-        KTINFO(tclog, "Running frequency intercept clustering on all stored track candidates. Will only cluster those with same AcqID!" );
+        unsigned acqID = entry.first;
+        auto& allTracks = entry.second;
 
-        for (auto& entry : fTracksPerAcq)
+        if (allTracks.size() < fMinTracksInAcqToRun)
         {
-            unsigned acqID = entry.first;
-            auto& tracks = entry.second;
-            // tracks.size() will return the number of tracks that were stored with that particular StartAcqID
-            if (tracks.size() < fMinTracksInAcqToRun)
-            {
-                KTDEBUG( tclog, "Skipping AcqID " << acqID << ": has < (" << tracks.size() << ") track candidates." );
-                continue;
-            }
-
-            FeatureValues featureValues;
-            for (const auto* track : tracks)
-            {
-                FeatureValue pt(1);
-                pt(0) = track->GetTrackStats().AcqFreqIntercept;  // single-dimension
-                featureValues.push_back(pt);
-            }
-
-            // Build a matrix of distances between arbitrary-dimensional feature vectors and supports fast radius-based neighborhood queries
-            KTDBSCAN< DistanceMatrix > dbScan;
-            dbScan.SetRadius(fEpsilon);
-            dbScan.SetMinPoints(fMinTracksInClust);
-            KTINFO(tclog, "DBSCAN configured");
-            DistanceMatrix distMat;
-            distMat.ComputeDistances< Euclidean<FeatureValue> >(featureValues);
-
-            // do the clustering!
-            KTINFO(tclog, "Starting DBSCAN");
-            KTDBSCAN< DistanceMatrix >::DBSResults results;
-            if (! dbScan.DoClustering(distMat, results))
-            {
-                KTERROR(tclog, "DBSCAN failed for AcqID " << acqID);
-                continue;
-            }
-
-            KTDEBUG(tclog, "DBSCAN finished");
-            KTDEBUG(tclog, "Total clusters: " << results.fClusters.size());
-            KTDEBUG(tclog, "Noise points: " << std::count(results.fNoise.begin(), results.fNoise.end(), true))
-            for (size_t clusterID = 0; clusterID < results.fClusters.size(); ++clusterID)
-            {
-                const auto& cluster = results.fClusters[clusterID];
-                std::vector<KTLongTrackData*> clusterTracks;
-
-                for (size_t pointID : cluster)  // pointID is an index into tracks[]
-                {
-                    clusterTracks.push_back(tracks[pointID]);
-                }
-
-                KTDEBUG(tclog, "Emitting combined track from cluster ID " << clusterID
-                                   << " with " << cluster.size() << " original tracks");
-
-                EmitCombinedTrack(clusterTracks);
-            }
-            for (size_t i = 0; i < results.fNoise.size(); ++i)
-            {
-                if (results.fNoise[i])
-                {
-                    KTDEBUG(tclog, "Track " << i << " not clustered with any other tracks; emitting as singleton cluster");
-                    std::vector<KTLongTrackData*> singleton = { tracks[i] };
-                    EmitCombinedTrack(singleton);
-                }
-            }
-
-            for (auto* track : tracks) delete track;
-            tracks.clear();  // optional, since map is cleared later anyway
+            KTDEBUG(tclog, "Skipping AcqID " << acqID
+                     << ": has < (" << allTracks.size() << ") track candidates.");
+            continue;
         }
 
-        fTracksPerAcq.clear();
+        // Separate tracks into two groups: clusterable vs immediate emit
+        std::vector<KTLongTrackData*> clusterable;
+        FeatureValues featureValues;
 
-        // Emit the signal to indicate clustering is finished
-        fClusterDoneSignal();
-        return true;
+        for (auto* track : allTracks)
+        {
+            if (track->GetTrackStats().StartTimeInAcqC < fVoltageOnTime)
+            {
+                clusterable.push_back(track);
+                FeatureValue pt(1);
+                pt(0) = track->GetTrackStats().AcqFreqIntercept;
+                featureValues.push_back(pt);
+            }
+            else
+            {
+                std::vector<KTLongTrackData*> singleton{track};
+                EmitCombinedTrack(singleton);
+            }
+        }
+
+        // Build DBSCAN distance matrix
+        KTDBSCAN<DistanceMatrix> dbScan;
+        dbScan.SetRadius(fEpsilon);
+        dbScan.SetMinPoints(fMinTracksInClust);
+
+        DistanceMatrix distMat;
+        distMat.ComputeDistances<Euclidean<FeatureValue>>(featureValues);
+
+        KTDBSCAN<DistanceMatrix>::DBSResults results;
+        if (!dbScan.DoClustering(distMat, results))
+        {
+            KTERROR(tclog, "DBSCAN failed for AcqID " << acqID);
+            continue;
+        }
+
+        // Emit results
+        for (size_t clusterID = 0; clusterID < results.fClusters.size(); ++clusterID)
+        {
+            const auto& cluster = results.fClusters[clusterID];
+            std::vector<KTLongTrackData*> clusterTracks;
+            for (size_t pointID : cluster)
+            {
+                clusterTracks.push_back(clusterable[pointID]);
+            }
+            EmitCombinedTrack(clusterTracks);
+        }
+
+        for (size_t i = 0; i < results.fNoise.size(); ++i)
+        {
+            if (results.fNoise[i])
+            {
+                std::vector<KTLongTrackData*> singleton = { clusterable[i] };
+                EmitCombinedTrack(singleton);
+            }
+        }
+
+        // cleanup
+        for (auto* track : allTracks) delete track;
+        allTracks.clear();
     }
+
+    fTracksPerAcq.clear();
+    fClusterDoneSignal();
+    return true;
+}
 
     void KTDBSCANLongTrackCollinearClustering::EmitCombinedTrack(std::vector<KTLongTrackData*>& clusterTracks)
     {

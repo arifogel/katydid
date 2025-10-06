@@ -16,6 +16,7 @@
 #include <string>
 #include <vector>
 #include <set>
+#include <unordered_map>
 
 namespace Katydid
 {
@@ -99,9 +100,9 @@ namespace Katydid
 //        void AddPoints(const Point& point);
         const TrackStats& CalculateTrackStats(double fTimeBinWidth,double fFreqBinWidth);
         double GetBulkSlope() const;
-        double ComputeAcqFreqIntercept() const;
-        double LogLikelihood(double lambda, const std::vector<double>& chi_vals);
-        double ComputeMaxLoglikelihoodLambda();
+        void ComputeAcqStats(TrackStats& stats) const;
+        double LogLikelihood(double lambda, const std::vector<double>& chi_vals, const unsigned& nManhattan);
+        double ComputeMaxLoglikelihoodLambda(const unsigned& nManhattan);
         double EstimateLambdaFromDensity(double Density);
         void SetPoints(const std::vector<KTLongTrackData::Point> &vector);
 
