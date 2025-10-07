@@ -104,7 +104,7 @@ spec1:
     freq-bin-avg: 1   #must be a power of 2  -- adjust discrim and gainvar accordingly!
     
 spec2:
-    filenames: ["/media/heather/T7/SpecFiles/Ne19Spectrum/Freq_data_2025-07-28-23-08-05-273_0.speck","/media/heather/T7/SpecFiles/Ne19Spectrum/Freq_data_2025-07-28-23-08-05-273_1.speck"]
+    filenames: ["/media/heather/T7/SpecFiles/Ne19Spectrum/Freq_data_2025-07-28-21-23-59-430_0.speck","/media/heather/T7/SpecFiles/Ne19Spectrum/Freq_data_2025-07-28-21-23-59-430_1.speck"]
     spectra: 146484 #146484=1s
     packets-per-spec: 1
     header-bytes: 32
@@ -118,16 +118,16 @@ spec2:
     TOff-bin-pow: 25
 
 brw:
-    output-file: "/media/heather/T7/KatydidOutput/Ne19Spectrum/Freq_data_2025-07-28-23-08-05-273_snr7_mbeb.root"
+    output-file: "/media/heather/T7/KatydidOutput/Ne19Spectrum/Freq_data_2025-07-28-21-23-59-430_snr7_mbeb.root"
     file-flag: "recreate"
 
 rtw:
-    output-file: "/media/heather/T7/KatydidOutput/Ne19Spectrum/Freq_data_2025-07-28-23-08-05-273_snr7_mbeb.root"
+    output-file: "/media/heather/T7/KatydidOutput/Ne19Spectrum/Freq_data_2025-07-28-21-23-59-430_snr7_mbeb.root"
     file-flag: recreate
 
 stv:
     num-for-run-avg: 1 # For old data where the vaunix was at 18GHz, change this to 7! 1 = no running average
-    output-file: "/media/heather/T7/KatydidOutput/Ne19Spectrum/Freq_data_2025-07-28-23-08-05-273_snr7_mbeb_SlewTimes.txt"
+    output-file: "/media/heather/T7/KatydidOutput/Ne19Spectrum/Freq_data_2025-07-28-21-23-59-430_snr7_mbeb_SlewTimes.txt"
 
 acc:
     number-to-average: 0
@@ -157,8 +157,8 @@ long-tr-find:
     rel-slope-diff-to-expand: 0.2 #If the relative difference between the local slopes at the previous two time slices was greater than this, double the frequency acceptance. To recover from adding noise or to follow resonance.
 
 dbscan-trackclust:
-    freq-int-epsilon: 0 # epsilon used for DBScan clustering on AcqFreqIntercept. In Hz
-    voltage-on-time: 0.0018364
+    freq-int-epsilon: 30e6 # epsilon used for DBScan clustering on AcqFreqIntercept. In Hz
+    voltage-on-time: 0.00179
 
 mbeb:
     expected-tracks-per-acq: 0.05

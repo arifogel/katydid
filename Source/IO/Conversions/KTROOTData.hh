@@ -144,7 +144,7 @@ namespace Katydid
         MEMBERVARIABLE(Double_t, TimeLength);
         MEMBERVARIABLE(Double_t, StartTimeInAcqC);
         MEMBERVARIABLE(Double_t, EndTimeInAcqC);
-        MEMBERVARIABLE(UInt_t, StartAcqID);
+        MEMBERVARIABLE(Int_t, StartAcqID);
         MEMBERVARIABLE(Double_t, AcqFreqIntercept);
         MEMBERVARIABLE(Double_t, BulkSlope);
         MEMBERVARIABLE(Double_t, MeanLocalSlope);

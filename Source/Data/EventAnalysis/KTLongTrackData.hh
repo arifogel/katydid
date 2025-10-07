@@ -32,7 +32,7 @@ namespace Katydid
             double TimeLength;
             double StartTimeInAcqC;
             double EndTimeInAcqC;
-            unsigned StartAcqID;
+            int StartAcqID;
             double AcqFreqIntercept; //from bulk slope
             double BulkSlope;
             double MeanLocalSlope;
@@ -62,7 +62,7 @@ namespace Katydid
             double Frequency;
             double TimeInRunC;
             double TimeInAcqC;
-            double AcquisitionID;
+            int AcquisitionID;
             double Ordinate;
             double Threshold;
             double NSP;

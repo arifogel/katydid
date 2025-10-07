@@ -1010,7 +1010,7 @@ namespace Katydid
         rootData.SetTimeLength(stats.EndTimeInRunC - stats.StartTimeInRunC);
         rootData.SetStartTimeInAcqC(stats.StartTimeInAcqC);
         rootData.SetEndTimeInAcqC(stats.EndTimeInAcqC);
-        rootData.SetStartAcqID(ktData.GetPoints().front().AcquisitionID); // if you don't store it separately
+        rootData.SetStartAcqID(stats.StartAcqID);
         rootData.SetAcqFreqIntercept(stats.AcqFreqIntercept);
         rootData.SetBulkSlope(stats.BulkSlope);
         rootData.SetMeanLocalSlope(stats.MeanLocalSlope);

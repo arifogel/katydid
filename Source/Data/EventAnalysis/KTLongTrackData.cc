@@ -86,11 +86,11 @@ namespace Katydid
         // Step 1: Look at exactly the first 8 points
         std::unordered_map<int, int> acqCounts;
         for (size_t i = 0; i < 8; ++i) {
-            ++acqCounts[points[i].AcquisitionID];
+            ++acqCounts[static_cast<int>(points[i].AcquisitionID)];
         }
 
         // Step 2: Find the majority acquisition ID
-        int majorityAcqID = points.front().AcquisitionID;
+        int majorityAcqID = static_cast<int>(points.front().AcquisitionID);
         int maxCount = 0;
         for (const auto& kv : acqCounts) {
             if (kv.second > maxCount) {
@@ -99,10 +99,10 @@ namespace Katydid
             }
         }
 
-        // Step 3: Find the first point in the majority acquisition
+        // Find first point in the majority acquisition
         const KTLongTrackData::Point* firstGoodPoint = nullptr;
         for (const auto& pt : points) {
-            if (pt.AcquisitionID == majorityAcqID) {
+            if (static_cast<int>(pt.AcquisitionID) == majorityAcqID) {
                 firstGoodPoint = &pt;
                 break;
             }
@@ -127,7 +127,7 @@ namespace Katydid
         stats.EndTimeInAcqC = stats.StartTimeInAcqC + stats.TimeLength;
 
         // Acquisition ID from majority
-        stats.StartAcqID = firstGoodPoint->AcquisitionID;
+        stats.StartAcqID = majorityAcqID;
     }
 
     void KTLongTrackData::ComputeLocalSlopeStats(TrackStats& stats) const {
