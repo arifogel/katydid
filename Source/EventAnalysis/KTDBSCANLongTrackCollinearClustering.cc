@@ -89,6 +89,7 @@ namespace Katydid
         return true;
     }
 
+
 bool KTDBSCANLongTrackCollinearClustering::DoClustering()
 {
     KTINFO(tclog, "Running frequency intercept clustering on all stored track candidates. "
@@ -125,6 +126,19 @@ bool KTDBSCANLongTrackCollinearClustering::DoClustering()
                 EmitCombinedTrack(singleton);
             }
         }
+        // --- Local helper lambda to test for temporal overlap ---
+        auto OverlapsInTime = [](const KTLongTrackData* a, const KTLongTrackData* b)
+        {
+            const auto& sa = a->GetTrackStats();
+            const auto& sb = b->GetTrackStats();
+            const double a_start = sa.StartTimeInRunC;
+            const double a_end   = sa.EndTimeInRunC;
+            const double b_start = sb.StartTimeInRunC;
+            const double b_end   = sb.EndTimeInRunC;
+
+            // return true if they overlap in time
+            return !(a_end <= b_start || b_end <= a_start);
+        };
 
         // Build DBSCAN distance matrix
         KTDBSCAN<DistanceMatrix> dbScan;
@@ -133,6 +147,20 @@ bool KTDBSCANLongTrackCollinearClustering::DoClustering()
 
         DistanceMatrix distMat;
         distMat.ComputeDistances<Euclidean<FeatureValue>>(featureValues);
+        // --- Apply overlap veto ---
+        for (size_t i = 0; i < clusterable.size(); ++i)
+        {
+            for (size_t j = i + 1; j < clusterable.size(); ++j)
+            {
+                if (OverlapsInTime(clusterable[i], clusterable[j]))
+                {
+                    // Invalidate distance so DBSCAN never joins them
+                    distMat.fDist(i, j) = std::numeric_limits<double>::max();
+                    distMat.fDist(j, i) = std::numeric_limits<double>::max();
+                }
+            }
+        }
+
 
         KTDBSCAN<DistanceMatrix>::DBSResults results;
         if (!dbScan.DoClustering(distMat, results))
