@@ -345,7 +345,7 @@ namespace Katydid
             double f_mid = f(mid);
 
             if (std::abs(f_mid) < tol)
-                return mid;
+                break;
 
             if (f_lo * f_mid < 0)
                 lambda_hi = mid;
