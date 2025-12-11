@@ -48,23 +48,38 @@ namespace Katydid
         // Config-file settings
         if (node != NULL)
         {
-            if (node->has("filenames"))
+            //Priority: filename > filename_i > filenames. Convenient for command-line options
+            fFilenames.clear();
+            if (node->has("filename"))
+            {
+                KTDEBUG(speclog, "Adding single file to spec processor");
+                fFilenames.push_back( std::move(scarab::expand_path(node->get_value( "filename" ))) );
+                KTINFO(speclog, "Added file to spec processor: <" << fFilenames.back() << ">");
+            }
+            else
+            {
+                //could generate this list automatically
+                std::vector<std::string> tFilenameArgs = {"filenames_0", "filenames_1"};
+                for (const auto& filename_arg : tFilenameArgs)
+                {
+                    if (node->has(filename_arg))
+                    {
+                        KTDEBUG(speclog, "Adding single file to spec processor");
+                        fFilenames.push_back( std::move(scarab::expand_path(node->get_value( filename_arg ))) );
+                        KTINFO(speclog, "Added file to spec processor: <" << fFilenames.back() << ">");
+                    }
+                }
+            }
+
+            if ((!fFilenames.size()) && node->has("filenames"))
             {
                 KTDEBUG(speclog, "Adding multiple files to spec processor");
-                fFilenames.clear();
                 const scarab::param_array* t_filenames = node->array_at("filenames");
                 for(scarab::param_array::const_iterator t_file_it = t_filenames->begin(); t_file_it != t_filenames->end(); ++t_file_it)
                 {
                     fFilenames.push_back( std::move(scarab::expand_path((*t_file_it)->as_value().as_string())) );
                     KTINFO(speclog, "Added file to spec processor: <" << fFilenames.back() << ">");
                 }
-            }
-            else if (node->has("filename"))
-            {
-                KTDEBUG(speclog, "Adding single file to spec processor");
-                fFilenames.clear();
-                fFilenames.push_back( std::move(scarab::expand_path(node->get_value( "filename" ))) );
-                KTINFO(speclog, "Added file to spec processor: <" << fFilenames.back() << ">");
             }
 
             fNSpectra = node->get_value< unsigned >("spectra", fNSpectra);
@@ -188,7 +203,7 @@ namespace Katydid
             std::fill(slice, slice + fEffectiveFreqBins, 0);
 
             for(unsigned j = 0; j < nChannels; ++j)
-            { 
+            {
                 binOffset = j*fBinOffsetPerFile;
                 for(unsigned k = 0; k < nBins; ++k)
                     slice[k/fSpecFreqAvg + binOffset] += uint8_t(fSpecs[j].buffer[fPacketHeaderSize + k]);
