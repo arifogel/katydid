@@ -48,17 +48,32 @@ namespace Katydid
         // Config-file settings
         if (node != NULL)
         {
+            //Priority: filename > filename_i > filenames. Convenient for command-line options
+            fFilenames.clear();
             if (node->has("filename"))
             {
                 KTDEBUG(specklog, "Adding single file to speck processor");
-                fFilenames.clear();
                 fFilenames.push_back( std::move(scarab::expand_path(node->get_value( "filename" ))) );
                 KTINFO(specklog, "Added file to speck processor: <" << fFilenames.back() << ">");
             }
-            else if (node->has("filenames"))
+            else
+            {
+                //could generate this list automatically
+                std::vector<std::string> tFilenameArgs = {"filenames_0", "filenames_1"};
+                for (const auto& filename_arg : tFilenameArgs)
+                {
+                    if (node->has(filename_arg))
+                    {
+                        KTDEBUG(specklog, "Adding single file to speck processor");
+                        fFilenames.push_back( std::move(scarab::expand_path(node->get_value( filename_arg ))) );
+                        KTINFO(specklog, "Added file to speck processor: <" << fFilenames.back() << ">");
+                    }
+                }
+            }
+
+            if ((!fFilenames.size()) && node->has("filenames"))
             {
                 KTDEBUG(specklog, "Adding multiple files to speck processor");
-                fFilenames.clear();
                 const scarab::param_array* t_filenames = node->array_at("filenames");
                 for(scarab::param_array::const_iterator t_file_it = t_filenames->begin(); t_file_it != t_filenames->end(); ++t_file_it)
                 {
