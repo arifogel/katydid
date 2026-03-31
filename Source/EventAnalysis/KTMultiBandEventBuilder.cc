@@ -33,7 +33,7 @@ namespace Katydid
         fVoltageOnTime(0.0018296),
         fVoltageOffTime(0.002),
         fMinTracksInAcqToRun(1),
-        fMaxTracksInAcqToRun(15),
+        fMaxTracksInAcqToRun(9),
         fTimeBinWidth(0.0),
         fFreqBinWidth(0.0),
         fTracksPerAcq(),
