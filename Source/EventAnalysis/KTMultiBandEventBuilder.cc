@@ -30,8 +30,8 @@ namespace Katydid
         fBandLabels({{},{0},{-1,1},{-1,0,1},{-2,-1,1,2},{-2,-1,1},{-1,1,2},{-2,-1,2},{-2,1,2}}),
         fExpectedTracksPerAcq(0.05),
         fSetField(1.0),
-        fVoltageOnTime(0.0018296),
-        fVoltageOffTime(0.002),
+        fEmptyStartTime(0.0018296),
+        fEmptyEndTime(0.002),
         fMinTracksInAcqToRun(1),
         fMaxTracksInAcqToRun(9),
         fTimeBinWidth(0.0),
@@ -90,8 +90,8 @@ namespace Katydid
         if (node == NULL) return false;
         SetExpectedTracksPerAcq(node->get_value("expected-tracks-per-acq", GetExpectedTracksPerAcq()));
         SetSetField(node->get_value("set-field", GetSetField()));
-        SetVoltageOnTime(node->get_value("voltage-on-time", GetVoltageOnTime()));
-        SetVoltageOffTime(node->get_value("voltage-off-time", GetVoltageOffTime()));
+        SetEmptyStartTime(node->get_value("empty-start-time", GetEmptyStartTime()));
+        SetEmptyEndTime(node->get_value("empty-end-time", GetEmptyEndTime()));
         return true;
     }
 
@@ -310,7 +310,7 @@ namespace Katydid
         std::transform(tracks.begin(), tracks.end(), endFreqInts.begin(),
             [this](const auto& a) {
                 return a->GetTrackStats().AcqFreqIntercept +
-                       a->GetTrackStats().BulkSlope * fVoltageOffTime;
+                       a->GetTrackStats().BulkSlope * fEmptyEndTime;
             });
         if(!std::is_sorted(endFreqInts.begin(), endFreqInts.end()))
             return false;
@@ -330,9 +330,9 @@ namespace Katydid
         for (auto* track : tracks)
         {
             double start = track->GetTrackStats().StartTimeInAcqC;
-            KTINFO(tclog, "Track start time: " << start << ", fVoltageOnTime: " << fVoltageOnTime);
+            KTINFO(tclog, "Track start time: " << start << ", fEmptyStartTime: " << fEmptyStartTime);
 
-            if (start < fVoltageOnTime)
+            if (start < fEmptyStartTime)
             {
                 clusterable.push_back(track);
             }

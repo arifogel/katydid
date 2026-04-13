@@ -1,0 +1,169 @@
+processor-toolbox:
+
+    processors:
+        - { type: "spec-processor",                         name: "spec1" }
+        - { type: "speck-processor",                        name: "spec2" }
+        - { type: "data-accumulator",                       name: "acc" }
+        - { type: "gain-variation",                         name: "gainvar" }
+        - { type: "rf-slew-to-vec",                         name: "stv" }
+        - { type: "variable-spectrum-discriminator",        name: "discrim" }
+        - { type: "long-track-finder",                      name: "long-tr-find"}
+        - { type: "dbscan-longtrack-collinear-clustering",  name: "dbscan-trackclust"}
+        - { type: "multi-band-event-builder",               name: "mbeb"}
+        - { type: "basic-root-writer",                      name: "brw" }
+        #- { type: "root-spectrogram-writer",               name: "rsw"}
+        - { type: "root-tree-writer",                       name: "rtw"}
+
+    connections:
+              # Take the power spectra from the input file and send them to accumulator
+            - signal: "spec1:ps"
+              slot: "acc:ps"
+
+              # Copy the accumulated power spectra to gain variation
+            - signal: "acc:ps-finished"  
+              slot: "gainvar:ps-var"
+
+              # Write the accumulated power spectra to ROOT file
+            - signal: "acc:ps-finished"  
+              slot: "brw:ps"
+
+              # Write the gain-var histogram to ROOT file 
+            - signal: "gainvar:gain-var" 
+              slot: "brw:gain-var"
+
+              # Copy the gain-var histogram to the discriminator
+            - signal: "gainvar:gain-var"
+              slot: "discrim:gv"
+
+              # Take the headers from the second input file and get trap slew times
+            - signal: "spec2:ps"
+              slot: "stv:ps"
+
+              # Slew vector to be emmited at slew-times only after all spectra processed
+            - signal: "spec2:spec-done"
+              slot: "stv:done"
+
+              # Take the power spectra from the second input file and write them to a ROOT file
+             #- signal: "spec2:ps"
+             #  slot: "rsw:ps"
+
+              # Copy the power spectra from the second input file to the discriminator
+            - signal: "spec2:ps"
+              slot: "discrim:ps-pre"
+ 
+              # Write the spectrogram of points that are above discrim. threshold to ROOT file 
+            - signal: "discrim:disc-1d"
+              slot: "rtw:disc-1d"
+
+              # Pass sparse spectrogram to clustering algorithm for track canidates
+            - signal: "discrim:disc-1d"
+              slot: "long-tr-find:disc-1d"
+
+              # Send signal to clustering algorithm at end of input to check remaining clusters
+            - signal: "spec2:spec-done"
+              slot: "long-tr-find:done"
+              
+              # Send long track data to colinear clustering
+            - signal: "long-tr-find:long-track-cand"
+              slot: "dbscan-trackclust:long-track-cand"
+
+              # Send signal to DBSCAN clustering algorithm to run
+            - signal: "long-tr-find:clustering-done"
+              slot: "dbscan-trackclust:do-clustering"
+
+              # Write clustered long tracks to root tree
+            - signal: "dbscan-trackclust:clust-long-track-cand"
+              slot: "rtw:long-track"
+
+              # Send clustered long track data to event builder
+            - signal: "dbscan-trackclust:clust-long-track-cand"
+              slot: "mbeb:long-track-cand"
+
+              # Send signal to the multi band event builder to run
+            - signal: "dbscan-trackclust:clustering-done"
+              slot: "mbeb:build-events"
+
+              # Write long track data to root tree
+            - signal: "mbeb:mbe-cand"
+              slot: "rtw:mb-event"
+
+ 
+    run-queue:
+        - spec1
+        - spec2
+
+spec1:
+    filenames: ["/media/heather/T7/SpecFiles/Kr83_Feb2026/Freq_data_2026-02-12-11-44-34-452_0.spec","/media/heather/T7/SpecFiles/Kr83_Feb2026/Freq_data_2026-02-12-11-44-34-452_1.spec"]    
+    spectra: 146484
+    packets-per-spec: 1
+    header-bytes: 32
+    ROACH-spect-avg: 2
+    freq-bins-per-packet: 8192 
+    min-freq: 0.0e6
+    max-freq: 2400.0e6
+    time-slice-avg: 1
+    freq-bin-avg: 1   #must be a power of 2  -- adjust discrim and gainvar accordingly!
+    
+spec2:
+    filenames: ["/media/heather/T7/SpecFiles/Kr83_Feb2026/Freq_data_2026-02-12-15-28-26-878_0.speck","/media/heather/T7/SpecFiles/Kr83_Feb2026/Freq_data_2026-02-12-15-28-26-878_1.speck"]
+    spectra: 146484 #146484=1s
+    packets-per-spec: 1
+    header-bytes: 32
+    ROACH-spect-avg: 2
+    freq-bins-per-packet: 8192 
+    min-freq: 0.0e6
+    max-freq: 2400.0e6
+    time-slice-avg: 1
+    freq-bin-avg: 1   #must be a power of 2  -- adjust discrim and gainvar accordingly!    
+    TOff-bin: 301
+    TOff-bin-pow: 25
+
+brw:
+    output-file: "/media/heather/T7/KatydidOutput/Kr83_Feb2026/Freq_data_2026-02-12-15-28-26-878_snr7.5.root"
+    file-flag: "recreate"
+
+rtw:
+    output-file: "/media/heather/T7/KatydidOutput/Kr83_Feb2026/Freq_data_2026-02-12-15-28-26-878_snr7.5.root"
+    file-flag: recreate
+
+stv:
+    num-for-run-avg: 1 # For old data where the vaunix was at 18GHz, change this to 7! 1 = no running average
+    output-file: "/media/heather/T7/KatydidOutput/Kr83_Feb2026/Freq_data_2026-02-12-15-28-26-878_snr7.5_SlewTimes.txt"
+
+acc:
+    number-to-average: 0
+    signal-interval: 0
+
+gainvar:
+    normalize: false
+    min-bin: 342
+    max-bin: 8191
+    fit-points: 500
+
+discrim:
+    min-bin: 300 #NOT 100MHz HPF now below Vaunix at 301
+    max-bin: 8191
+    snr-threshold-power: 7.5 
+    modulate: false
+
+long-tr-find:
+    min-frequency: 105.0e6 # minimum frequency (in Hz)
+    max-frequency: 2300.0e6 # maximum frequency (in Hz)
+    initial-slope : 78118708.33274174 # slope of a track with 1 point (in Hz/s)
+    n-slope-slices: 5 # max points to include in the slope calculation
+    time-gap-tolerance: 3.0e-4 # max gap between points in a line (in sec.) one time slice is 6.826e-6seconds
+    frequency-acceptance: 3e5 # max freq gap between point and extrapolated line (in Hz) Each frequency bin is 2.93e5, so it needs to be more than that. Acceptance area = 45 bins (3e5*3.0e-4)/(2.93e5*6.826e-6)
+    min-points: 8 # line is converted to a track iff it has >= this # of points
+    min-slope: -9782479812.2742590 # line is converted to a track iff line slope is > than this (in Hz/s)
+    rel-slope-diff-to-expand: 0.2 #If the relative difference between the local slopes at the previous two time slices was greater than this, double the frequency acceptance. To recover from adding noise or to follow resonance.
+
+dbscan-trackclust:
+    freq-int-epsilon: 15e6 # epsilon used for DBScan clustering on AcqFreqIntercept. In Hz
+    empty-start-time: 0.009
+
+mbeb:
+    expected-tracks-per-acq: 0.05
+    set-field: 0.711
+    empty-start-time: 0.009
+    empty-end-time: 0.01
+
