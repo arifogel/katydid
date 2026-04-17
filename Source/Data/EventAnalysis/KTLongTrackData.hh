@@ -56,6 +56,7 @@ namespace Katydid
             double NSPPerUnitLength;
             double DensityEstSNR;
             double MLEPowerSNR;
+            int NumPoints;
         };
 
         struct Point {

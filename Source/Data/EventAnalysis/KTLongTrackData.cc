@@ -186,6 +186,8 @@ namespace Katydid
         fTrackStats.TimeBinWidth = fTimeBinWidth;
         fTrackStats.FreqBinWidth = fFreqBinWidth;
 
+        fTrackStats.NumPoints = points.size();
+
         fTrackStats.StartTimeInRunC = points.front().TimeInRunC;
         fTrackStats.EndTimeInRunC   = points.back().TimeInRunC;
         fTrackStats.TimeLength      = points.back().TimeInRunC-points.front().TimeInRunC;

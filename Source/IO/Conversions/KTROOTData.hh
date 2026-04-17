@@ -136,6 +136,7 @@ namespace Katydid
         MEMBERVARIABLE(Int_t, BandNumber);
         MEMBERVARIABLE(UInt_t, EventType);
         MEMBERVARIABLE(Double_t, AxialFreq);
+        MEMBERVARIABLE(Int_t, NumPoints);
         MEMBERVARIABLE(Double_t, StartFrequency);
         MEMBERVARIABLE(Double_t, EndFrequency);
         MEMBERVARIABLE(Double_t, FreqLength);
