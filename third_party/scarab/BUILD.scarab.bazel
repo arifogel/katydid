@@ -1,0 +1,88 @@
+# BUILD file for @scarab (github.com/project8/scarab @ ef2af248c5db7c92c84952a57759ba0f145f6cd4).
+#
+# Scarab's own library/CMakeLists.txt builds ONE combined library out of
+# utility/ + logger/ + param/ + param/codec/json/ + param/codec/yaml/ + authentication/
+# (see pbuilder_library( Scarab Scarab_SOURCES "" ) there) - this mirrors that with one
+# cc_library rather than one target per subdirectory, matching what Katydid/Nymph actually
+# link against. Source lists are copied exactly from each subdirectory's CMakeLists.txt
+# rather than globbed, to avoid silently picking up test/ files.
+#
+# Verified: compiles and links cleanly against Boost 1.83 + g++ (Linux) as of this port.
+# param/codec/msgpack/ is NOT built here - Katydid never turns Scarab_BUILD_CODEC_MSGPACK on.
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+package(default_visibility = ["//visibility:public"])
+
+genrule(
+    name = "scarab_version_cc",
+    srcs = ["library/utility/scarab_version.cc.in"],
+    outs = ["scarab_version.cc"],
+    # Mirrors CMake's configure_file() substitution of library/CMakeLists.txt's project(Scarab
+    # VERSION ...) (read from Scarab/VERSION = "1 6 3") and pbuilder_prepare_project()'s git info.
+    cmd = """
+        sed -e 's/@Scarab_VERSION_MAJOR@/1/' \
+            -e 's/@Scarab_VERSION_MINOR@/6/' \
+            -e 's/@Scarab_VERSION_PATCH@/3/' \
+            -e 's/@Scarab_VERSION@/"1.6.3"/' \
+            -e 's/@Scarab_PACKAGE_NAME@/"Scarab"/' \
+            -e 's/@Scarab_GIT_COMMIT@/"ef2af248c5db7c92c84952a57759ba0f145f6cd4"/' \
+            $< > $@
+    """,
+)
+
+cc_library(
+    name = "scarab",
+    srcs = [
+        # library/utility/CMakeLists.txt
+        "library/utility/cancelable.cc",
+        "library/utility/digital.cc",
+        "library/utility/error.cc",
+        "library/utility/path.cc",
+        "library/utility/time.cc",
+        "library/utility/typename.cc",
+        ":scarab_version_cc",
+        # library/logger/CMakeLists.txt
+        "library/logger/logger.cc",
+        # library/param/CMakeLists.txt
+        "library/param/configurator.cc",
+        "library/param/global_config.cc",
+        "library/param/param.cc",
+        "library/param/param_codec.cc",
+        "library/param/parsable.cc",
+        "library/param/parser.cc",
+        # library/param/codec/json/CMakeLists.txt
+        "library/param/codec/json/param_json.cc",
+        # library/param/codec/yaml/CMakeLists.txt
+        "library/param/codec/yaml/param_yaml.cc",
+        # library/authentication/CMakeLists.txt
+        "library/authentication/authentication.cc",
+    ],
+    hdrs = glob([
+        "library/utility/*.hh",
+        "library/logger/*.hh",
+        "library/param/*.hh",
+        "library/param/codec/json/*.hh",
+        "library/param/codec/yaml/*.hh",
+        "library/authentication/*.hh",
+    ]),
+    includes = [
+        "library/authentication",
+        "library/logger",
+        "library/param",
+        "library/param/codec/json",
+        "library/param/codec/yaml",
+        "library/utility",
+    ],
+    defines = [
+        # From library/CMakeLists.txt: add_definitions( -DRAPIDJSON_FILE_BUFFER_SIZE=... )
+        # and -DUSE_CODEC_JSON, and PackageBuilder.cmake's -DUSE_CPP11.
+        "RAPIDJSON_FILE_BUFFER_SIZE=65536",
+        "USE_CODEC_JSON",
+        "USE_CPP11",
+    ],
+    copts = ["-std=c++11"],
+    deps = [
+        "@rapidjson//:rapidjson",
+        "@yaml_cpp//:yaml_cpp",
+        "@homebrew//:boost",
+    ],
+)

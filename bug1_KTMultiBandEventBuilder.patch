@@ -1,0 +1,20 @@
+--- a/Source/EventAnalysis/KTMultiBandEventBuilder.cc
++++ b/Source/EventAnalysis/KTMultiBandEventBuilder.cc
+@@ -397,7 +397,17 @@
+                 {
+                     std::pair<unsigned, double> llhResult =  LLHDataGivenEvent(clusterable,partitions[i][j]);
+                     if(std::isinf(llhResult.second))
++                    {
++                        // BUG FIX: previously this broke out of the loop without ever adding
++                        // llhResult.second (-inf) to logLikelihoods[i], so a partition
++                        // containing one infeasible group kept whatever finite partial sum
++                        // it had accumulated from earlier groups instead of being
++                        // disqualified -- it could then still win the max-likelihood
++                        // comparison against a fully valid partition. Propagate the -inf so
++                        // this partition is correctly eliminated.
++                        logLikelihoods[i] = -std::numeric_limits<double>::infinity();
+                         break;
++                    }
+ 
+                     logLikelihoods[i] += llhResult.second;
+                     labels[i][j] = llhResult.first;

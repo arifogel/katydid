@@ -29,3 +29,7 @@ install_manifest.txt
 
 # from emacs
 *~
+
+
+/bazel-*
+/.idea

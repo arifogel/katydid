@@ -1,0 +1,34 @@
+--- a/Source/EventAnalysis/KTMultiBandEventBuilder.cc
++++ b/Source/EventAnalysis/KTMultiBandEventBuilder.cc
+@@ -65,7 +65,15 @@
+             fLogEventSizePrior[k] = std::log(fLogEventSizePrior[k]);
+             KTINFO(tclog,"Event Prior log-likelihood("<<k<<")= "<<fLogEventSizePrior[k]);
+ 
+-            fLogTrackFrequencyBandwidths[k] = -std::log(fTrackFrequencyBandwidths[std::min(k, nTrackFrequencyBandwidths)]);
++            // COMPANION FIX (required for the LLHDataGivenEvent fix above to be safe): this
++            // previously read fTrackFrequencyBandwidths[std::min(k, nTrackFrequencyBandwidths)],
++            // i.e. clamped to `size()` rather than `size() - 1` -- an out-of-bounds read for
++            // every k >= nTrackFrequencyBandwidths (7 of the 10 iterations here, since
++            // fTrackFrequencyBandwidths has only 3 elements). This was harmless in practice
++            // only because LLHDataGivenEvent never read any index but [0]; now that it reads
++            // fLogTrackFrequencyBandwidths[nTracks], these entries are live, so the
++            // out-of-bounds read must be fixed too, or this becomes real undefined behavior.
++            fLogTrackFrequencyBandwidths[k] = -std::log(fTrackFrequencyBandwidths[std::min(k, nTrackFrequencyBandwidths - 1)]);
+             //KTINFO(tclog,"Event Prior log-likelihood("<<k<<")= "<<fLogEventSizePrior[k]);
+         }
+ 
+@@ -224,7 +232,13 @@
+         //key function that given a vector of track objects, evalautes the logLikelihood of the data being consistent with the proposed event clustering
+         // return pair for the event class label (which we need for len(3) events) and the LLH
+         const unsigned nTracks = tracks.size();
+-        double logL = fLogTrackFrequencyBandwidths[0];
++        // BUG FIX: previously this hardcoded index [0] regardless of nTracks, even though
++        // fLogTrackFrequencyBandwidths is built (in the constructor) specifically to vary by
++        // group size -- so every group, from 1 to 4 tracks, got the identical constant
++        // contribution. Use the size-appropriate entry instead. (See the companion fix to
++        // the constructor's index clamp below, needed to make this safe -- see that comment
++        // for why.)
++        double logL = fLogTrackFrequencyBandwidths[nTracks];
+         unsigned label = nTracks;
+         const double neg_inf = -std::numeric_limits<double>::infinity();
+         std::pair<unsigned, double> outputInfo = {label, logL};

@@ -1,0 +1,6 @@
+# C++11 to match USE_CPP11 across Katydid/Nymph/Scarab.
+build --cxxopt=-std=c++11
+build --host_cxxopt=-std=c++11
+
+# Makes `bazel build ...` and CLion's Bazel plugin agree on what "everything" means.
+build --curses=yes

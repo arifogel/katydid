@@ -1,0 +1,46 @@
+# Drop this file at Source/Utility/BUILD.bazel in the actual katydid checkout.
+#
+# Mirrors Source/Utility/CMakeLists.txt's UTILITY_NODICT_HEADERFILES / UTILITY_SOURCEFILES
+# (the ROOT_FOUND-gated pieces - KTRootGuiLoop.cc/.hh and the UtilityDict rootcling dictionary -
+# are deliberately left out; that's the next step, see NOTES.md).
+#
+# KTSpline.cc is EXCLUDED: KTSpline.hh declares
+#     std::shared_ptr<Implementation> Implement(unsigned, double, double) const;
+# but KTSpline.cc still defines the old
+#     KTPhysicalArray<1,double>* Implement(unsigned, double, double) const
+# signature. That's a real bug on this branch, independent of this port - it will fail to
+# compile under any toolchain until fixed in source. Add it back to srcs once fixed.
+#
+# Verified: every other file here compiles and links cleanly (Boost 1.83 + g++, Linux) against
+# real Nymph/Scarab headers at the pinned commits.
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+
+cc_library(
+    name = "katydid_utility",
+    srcs = [
+        "complexpolar/specialization.cc",
+        "KTAxisProperties.cc",
+        "KTCountHistogram.cc",
+        "KTECDF.cc",
+        "KTKatydidApp.cc",
+        "KTRandom.cc",
+        "KTSmooth.cc",
+        # "KTSpline.cc",  # see note above - fix the header/source mismatch first
+    ],
+    hdrs = glob([
+        "*.hh",
+        "complexpolar/*.hh",
+    ]),
+    includes = ["."],
+    defines = ["USE_CPP11"],
+    copts = ["-std=c++11"],
+    deps = [
+        "@nymph//:nymph",
+        "@scarab//:scarab",
+        "@homebrew//:boost",
+        "@homebrew//:fftw",
+    ],
+)
