@@ -164,6 +164,56 @@ bugs surfaced past that point, both now fixed in this tree:
      `EventAnalysis` (the dictionary trio — next batch), then `SpectrumAnalysis` (needs
      `IO` + `Transform`), then `Executables/Main` for the actual `Katydid`/`Truncate`
      binaries. Four modules, not twelve.
+
+## IO / Transform / EventAnalysis — done, NOT yet built/tested
+
+Turned out only **`IO`** actually needs `root_dictionary()` in this branch — `Transform`'s
+and `EventAnalysis`'s `ROOT_GENERATE_DICTIONARY` calls are both fully commented out in their
+real `CMakeLists.txt` (confirmed by reading the file, not just grepping for the macro name -
+an earlier grep for "ROOT_GENERATE_DICTIONARY" matched the commented-out lines too and
+overstated the risk). So `IO` got the full Utility/Cicada-style treatment
+(`*_headers` target + `root_dictionary()` + real `cc_library`); `Transform` and
+`EventAnalysis` are structurally more like `Data` - straightforward source-list
+translation, no dictionary macro involved.
+
+**Real dependency order, not the order CMakeLists.txt happens to list them in:** `IO` only
+needs `Utility` + `Data` (+ `@cicada//:cicada`, + vendored `RapidXML` - see below) and can
+be tested standalone. `Transform` and `EventAnalysis` both list `KatydidIO` in their own
+`KATYDID_LIBS`, so neither is testable until `IO` actually builds, regardless of how simple
+their own `BUILD.bazel` content is. Test `//Source/IO:katydid_io` first.
+
+New vendored dependency: `IO/KTDPTReader.cc` uses `rapidxml.hpp`/`rapidxml_utils.hpp` -
+added `vendor/RapidXML/BUILD.bazel` (same pattern as `vendor/nanoflann`).
+
+New cross-repo dependency: `IO/Conversions/KT2ROOT.cc` is the only file that touches Cicada
+directly (`CClassifierResultsData.hh` etc.) - `@cicada//:cicada` added to `IO`'s deps.
+
+Confirmed safe to exclude, matching the real, active build config (not just "off by
+default" flags I'm trusting blind):
+- `HDF5Writer/*` - `Katydid_USE_HDF5`'s entire block is commented out at the top level of
+  the real `CMakeLists.txt`, so `HDF5_FOUND` is never true regardless of what's installed.
+- `ImageWriter/*` - `Katydid_USE_MAGICKPP` off by default, never enabled.
+- `IO/KTSpec1Reader.cc/.hh` (needs Monarch's `M3*.hh` headers) - was never in
+  `IO_SOURCEFILES` to begin with, independent of the Monarch question entirely.
+- `EventAnalysis/KTDLIBClassifier.cc/.hh` - gated on `DLIB_FOUND`, never true
+  (`Katydid_USE_DLIB` off by default); confirmed by inspection that `dlib/*.h` usage is
+  confined to exactly this one file, so excluding it doesn't strand anything else.
+
+Include-path style: IO's writer subdirectories (`BasicAsciiWriter`, `JSONWriter`, etc.) and
+EventAnalysis's `CutClasses/` are each individually listed in the real top-level
+`CMakeLists.txt`'s `include_directories()` block - meaning code elsewhere does e.g.
+`#include "KTBasicROOTFileWriter.hh"` with no subdirectory prefix, not
+`#include "BasicROOTFileWriter/KTBasicROOTFileWriter.hh"`. Mirrored exactly (each subdir
+listed individually in `includes`) rather than assumed, since guessing wrong here would
+produce `file not found` errors identical in shape to ones we've already chased down by
+hand earlier in this port.
+
+`TSpectrum.h` (EventAnalysis) and `TMVA/Reader.h` (EventAnalysis) showing up for real is a
+nice confirmation that the `-lSpectrum -lTMVA` extra ROOT component libs added to
+`@homebrew//:root` back when `tools/homebrew.bzl` was first written (based on Katydid's
+`find_package(ROOT 6.00 COMPONENTS Gui Spectrum TMVA)`) were the right call, not
+speculative - this is the first module that actually exercises them.
+
 4. **`cc_binary` targets** for `Source/Executables/Main/*` (`Katydid`, `Truncate`) — these
    are what CLion's Bazel plugin will expose as debuggable (lldb) run configurations. Note
    from `Source/Executables/Main/CMakeLists.txt`: the `Katydid` binary links against
@@ -191,7 +241,10 @@ brew install boost fftw libmatio root   # if not already installed
 cd katydid                              # wherever you dropped these files
 bazel build //Source/Utility:katydid_utility
 bazel build @cicada//:cicada
-bazel build //Source/Data:katydid_data  # the new, not-yet-tested piece
+bazel build //Source/Data:katydid_data
+bazel build //Source/IO:katydid_io          # test this before Transform/EventAnalysis
+bazel build //Source/Transform:katydid_transform
+bazel build //Source/EventAnalysis:katydid_event_analysis
 ```
 First run will be slow (fetching Nymph/Scarab/rapidjson/yaml-cpp + resolving Boost via
 `brew --prefix`); after that, editing any `.cc`/`.hh` under `Source/Utility` and
