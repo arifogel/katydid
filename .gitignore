@@ -29,3 +29,11 @@ install_manifest.txt
 
 # from emacs
 *~
+
+
+/bazel-*
+/.idea
+/*.deb
+/katydid-build-deps*
+/node_modules
+/.ijwb

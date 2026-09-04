@@ -71,7 +71,7 @@ namespace Katydid
     };
 
 #ifdef ROOT_FOUND
-    TApplication* KTKatydidApp::GetTApplication() const
+    inline TApplication* KTKatydidApp::GetTApplication() const
     {
         return fTApp;
     }
