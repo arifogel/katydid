@@ -1,0 +1,57 @@
+# Drop this file at Source/SpectrumAnalysis/BUILD.bazel in the actual katydid checkout.
+#
+# Mirrors Source/SpectrumAnalysis/CMakeLists.txt's SPECTRUMANALYSIS_HEADERFILES/SOURCEFILES.
+# No ROOT_GENERATE_DICTIONARY here at all (unlike IO, this one was never gated on ROOT in the
+# first place). FFTW_FOUND and ROOT_FOUND blocks both always true here (real FFTW/ROOT always
+# provided by @homebrew//:fftw, :root) - both add a few files, deduplicated below against the
+# unconditional list (the original CMakeLists.txt re-adds KTConvolution.hh/.cc and
+# KTVariableSpectrumDiscriminator.hh/.cc under FFTW_FOUND/ROOT_FOUND despite them already being
+# unconditional - harmless list duplication in CMake, listed once here).
+# EIGEN3_FOUND block (KTBiasedACM, KTRQProcessor) excluded: Katydid_USE_EIGEN off by default,
+# confirmed via #include inspection that Eigen/* usage is confined to exactly those two files.
+#
+# NOT YET BUILT/TESTED, but all four of its real dependencies (Utility, Data, IO, Transform)
+# are now themselves verified, so this is the least speculative module written so far.
+
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+cc_library(
+    name = "katydid_spectrum_analysis",
+    srcs = [
+        "KTAggregatedChannelOptimizer.cc",
+        "KTAmplitudeCounter.cc",
+        "KTAmplitudeDistributor.cc",
+        "KTChannelAggregator.cc",
+        "KTConsensusThresholding.cc",
+        "KTCorrelator.cc",
+        "KTConvolution.cc",
+        "KTCreateKDTree.cc",
+        "KTDataAccumulator.cc",
+        "KTDBSCANNoiseFiltering.cc",
+        "KTDistanceClustering.cc",
+        "KTGainVariationProcessor.cc",
+        "KTGainVariationDiffProcessor.cc",
+        "KTHoughTransform.cc",
+        "KTMergeKDTree.cc",
+        "KTNNFilter.cc",
+        "KTSequentialTrackFinder.cc",
+        "KTLongTrackFinder.cc",
+        "KTSpectrumDiscriminator.cc",
+        "KTSpectrogramStriper.cc",
+        "KTSwitchFFTWPolar.cc",
+        "KTVariableSpectrumDiscriminator.cc",
+        "KTAnalyticAssociator.cc",
+        "KTWignerVille.cc",
+        "KTGainNormalization.cc",
+    ],
+    hdrs = glob(["*.hh"]),
+    includes = ["."],
+    deps = [
+        "//Source/Data:katydid_data",
+        "//Source/IO:katydid_io",
+        "//Source/Transform:katydid_transform",
+        "//Source/Utility:katydid_utility",
+    ],
+)

@@ -214,6 +214,30 @@ nice confirmation that the `-lSpectrum -lTMVA` extra ROOT component libs added t
 `find_package(ROOT 6.00 COMPONENTS Gui Spectrum TMVA)`) were the right call, not
 speculative - this is the first module that actually exercises them.
 
+## SpectrumAnalysis and Executables/Main — the actual finish line
+
+**`SpectrumAnalysis`** — done, NOT yet built/tested, but all four of its real dependencies
+(`Utility`, `Data`, `IO`, `Transform`) are themselves now verified, so this is the least
+speculative module written so far. No dictionary (never gated on ROOT for that in the first
+place). `EIGEN3_FOUND` block (`KTBiasedACM`, `KTRQProcessor`) excluded - `Katydid_USE_EIGEN`
+off by default, confirmed via `#include` inspection that `Eigen/*` usage is confined to
+exactly those two files. The original `CMakeLists.txt` re-adds `KTConvolution.hh/.cc` and
+`KTVariableSpectrumDiscriminator.hh/.cc` a second time under its `FFTW_FOUND`/`ROOT_FOUND`
+blocks despite them already being unconditional - harmless CMake list duplication, each
+listed once here.
+
+**`Executables/Main`** — done, NOT yet built/tested. `cc_binary` targets for `Katydid` and
+`Truncate`, both linking every module (`Utility`, `Data`, `IO`, `Transform`,
+`EventAnalysis`, `SpectrumAnalysis`), matching the original `pbuilder_executables(programs
+all_libs)` call exactly - not a simplification, `all_libs` there really is everything.
+`EggScanner.cc`/`RSAMatToEgg.cc` excluded, both gated on Monarch (which this whole port
+skips per the very first architectural decision). `Katydid.cc` itself is tiny - only
+touches `KTKatydidApp.hh`/`KTLogger.hh`/`KTRunNymph.hh` directly, everything else comes in
+through the library graph.
+
+**This is the actual finish line for "does Katydid run."** These are the targets CLion's
+Bazel plugin will expose as debuggable (lldb) run configurations.
+
 4. **`cc_binary` targets** for `Source/Executables/Main/*` (`Katydid`, `Truncate`) — these
    are what CLion's Bazel plugin will expose as debuggable (lldb) run configurations. Note
    from `Source/Executables/Main/CMakeLists.txt`: the `Katydid` binary links against
@@ -245,6 +269,8 @@ bazel build //Source/Data:katydid_data
 bazel build //Source/IO:katydid_io          # test this before Transform/EventAnalysis
 bazel build //Source/Transform:katydid_transform
 bazel build //Source/EventAnalysis:katydid_event_analysis
+bazel build //Source/SpectrumAnalysis:katydid_spectrum_analysis
+bazel run //Source/Executables/Main:Katydid -- --help   # the actual finish line
 ```
 First run will be slow (fetching Nymph/Scarab/rapidjson/yaml-cpp + resolving Boost via
 `brew --prefix`); after that, editing any `.cc`/`.hh` under `Source/Utility` and

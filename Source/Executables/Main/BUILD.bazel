@@ -1,0 +1,39 @@
+# Drop this file at Source/Executables/Main/BUILD.bazel in the actual katydid checkout.
+#
+# Mirrors Source/Executables/Main/CMakeLists.txt's pbuilder_executables(programs all_libs) -
+# both programs link against every module's library, matching the original (not a Bazel-driven
+# simplification: `all_libs` there is a CMake GLOBAL PROPERTY that accumulates literally every
+# pbuilder_library() call across the whole project, and both Katydid and Truncate link the same
+# full set regardless of how little either actually uses).
+#
+# EggScanner.cc and RSAMatToEgg.cc are NOT built here - both gated on Katydid_USE_MONARCH /
+# Monarch_BUILD_MONARCH3 in the original CMakeLists.txt (commented out, matching Monarch being
+# excluded from this whole port per NOTES.md).
+#
+# NOT YET BUILT/TESTED. This is the actual finish line for "does Katydid run" - these are the
+# targets CLion's Bazel plugin will expose as debuggable (lldb) run configurations.
+
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+
+package(default_visibility = ["//visibility:public"])
+
+_ALL_KATYDID_LIBS = [
+    "//Source/Data:katydid_data",
+    "//Source/EventAnalysis:katydid_event_analysis",
+    "//Source/IO:katydid_io",
+    "//Source/SpectrumAnalysis:katydid_spectrum_analysis",
+    "//Source/Transform:katydid_transform",
+    "//Source/Utility:katydid_utility",
+]
+
+cc_binary(
+    name = "Katydid",
+    srcs = ["Katydid.cc"],
+    deps = _ALL_KATYDID_LIBS,
+)
+
+cc_binary(
+    name = "Truncate",
+    srcs = ["Truncate.cc"],
+    deps = _ALL_KATYDID_LIBS,
+)
