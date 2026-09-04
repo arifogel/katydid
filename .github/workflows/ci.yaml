@@ -1,0 +1,123 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  # Bump this (and nowhere else) to change the pinned Linux ROOT version. Confirmed against
+  # root.cern's own release page as a real, current binary distribution for Ubuntu 24.04 -
+  # https://root.cern/releases/release-64004/ - not just a URL that happens to resolve.
+  ROOT_VERSION: "6.40.04"
+
+jobs:
+  build-and-test:
+    name: Bazel Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-14]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      # --- Linux: apt for Boost/FFTW/MatIO (installs into default search paths, no discovery
+      # needed - see tools/system_deps.bzl), pinned root.cern tarball for ROOT (apt has no
+      # usable ROOT package on Ubuntu, and building it from source is not reasonable for CI).
+      # Deliberately NOT using install-ubuntu-24.04-build-deps.sh's equivs/.deb machinery here -
+      # that exists for clean removal on a persistent dev machine, which is moot on a runner
+      # that's destroyed after the job anyway.
+      #
+      # cache-apt-pkgs-action (not plain apt-get) so these are cached across runs too, same
+      # reasoning as the ROOT/Homebrew caching below - libmatio-dev alone pulls in libhdf5-dev
+      # transitively, which isn't a small download either.
+      #
+      # PIN NEEDED: replace @v1.6.3 with the exact commit SHA for that tag (GitHub Releases ->
+      # v1.6.3 -> click the commit link -> copy the full 40-char SHA), matching how every other
+      # action in this file is pinned. Couldn't verify the exact SHA from here - didn't want to
+      # fabricate one just to keep the file "complete."
+      - name: Install Boost/FFTW/MatIO (Linux, cached)
+        if: runner.os == 'Linux'
+        uses: awalsh128/cache-apt-pkgs-action@553a35bb8ebd9fcabcb1c9451aa4c98e1b4ca8a9 # v1.6.3
+        with:
+          packages: >-
+            libboost-filesystem-dev
+            libboost-thread-dev
+            libboost-date-time-dev
+            libboost-program-options-dev
+            libfftw3-dev
+            libmatio-dev
+          version: 1.0
+
+      - name: Cache ROOT (Linux)
+        if: runner.os == 'Linux'
+        id: cache-root-linux
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: /opt/root
+          key: root-linux-${{ env.ROOT_VERSION }}-ubuntu24.04-gcc13.3
+
+      - name: Download and extract ROOT (Linux)
+        if: runner.os == 'Linux' && steps.cache-root-linux.outputs.cache-hit != 'true'
+        run: |
+          ROOT_URL="https://root.cern/download/root_v${ROOT_VERSION}.Linux-ubuntu24.04-x86_64-gcc13.3.tar.gz"
+          wget -q -O /tmp/root.tar.gz "$ROOT_URL"
+          tar -xzf /tmp/root.tar.gz -C /opt/
+
+      - name: Add ROOT to PATH (Linux)
+        if: runner.os == 'Linux'
+        run: echo "/opt/root/bin" >> "$GITHUB_PATH"
+
+      # --- macOS: Homebrew is preinstalled on the runner, but root/boost/fftw/libmatio are not,
+      # and (like the Linux ROOT tarball) brew's own bottle downloads are large enough on a
+      # fully ephemeral runner to be worth caching across runs.
+      - name: Cache Homebrew downloads (macOS)
+        if: runner.os == 'macOS'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ~/Library/Caches/Homebrew
+          key: brew-cache-${{ runner.os }}
+          restore-keys: |
+            brew-cache-${{ runner.os }}
+
+      - name: Install Boost/FFTW/MatIO/ROOT (macOS)
+        if: runner.os == 'macOS'
+        run: brew install boost fftw libmatio root
+
+      - name: Set up Bazel & Caching
+        uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # 0.19.0
+        with:
+          bazelisk-cache: true
+          repository-cache: true
+          disk-cache: true
+
+      # --lockfile_mode=error is the bzlmod analog of "verify go.sum is tidy": fails loudly if
+      # MODULE.bazel.lock doesn't match what resolution would produce, rather than silently
+      # updating it or building against a stale lock.
+      - name: Verify MODULE.bazel.lock is up to date and build everything
+        run: bazel build --lockfile_mode=error //...
+
+  lint-and-format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.x"
+
+      - name: Cache Pre-Commit Hooks
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
+
+      - name: Install Pre-Commit Framework
+        run: pip install pre-commit
+
+      - name: Execute Format Validations
+        run: pre-commit run --all-files

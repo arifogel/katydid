@@ -331,3 +331,47 @@ once it also contains an apt code path. Low blast radius: only `MODULE.bazel`'s 
 `bazel build` run on Linux yet. Re-run `bazel build //Source/Executables/Main:Katydid` on
 the Ubuntu machine and see what happens - this is the first real test of the whole
 apt code path.
+
+**UPDATE: confirmed working on both platforms** (Ubuntu 24.04 via
+`install-ubuntu-24.04-build-deps.sh` + an equivs metapackage for clean local removal, and
+macOS via Homebrew as before) - Linux support is real, not speculative anymore.
+
+## CI: `.github/workflows/ci.yaml` and `lockfile-sync.yaml`
+
+Adapted from two of your existing Bazel-project templates (a Go one and a Python one) -
+the actual common pattern between them turned out to be: two jobs (`build-and-test`,
+`lint-and-format`), the same pinned `bazel-contrib/setup-bazel` action, and a
+`lint-and-format` job that's 100% language-agnostic (pure pre-commit dispatch - all the
+Go/Python difference lived in `.pre-commit-config.yaml`, not the workflow itself). Katydid
+reuses that skeleton; `.pre-commit-config.yaml` and Renovate config are yours to set up,
+not something I've touched.
+
+The genuinely new part, with no precedent in either template: `build-and-test` is now a
+`[ubuntu-24.04, macos-14]` matrix, and each OS needs real system-dependency provisioning
+before Bazel even starts (Boost/FFTW/MatIO + ROOT). Both are cached (ROOT's tarball/bottle
+is large enough on a fully ephemeral runner to be worth it on *both* platforms, not just
+Linux). Linux ROOT comes from a pinned root.cern binary
+(`root_v6.40.04.Linux-ubuntu24.04-x86_64-gcc13.3.tar.gz` - confirmed as a real, current,
+officially-listed binary distribution via root.cern's own release page, and matches a
+working precedent I found in another project's real CI doing the identical
+download-extract-to-/opt-add-to-PATH pattern). Deliberately does NOT reuse
+`install-ubuntu-24.04-build-deps.sh`'s equivs/`.deb` machinery in CI - that exists for
+clean removal on a *persistent* dev machine, which is moot on a runner destroyed after
+every job; plain `apt-get install` is simpler for CI.
+
+`--lockfile_mode=error` on the main build is the bzlmod analog of "verify go.sum is tidy"
+(confirmed against Bazel's own docs, not assumed) - fails loudly if `MODULE.bazel.lock`
+is stale rather than silently building against it.
+
+**Real bug caught before shipping, not after**: `lockfile-sync.yaml` copied verbatim from
+your templates would have failed immediately on the first Renovate PR - `bazel mod deps`
+has to evaluate every module extension in `MODULE.bazel` to compute the lockfile,
+including `tools/system_deps.bzl`'s, which hard-fails without Boost/FFTW/MatIO/ROOT
+actually installed (unlike whatever Go/Python module extensions your other templates use,
+which apparently don't have hard native-library dependencies). Added the same Linux
+provisioning steps to that workflow too, not just the main CI job.
+
+**NOT YET RUN on actual GitHub Actions** - written and cross-checked against real
+documentation/precedent, but the only way to know for certain the matrix/caching/ROOT
+steps are exactly right is to push and watch it run.
+
