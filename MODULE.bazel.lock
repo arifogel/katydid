@@ -191,19 +191,6 @@
   },
   "selectedYankedVersions": {},
   "moduleExtensions": {
-    "//tools:homebrew.bzl%homebrew_deps": {
-      "general": {
-        "bzlTransitiveDigest": "kQ+UcIZ9ANu7ovtgEiaTGd0/B7UYyeFEAQ5hib3dx4I=",
-        "usagesDigest": "PMphiXiERR/CFHY4lr4RmfOy09JLDeAlNRkjRyumb8E=",
-        "recordedInputs": [],
-        "generatedRepoSpecs": {
-          "homebrew": {
-            "repoRuleId": "@@//tools:homebrew.bzl%_homebrew_repo",
-            "attributes": {}
-          }
-        }
-      }
-    },
     "//tools:non_bazel_deps.bzl%non_bazel_deps": {
       "general": {
         "bzlTransitiveDigest": "G9HREfcLOloIinfjPbu+ixsbh5XLH1jJ0Va6nRrX0AU=",
@@ -251,6 +238,19 @@
               "commit": "329b058736771038c150933bc275448ca5f24245",
               "build_file": "@@//third_party/cicada:BUILD.cicada.bazel"
             }
+          }
+        }
+      }
+    },
+    "//tools:system_deps.bzl%homebrew_deps": {
+      "general": {
+        "bzlTransitiveDigest": "Cq3PXCz0LkDGXdFrzaBHzpYWCE9kyg6NLSnxOp4Gg/k=",
+        "usagesDigest": "mgmJnKeAVyB0XvFlm7bQLtJ2sL4FttkUFYLMwdk9SYE=",
+        "recordedInputs": [],
+        "generatedRepoSpecs": {
+          "homebrew": {
+            "repoRuleId": "@@//tools:system_deps.bzl%_homebrew_repo",
+            "attributes": {}
           }
         }
       }
