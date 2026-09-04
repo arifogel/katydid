@@ -1,0 +1,12 @@
+# Drop this file at vendor/nanoflann/BUILD.bazel (i.e. the same directory as nanoflann.hpp,
+# after the External -> vendor rename). Header-only.
+
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+cc_library(
+    name = "nanoflann",
+    hdrs = ["nanoflann.hpp"],
+    includes = ["."],
+)

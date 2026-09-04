@@ -193,7 +193,7 @@
   "moduleExtensions": {
     "//tools:homebrew.bzl%homebrew_deps": {
       "general": {
-        "bzlTransitiveDigest": "R30E4RsMWHXHi7GFdlbYhChSg2DFR62HwLjesmMNu5Q=",
+        "bzlTransitiveDigest": "u+IJZG44aGcTGrx6qSRAffG9H+uyCYPwOIoQcSf0Ruk=",
         "usagesDigest": "PMphiXiERR/CFHY4lr4RmfOy09JLDeAlNRkjRyumb8E=",
         "recordedInputs": [],
         "generatedRepoSpecs": {

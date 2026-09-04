@@ -26,6 +26,11 @@ _FORMULAE = {
     },
     "fftw": {
         "libs": ["fftw3"],
+        # Katydid's code checks #ifdef FFTW_FOUND (e.g. Data/Time/KTPhysicalArrayFFTW.hh) to
+        # choose between real fftw3.h and a bundled stand-in header. Defining it here, once,
+        # propagates transitively to every target that depends on @homebrew//:fftw (directly
+        # or via Utility) - same as CMake's `add_definitions(-DFFTW_FOUND)` did project-wide.
+        "defines": ["FFTW_FOUND"],
     },
     # Homebrew's formula for MatIO is "libmatio", not "matio" - keep the exposed target name
     # ("matio") matching what Katydid's CMake calls it, separate from the brew formula name.
@@ -85,6 +90,9 @@ cc_library(
     name = "root",
     hdrs = glob(["root/include/**"], allow_empty = True),
     includes = ["root/include"],
+    # Propagates to every transitive dependent, same reasoning as FFTW_FOUND below - Katydid's
+    # code checks #ifdef ROOT_FOUND throughout, matching CMake's `add_definitions(-DROOT_FOUND)`.
+    defines = ["ROOT_FOUND"],
     linkopts = {linkopts},
 )
 """.format(linkopts = repr(root_linkopts)))
@@ -119,9 +127,10 @@ cc_library(
     name = "{formula}",
     hdrs = glob(["{formula}/include/**"], allow_empty = True),
     includes = ["{formula}/include"],
+    defines = {defines},
     linkopts = {linkopts},
 )
-""".format(formula = formula, linkopts = repr(linkopts)))
+""".format(formula = formula, defines = repr(info.get("defines", [])), linkopts = repr(linkopts)))
 
     repository_ctx.file("BUILD.bazel", "\n".join(build_file_parts))
 

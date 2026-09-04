@@ -135,9 +135,35 @@ bugs surfaced past that point, both now fixed in this tree:
    `.cc`-include idiom that bit `CROOTData.cc` doesn't recur elsewhere in Katydid's own
    `Source/` tree (`grep -r '#include ".*\.cc"' Source` returns nothing) — one less thing
    to watch for in the remaining modules.
-3. **The remaining 12 Katydid `Source/*` CMakeLists** → matching `BUILD.bazel` files,
-   same mechanical translation as `Source/Utility/BUILD.bazel`. `Transform`, `IO`, and
+3. **The remaining Katydid `Source/*` modules** → matching `BUILD.bazel` files, same
+   mechanical translation as `Source/Utility/BUILD.bazel`. `Transform`, `IO`, and
    `EventAnalysis` each need their own `root_dictionary()` call the same way `Utility` did.
+   - `Data` — **done, verified for real** (`bazel build //Source/Data:katydid_data`
+     succeeded). `vendor/nanoflann/BUILD.bazel` added too (a real target now, not a raw
+     file reference). Fixed two latent bugs that hadn't surfaced yet: `FFTW_FOUND` was
+     never actually defined anywhere (Utility never hit the code path that checks it —
+     `Data/Time/KTPhysicalArrayFFTW.hh` does), and `ROOT_FOUND` was being set by hand
+     per-target instead of once at the source. Both now live as `defines` directly on
+     `@homebrew//:fftw` / `@homebrew//:root` in `tools/homebrew.bzl`, so they propagate
+     transitively to every dependent automatically — `Source/Utility/BUILD.bazel`'s
+     redundant manual `"ROOT_FOUND"` was removed accordingly.
+   - **`Time`, `Simulation`, `Evaluation` — confirmed orphaned, not being ported.** The
+     top-level `CMakeLists.txt` itself has `#add_subdirectory (Source/Time)`,
+     `#add_subdirectory (Source/Simulation)`, `#add_subdirectory (Source/Evaluation)` —
+     all three commented out. This isn't a guess or something broken by this port; the
+     real upstream build already excludes them. (Independently, both had real content
+     bugs anyway: `Simulation/KTTSGenerator.cc` includes a `thorax.hh` that doesn't exist
+     anywhere in the repo; `Evaluation/KTCompareCandidates` depends on classes in
+     `Source/Data/Evaluation/`, itself commented out of `Data/CMakeLists.txt`'s own
+     source list, and calls non-inline methods on them that would likely fail to *link*
+     even if it compiled. Consistent with both being genuinely dead code, not just
+     temporarily disabled.) `SpectrumAnalysis` does NOT depend on `Time` — only on `IO`
+     and `Transform` (both still to come), despite `Time` sitting nearby in the source
+     tree.
+   - **Real remaining scope, now that the dead branches are pruned:** `IO`, `Transform`,
+     `EventAnalysis` (the dictionary trio — next batch), then `SpectrumAnalysis` (needs
+     `IO` + `Transform`), then `Executables/Main` for the actual `Katydid`/`Truncate`
+     binaries. Four modules, not twelve.
 4. **`cc_binary` targets** for `Source/Executables/Main/*` (`Katydid`, `Truncate`) — these
    are what CLion's Bazel plugin will expose as debuggable (lldb) run configurations. Note
    from `Source/Executables/Main/CMakeLists.txt`: the `Katydid` binary links against
@@ -164,7 +190,8 @@ C++11-compatible code paths (vs. an older C++98 path), unrelated to the compiler
 brew install boost fftw libmatio root   # if not already installed
 cd katydid                              # wherever you dropped these files
 bazel build //Source/Utility:katydid_utility
-bazel build @cicada//:cicada            # the new, not-yet-tested piece
+bazel build @cicada//:cicada
+bazel build //Source/Data:katydid_data  # the new, not-yet-tested piece
 ```
 First run will be slow (fetching Nymph/Scarab/rapidjson/yaml-cpp + resolving Boost via
 `brew --prefix`); after that, editing any `.cc`/`.hh` under `Source/Utility` and

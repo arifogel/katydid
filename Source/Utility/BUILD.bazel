@@ -69,7 +69,7 @@ cc_library(
     # compile time - it has to be a runtime dependency, not only a build input.
     data = [":UtilityDict_pcm"],
     includes = ["."],
-    defines = ["USE_CPP11", "ROOT_FOUND"],
+    defines = ["USE_CPP11"],  # ROOT_FOUND/FFTW_FOUND now come transitively via @homebrew//:root, :fftw
     deps = [
         "@nymph//:nymph",
         "@scarab//:scarab",
