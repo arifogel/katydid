@@ -65,7 +65,10 @@ cc_library(
         "*.hh",
         "CutClasses/*.hh",
     ]),
-    includes = [".", "CutClasses"],
+    includes = [
+        ".",
+        "CutClasses",
+    ],
     deps = [
         "//Source/Data:katydid_data",
         "//Source/IO:katydid_io",

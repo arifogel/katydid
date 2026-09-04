@@ -13,7 +13,7 @@ bazel_dep(name = "platforms", version = "1.0.0")
 # this was derived from (branch feature/FreqDomainInput). See tools/non_bazel_deps.bzl.
 
 non_bazel_deps = use_extension("//tools:non_bazel_deps.bzl", "non_bazel_deps")
-use_repo(non_bazel_deps, "nymph", "scarab", "cicada", "rapidjson", "yaml_cpp")
+use_repo(non_bazel_deps, "cicada", "nymph", "rapidjson", "scarab", "yaml_cpp")
 
 # --- System-provided libraries (Boost, FFTW, MatIO, ROOT) ---
 # Not hermetic across machines - a deliberate trade for a zero-configure dev loop. Homebrew on

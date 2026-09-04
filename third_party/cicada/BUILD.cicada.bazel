@@ -11,8 +11,8 @@
 # _member_variables.hh) and ROOT (TObject.h, TClonesArray.h). Not yet compile-tested (no ROOT
 # available where this was written) - same caveats as tools/root_dictionary.bzl.
 
-load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@//tools:root_dictionary.bzl", "root_dictionary")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -27,8 +27,8 @@ cc_library(
     ],
     includes = ["Library"],
     deps = [
-        "@scarab//:scarab",
         "@homebrew//:root",
+        "@scarab",
     ],
 )
 
@@ -57,10 +57,10 @@ cc_library(
     ],
     hdrs = glob(["Library/*.hh"]) + ["Library/_CROOTData.cc"],  # see cicada_headers above
     data = [":CicadaDict_pcm"],
-    includes = ["Library"],
     defines = ["USE_CPP11"],
+    includes = ["Library"],
     deps = [
-        "@scarab//:scarab",
         "@homebrew//:root",
+        "@scarab",
     ],
 )

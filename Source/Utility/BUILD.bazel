@@ -32,11 +32,11 @@ cc_library(
     ]),
     includes = ["."],
     deps = [
-        "@nymph//:nymph",
-        "@scarab//:scarab",
         "@homebrew//:boost",
         "@homebrew//:fftw",
         "@homebrew//:root",
+        "@nymph",
+        "@scarab",
     ],
 )
 
@@ -68,13 +68,13 @@ cc_library(
     # ROOT's class loader looks for the .pcm next to the .so/binary at runtime, not just at
     # compile time - it has to be a runtime dependency, not only a build input.
     data = [":UtilityDict_pcm"],
-    includes = ["."],
     defines = ["USE_CPP11"],  # ROOT_FOUND/FFTW_FOUND now come transitively via @homebrew//:root, :fftw
+    includes = ["."],
     deps = [
-        "@nymph//:nymph",
-        "@scarab//:scarab",
         "@homebrew//:boost",
         "@homebrew//:fftw",
         "@homebrew//:root",
+        "@nymph",
+        "@scarab",
     ],
 )

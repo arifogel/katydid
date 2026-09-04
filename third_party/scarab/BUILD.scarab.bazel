@@ -66,6 +66,13 @@ cc_library(
         "library/param/codec/yaml/*.hh",
         "library/authentication/*.hh",
     ]),
+    defines = [
+        # From library/CMakeLists.txt: add_definitions( -DRAPIDJSON_FILE_BUFFER_SIZE=... )
+        # and -DUSE_CODEC_JSON, and PackageBuilder.cmake's -DUSE_CPP11.
+        "RAPIDJSON_FILE_BUFFER_SIZE=65536",
+        "USE_CODEC_JSON",
+        "USE_CPP11",
+    ],
     includes = [
         "library/authentication",
         "library/logger",
@@ -74,16 +81,9 @@ cc_library(
         "library/param/codec/yaml",
         "library/utility",
     ],
-    defines = [
-        # From library/CMakeLists.txt: add_definitions( -DRAPIDJSON_FILE_BUFFER_SIZE=... )
-        # and -DUSE_CODEC_JSON, and PackageBuilder.cmake's -DUSE_CPP11.
-        "RAPIDJSON_FILE_BUFFER_SIZE=65536",
-        "USE_CODEC_JSON",
-        "USE_CPP11",
-    ],
     deps = [
-        "@rapidjson//:rapidjson",
-        "@yaml_cpp//:yaml_cpp",
         "@homebrew//:boost",
+        "@rapidjson",
+        "@yaml_cpp",
     ],
 )

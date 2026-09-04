@@ -55,6 +55,7 @@ cc_library(
         "Library/IO/*.hh",
         "Library/Application/*.hh",
     ]),
+    defines = ["USE_CPP11"],
     includes = [
         "Library/Application",
         "Library/Data",
@@ -62,9 +63,8 @@ cc_library(
         "Library/Processor",
         "Library/Utility",
     ],
-    defines = ["USE_CPP11"],
     deps = [
-        "@scarab//:scarab",
         "@homebrew//:boost",
+        "@scarab",
     ],
 )
