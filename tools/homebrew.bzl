@@ -15,10 +15,12 @@ Usage from a BUILD file: deps = ["@homebrew//:boost", "@homebrew//:fftw"]
 
 _FORMULAE = {
     "boost": {
-        # header-only usage needs no libs, but Nymph/Scarab/Katydid link these components
+        # header-only usage needs no libs, but Nymph/Scarab/Katydid link these components.
+        # boost_system deliberately NOT listed: Boost.System has been header-only since 1.69,
+        # and Boost 1.89 (2025) removed the compiled stub library entirely - linking -lboost_system
+        # now fails outright ("library not found") on any current Homebrew Boost.
         "libs": [
             "boost_filesystem",
-            "boost_system",
             "boost_thread",
             "boost_date_time",
             "boost_program_options",

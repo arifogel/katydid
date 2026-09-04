@@ -238,6 +238,19 @@ through the library graph.
 **This is the actual finish line for "does Katydid run."** These are the targets CLion's
 Bazel plugin will expose as debuggable (lldb) run configurations.
 
+## Real fix: Boost 1.89 removed the compiled `libboost_system` entirely
+
+`bazel build //Source/Executables/Main:Katydid` was the first target to actually hit a
+final binary link (every library module before this only ever got archived into a `.a`,
+never needed to resolve every external symbol) - and it failed with `library
+'boost_system' not found`. Confirmed via search: `Boost.System` has been header-only since
+1.69 (2018), and Boost 1.89 (released Aug 2025 - almost certainly what current Homebrew
+ships) removed the compiled stub library that older code linked against out of habit,
+entirely. `-lboost_system` in `tools/homebrew.bzl` was asking for a file that doesn't
+exist on any current Boost install. Fixed by dropping it from `@homebrew//:boost`'s
+`libs` list - `boost_filesystem`/`boost_thread`/`boost_date_time`/`boost_program_options`
+are all still real, separately-compiled libraries and remain linked.
+
 4. **`cc_binary` targets** for `Source/Executables/Main/*` (`Katydid`, `Truncate`) — these
    are what CLion's Bazel plugin will expose as debuggable (lldb) run configurations. Note
    from `Source/Executables/Main/CMakeLists.txt`: the `Katydid` binary links against
