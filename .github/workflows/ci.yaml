@@ -36,11 +36,12 @@ jobs:
       # reasoning as the ROOT/Homebrew caching below - libmatio-dev alone pulls in libhdf5-dev
       # transitively, which isn't a small download either.
       #
-      # PIN NEEDED: replace @v1.6.3 with the exact commit SHA for that tag (GitHub Releases ->
-      # v1.6.3 -> click the commit link -> copy the full 40-char SHA), matching how every other
-      # action in this file is pinned. Couldn't verify the exact SHA from here - didn't want to
-      # fabricate one just to keep the file "complete."
-      - name: Install Boost/FFTW/MatIO (Linux, cached)
+      # libtbb12 isn't one of Katydid's own dependencies - it's needed because the prebuilt
+      # rootcling binary (from the ROOT tarball below) dynamically links against libtbb.so.12,
+      # and root.cern's raw tarball doesn't bundle/relocate it the way Homebrew's bottles do.
+      # Once it's an ordinary apt package it lands in the default linker search path
+      # automatically - no LD_LIBRARY_PATH or rpath juggling needed.
+      - name: Install Boost/FFTW/MatIO/TBB (Linux, cached)
         if: runner.os == 'Linux'
         uses: awalsh128/cache-apt-pkgs-action@553a35bb8ebd9fcabcb1c9451aa4c98e1b4ca8a9 # v1.6.3
         with:
@@ -51,6 +52,7 @@ jobs:
             libboost-program-options-dev
             libfftw3-dev
             libmatio-dev
+            libtbb12
           version: 1.0
 
       - name: Cache ROOT (Linux)
