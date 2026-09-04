@@ -294,3 +294,40 @@ If `bazel build` complains about `rules_cc`/`platforms` version resolution, run
 `bazel mod tidy` or bump the versions in `MODULE.bazel` — I picked current-as-of-writing
 versions but the Bazel Central Registry moves fast enough that this could be stale by
 the time you run it.
+
+## Linux support: `tools/homebrew.bzl` → `tools/system_deps.bzl`
+
+Added real Ubuntu 24.04 support - not Linuxbrew (deliberately not wanted), apt instead.
+This surfaced a real bug independent of the OS question: the old code had a blanket
+`if not brew: fail(...)` at the top of the whole function, which blocked ROOT discovery
+too even though ROOT never actually depended on `brew` - only on `root-config` being on
+PATH, which it already was on the test Linux machine (a manually-installed ROOT 6.36.10,
+`root-config` already on PATH by whatever means - the exact install method turned out not
+to matter, since `root-config` is ROOT's own official query tool regardless of how it got
+there).
+
+**ROOT stays OS-agnostic** - still just `root-config` on PATH, unchanged logic, works
+identically whether that's from a Homebrew symlink or a manually-extracted tarball.
+
+**Boost/FFTW/MatIO get a genuinely different code path on Linux, not just different
+formula names.** Homebrew deliberately keeps things out of default compiler/linker search
+paths (needs `brew --prefix` + explicit `-I`/`-L`); apt installs into them, so the Linux
+path needs no discovery at all - just `-l` flags, after verifying the right `-dev`
+packages are installed via `dpkg -s` (package names confirmed against Ubuntu 24.04
+(noble)'s actual package index, not assumed: `libboost-filesystem-dev` +
+`libboost-thread-dev` + `libboost-date-time-dev` + `libboost-program-options-dev`,
+`libfftw3-dev`, `libmatio-dev`). No `hdrs`/`includes` needed on the Linux `cc_library`
+targets either - `/usr/include` is already on the C++ toolchain's default sandbox-allowed
+search path, the same mechanism that makes `<vector>` work without any target declaring
+it as a header.
+
+File renamed from `tools/homebrew.bzl` since "homebrew.bzl" would be actively misleading
+once it also contains an apt code path. Low blast radius: only `MODULE.bazel`'s one
+`load()` line changed - the exposed repo name `@homebrew` (and therefore every
+`@homebrew//:boost` etc. reference across every other `BUILD.bazel` file) is untouched.
+
+**NOT YET BUILT/TESTED on Linux** - written from the Ubuntu 24.04 build log you sent
+(confirming `brew` genuinely absent) plus package-index lookups, not from an actual
+`bazel build` run on Linux yet. Re-run `bazel build //Source/Executables/Main:Katydid` on
+the Ubuntu machine and see what happens - this is the first real test of the whole
+apt code path.

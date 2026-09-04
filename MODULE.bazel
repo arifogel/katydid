@@ -15,9 +15,10 @@ bazel_dep(name = "platforms", version = "1.0.0")
 non_bazel_deps = use_extension("//tools:non_bazel_deps.bzl", "non_bazel_deps")
 use_repo(non_bazel_deps, "nymph", "scarab", "cicada", "rapidjson", "yaml_cpp")
 
-# --- Homebrew-provided system libraries (Boost, FFTW; ROOT/MatIO come in a later step) ---
-# Not hermetic across machines - this is a deliberate trade for a zero-configure dev loop.
-# See tools/homebrew.bzl for the reasoning and how to tighten this later.
+# --- System-provided libraries (Boost, FFTW, MatIO, ROOT) ---
+# Not hermetic across machines - a deliberate trade for a zero-configure dev loop. Homebrew on
+# macOS, apt on Linux, ROOT via root-config on PATH regardless of OS.
+# See tools/system_deps.bzl for the reasoning and how to tighten this later.
 
-homebrew_deps = use_extension("//tools:homebrew.bzl", "homebrew_deps")
+homebrew_deps = use_extension("//tools:system_deps.bzl", "homebrew_deps")
 use_repo(homebrew_deps, "homebrew")

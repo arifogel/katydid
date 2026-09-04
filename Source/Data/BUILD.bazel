@@ -4,7 +4,7 @@
 # globbed). Skipped from the original list: the commented-out Evaluation/* entries (already
 # commented out in the source CMakeLists.txt itself), and the `NOT FFTW_FOUND` /
 # `Katydid_ENABLE_TUTORIAL` conditional blocks - we always have real FFTW (@homebrew//:fftw
-# defines FFTW_FOUND, see tools/homebrew.bzl), and Katydid_ENABLE_TUTORIAL is off by default.
+# defines FFTW_FOUND, see tools/system_deps.bzl), and Katydid_ENABLE_TUTORIAL is off by default.
 #
 # NOT YET BUILT/TESTED. Confirmed via #include inspection (not just CMakeLists) that this
 # module needs ROOT (TH1.h/TH2.h - used by data classes that story histograms) and nanoflann

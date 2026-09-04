@@ -33,3 +33,5 @@ install_manifest.txt
 
 /bazel-*
 /.idea
+/*.deb
+/katydid-build-deps*
