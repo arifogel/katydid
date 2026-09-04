@@ -1,3 +1,5 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
 # BUILD file for @nymph (github.com/project8/nymph @ f3697b89f345894bc20c2c2d07fd553aa3b22de2).
 #
 # Nymph/Library/CMakeLists.txt builds ONE combined library out of Utility/ + Data/ + Processor/ +
@@ -10,7 +12,7 @@
 # needs them for modules beyond Utility) but have NOT been individually compile-tested yet.
 #
 # Python bindings (NymphPy) are skipped - Katydid_USE_PYTHON is off.
-load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
 package(default_visibility = ["//visibility:public"])
 
 cc_library(
@@ -61,7 +63,6 @@ cc_library(
         "Library/Utility",
     ],
     defines = ["USE_CPP11"],
-    copts = ["-std=c++11"],
     deps = [
         "@scarab//:scarab",
         "@homebrew//:boost",

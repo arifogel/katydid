@@ -1,0 +1,66 @@
+# BUILD file for @cicada (github.com/Helium6CRES/cicada @ 329b058736771038c150933bc275448ca5f24245).
+#
+# Mirrors Library/CMakeLists.txt's CICADA_SOURCEFILES + the ROOT_GENERATE_DICTIONARY(CicadaDict...)
+# call. Katydid's top-level CMakeLists.txt sets Cicada_ENABLE_KATYDID_NAMESPACE FALSE (overriding
+# Cicada's own default of ON), so the KTROOTData.hh/.cc + CicadaKTDict half of Library/CMakeLists.txt
+# is deliberately NOT built here - matches the actual Katydid configuration, not Cicada's standalone
+# default. Cicada_ADD_CICADA_PY is skipped entirely: it only templates+installs a convenience .py
+# file, nothing to compile, irrelevant to the C++ build.
+#
+# Cicada needs no Nymph at all (verified via its actual #include list) - only @scarab (logger.hh,
+# _member_variables.hh) and ROOT (TObject.h, TClonesArray.h). Not yet compile-tested (no ROOT
+# available where this was written) - same caveats as tools/root_dictionary.bzl.
+
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@//tools:root_dictionary.bzl", "root_dictionary")
+
+package(default_visibility = ["//visibility:public"])
+
+cc_library(
+    name = "cicada_headers",
+    hdrs = glob(["Library/*.hh"]) + [
+        # CROOTData.cc does `#include "_CROOTData.cc"` - an old-school "private implementation
+        # file included, not separately compiled" idiom. It's never in CICADA_SOURCEFILES in
+        # the original CMakeLists.txt either. Needs to be visible in the sandbox as a header,
+        # even though it's a .cc.
+        "Library/_CROOTData.cc",
+    ],
+    includes = ["Library"],
+    deps = [
+        "@scarab//:scarab",
+        "@homebrew//:root",
+    ],
+)
+
+root_dictionary(
+    name = "CicadaDict",
+    headers = [
+        "Library/_CROOTData.hh",
+        "Library/CClassifierResultsData.hh",
+        "Library/CMemberVariables.hh",
+        "Library/CMTEWithClassifierResultsData.hh",
+        "Library/CProcessedMPTData.hh",
+        "Library/CROOTData.hh",
+    ],
+    linkdef = "Library/LinkDef/CicadaLinkDef.hh",
+    deps = [":cicada_headers"],
+)
+
+cc_library(
+    name = "cicada",
+    srcs = [
+        "Library/CClassifierResultsData.cc",
+        "Library/CMTEWithClassifierResultsData.cc",
+        "Library/CProcessedMPTData.cc",
+        "Library/CROOTData.cc",
+        ":CicadaDict_cxx",
+    ],
+    hdrs = glob(["Library/*.hh"]) + ["Library/_CROOTData.cc"],  # see cicada_headers above
+    data = [":CicadaDict_pcm"],
+    includes = ["Library"],
+    defines = ["USE_CPP11"],
+    deps = [
+        "@scarab//:scarab",
+        "@homebrew//:root",
+    ],
+)

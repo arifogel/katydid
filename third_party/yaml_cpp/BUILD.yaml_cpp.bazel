@@ -1,3 +1,5 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
 # BUILD file for @yaml_cpp (github.com/jbeder/yaml-cpp @ 3757b2023b71d183a341677feee693c71c2e0766),
 # pinned by Scarab.
 #
@@ -5,7 +7,7 @@
 # Scarab's JSON codec path, not YAML. src/ list below is copied directly from the repo's own
 # src/ directory (no CMakeLists.txt in this old checkout to crib from) - glob(), not hand-picked.
 # Verify this compiles before relying on any Katydid module that reads YAML config files.
-load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
 package(default_visibility = ["//visibility:public"])
 
 cc_library(
@@ -18,5 +20,4 @@ cc_library(
     ]),
     hdrs = glob(["include/yaml-cpp/**/*.h"]),
     includes = ["include"],
-    copts = ["-std=c++11"],
 )

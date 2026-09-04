@@ -1,6 +1,9 @@
-# C++11 to match USE_CPP11 across Katydid/Nymph/Scarab.
-build --cxxopt=-std=c++11
-build --host_cxxopt=-std=c++11
+# ROOT (Homebrew 6.38/6.40) hard-requires C++17 - see NOTES.md. C++17 is a strict superset
+# for this ~2018-era C++11 codebase (Nymph/Scarab/Katydid), so bumping globally rather than
+# special-casing ROOT-touching targets. Don't also set -std=c++11 in any target's `copts` -
+# that would win over this on the actual compile line and reintroduce the mismatch.
+build --cxxopt=-std=c++17
+build --host_cxxopt=-std=c++17
 
 # Makes `bazel build ...` and CLion's Bazel plugin agree on what "everything" means.
 build --curses=yes

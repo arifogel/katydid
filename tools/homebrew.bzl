@@ -1,5 +1,5 @@
-"""Wraps Homebrew-installed libraries (Boost, FFTW today; ROOT/MatIO in a later step) as
-cc_library targets, by shelling out to `brew --prefix <formula>` when the repo is fetched.
+"""Wraps Homebrew-installed libraries (Boost, FFTW, MatIO, ROOT) as cc_library targets, by
+shelling out to `brew --prefix <formula>` (or, for ROOT, `root-config`) when the repo is fetched.
 
 This is a deliberate trade: these libraries are NOT built hermetically by Bazel, and the exact
 version you get depends on whatever `brew install <formula>` last put on your machine. In
@@ -27,6 +27,12 @@ _FORMULAE = {
     "fftw": {
         "libs": ["fftw3"],
     },
+    # Homebrew's formula for MatIO is "libmatio", not "matio" - keep the exposed target name
+    # ("matio") matching what Katydid's CMake calls it, separate from the brew formula name.
+    "matio": {
+        "brew_formula": "libmatio",
+        "libs": ["matio"],
+    },
 }
 
 def _homebrew_repo_impl(repository_ctx):
@@ -34,20 +40,69 @@ def _homebrew_repo_impl(repository_ctx):
     if not brew:
         fail(
             "`brew` was not found on PATH. Install Homebrew (https://brew.sh), then " +
-            "`brew install boost fftw`, or adjust tools/homebrew.bzl if your libraries " +
-            "live somewhere else (e.g. MacPorts, conda).",
+            "`brew install boost fftw libmatio root`, or adjust tools/homebrew.bzl if your " +
+            "libraries live somewhere else (e.g. MacPorts, conda).",
         )
 
-    build_file_parts = [
-        'load("@rules_cc//cc:cc_library.bzl", "cc_library")',
-        'package(default_visibility = ["//visibility:public"])',
-    ]
+    build_file_parts = ['load("@rules_cc//cc:cc_library.bzl", "cc_library")']
+    build_file_parts.append('package(default_visibility = ["//visibility:public"])')
+
+    # --- ROOT: uses root-config, ROOT's own official query tool, rather than guessing
+    # Homebrew's Cellar layout (which has changed shape across ROOT versions before). Every
+    # ROOT install - Homebrew, source build, LCG, conda - ships root-config for exactly this.
+    root_config = repository_ctx.which("root-config")
+    if not root_config:
+        fail(
+            "`root-config` was not found on PATH. Install ROOT (`brew install root`) and make " +
+            "sure its bin/ directory is on PATH (Homebrew normally symlinks this for you), or " +
+            "adjust tools/homebrew.bzl if ROOT lives somewhere else.",
+        )
+
+    root_incdir = repository_ctx.execute([root_config, "--incdir"]).stdout.strip()
+    root_libdir = repository_ctx.execute([root_config, "--libdir"]).stdout.strip()
+    root_bindir = repository_ctx.execute([root_config, "--bindir"]).stdout.strip()
+
+    # Base libs (Core, RIO, Net, Hist, Graf, Tree, ... ) from root-config, plus the extra
+    # COMPONENTS Katydid's CMakeLists.txt explicitly requests via
+    # find_package(ROOT 6.00 COMPONENTS Gui Spectrum TMVA) - root-config --libs alone doesn't
+    # include those, they have to be added by hand the same way CMake's find_package would.
+    root_base_libs_result = repository_ctx.execute([root_config, "--libs"])
+    if root_base_libs_result.return_code != 0:
+        fail("`root-config --libs` failed:\n" + root_base_libs_result.stderr)
+    root_extra_component_libs = ["-lGui", "-lSpectrum", "-lTMVA"]
+
+    repository_ctx.symlink(root_incdir, "root/include")
+
+    root_base_libs = [x for x in root_base_libs_result.stdout.strip().split(" ") if x]
+    root_linkopts = (
+        root_base_libs +
+        root_extra_component_libs +
+        ["-Wl,-rpath," + root_libdir]  # ROOT dlopens plugin libs at runtime; needs rpath, not just -L
+    )
+
+    build_file_parts.append("""
+cc_library(
+    name = "root",
+    hdrs = glob(["root/include/**"], allow_empty = True),
+    includes = ["root/include"],
+    linkopts = {linkopts},
+)
+""".format(linkopts = repr(root_linkopts)))
+
+    # rootcling lives in root-config's bindir; exposed as a plain file for root_dictionary.bzl
+    # to depend on as an executable.
+    repository_ctx.symlink(root_bindir + "/rootcling", "rootcling")
+    build_file_parts.append("""
+exports_files(["rootcling"])
+""")
+
     for formula, info in _FORMULAE.items():
-        result = repository_ctx.execute([brew, "--prefix", formula])
+        brew_formula = info.get("brew_formula", formula)
+        result = repository_ctx.execute([brew, "--prefix", brew_formula])
         if result.return_code != 0:
             fail(
                 "`brew --prefix {f}` failed - run `brew install {f}`.\n{err}".format(
-                    f = formula,
+                    f = brew_formula,
                     err = result.stderr,
                 ),
             )
@@ -62,7 +117,7 @@ def _homebrew_repo_impl(repository_ctx):
         build_file_parts.append("""
 cc_library(
     name = "{formula}",
-    hdrs = glob(["{formula}/include/**"]),
+    hdrs = glob(["{formula}/include/**"], allow_empty = True),
     includes = ["{formula}/include"],
     linkopts = {linkopts},
 )

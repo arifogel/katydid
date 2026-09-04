@@ -53,12 +53,11 @@ def _non_bazel_deps_impl(_module_ctx):
         build_file = "//third_party/yaml_cpp:BUILD.yaml_cpp.bazel",
     )
 
-    # Cicada - uncomment once root_dictionary.bzl exists:
-    # git_repository(
-    #     name = "cicada",
-    #     remote = "https://github.com/Helium6CRES/cicada.git",
-    #     commit = "329b058736771038c150933bc275448ca5f24245",
-    #     build_file = "//third_party/cicada:BUILD.cicada.bazel",
-    # )
+    git_repository(
+        name = "cicada",
+        remote = "https://github.com/Helium6CRES/cicada.git",
+        commit = "329b058736771038c150933bc275448ca5f24245",
+        build_file = "//third_party/cicada:BUILD.cicada.bazel",
+    )
 
 non_bazel_deps = module_extension(implementation = _non_bazel_deps_impl)

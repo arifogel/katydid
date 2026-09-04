@@ -57,32 +57,114 @@ This won't compile under any toolchain — looks like a half-finished refactor o
 branch. `KTSpline.cc` is excluded from `Source/Utility/BUILD.bazel` until it's fixed;
 re-add it to `srcs` once it is.
 
+## Fixes applied after the first round of `bazel build` errors (Bazel 9)These were real gaps, all now fixed in this tree:
+
+- `cc_library`/`cc_binary`/etc. were removed from Bazel core in the Bazel 9 cleanup (same
+  effort that finished removing `WORKSPACE`) and now live only in `rules_cc`. Every
+  `BUILD.bazel`/`BUILD.*.bazel` file needs
+  `load("@rules_cc//cc:cc_library.bzl", "cc_library")` — this includes the *generated*
+  BUILD file `tools/homebrew.bzl` writes at fetch time, which is easy to miss since you
+  never see that file directly.
+- `platforms` needed bumping to `1.0.0` in `MODULE.bazel` — `rules_cc@0.2.22` transitively
+  wants `platforms@1.0.0`+, and Bazel's `--check_direct_dependencies` (on by default)
+  flags the mismatch against the pin here rather than silently upgrading it.
+- Every directory referenced by a Bazel *label* — including `.bzl` files loaded via
+  `load("//tools:non_bazel_deps.bzl", ...)`, and `git_repository`'s `build_file =
+  "//third_party/nymph:BUILD.nymph.bazel"` attribute — needs a real (can be empty)
+  `BUILD.bazel` in that directory to mark it as a package. `tools/`,
+  `third_party/nymph/`, `third_party/scarab/`, `third_party/rapidjson/`,
+  `third_party/yaml_cpp/` all needed one.
+- `tools/homebrew.bzl`'s per-formula `hdrs = glob(...)` had no `allow_empty = True`, so any
+  *one* not-yet-installed/not-yet-used formula (this bit us on `matio`, added preemptively
+  for a later module, before anyone actually installed `libmatio`) failed to load the
+  entire `@homebrew` package - since it's one repo with one generated `BUILD.bazel`
+  covering boost+fftw+matio+root together, that took down `boost`/`fftw`/`root` too, with
+  a wall of misleading "contains an error, referenced by..." messages burying the one real
+  glob error. Fixed with `allow_empty = True` - an unused/uninstalled formula now just
+  produces an empty library instead of an unrelated cascade; actually trying to *use* it
+  unset gives a normal, isolated missing-header compile error instead.
+- `tools/root_dictionary.bzl`'s `_rootcling` attr used `executable = True`, which requires
+  the referenced label to be a build rule producing a `FilesToRunProvider` - `@homebrew//:rootcling`
+  is a plain source file (symlinked in via `exports_files()`), so this failed with "is
+  misplaced here (expected no files)" the first time anything actually tried to build a
+  dictionary. Fixed by switching to `allow_single_file = True` + `ctx.file._rootcling`,
+  which `ctx.actions.run()`'s `executable=` parameter accepts directly.
+- Same underlying issue as `CcInfo` earlier, but for `cc_common` itself: the bare global
+  `cc_common` in Bazel 9 is a stripped internal stub (no `merge_cc_infos`, confirmed by the
+  actual error's "Available attributes" list) - needs `load("@rules_cc//cc/common:cc_common.bzl",
+  "cc_common")` same as `CcInfo` needed its own load.
+
+## Cicada: real content bugs found once it actually got to compiling (not Bazel plumbing)
+
+With C++17 and the two loads above fixed, `rootcling` genuinely ran and generated
+`CicadaDict_gen.cxx` - real confirmation the dictionary macro itself works. Two content
+bugs surfaced past that point, both now fixed in this tree:
+
+1. **`_CROOTData.cc` wasn't visible in the sandbox.** `CROOTData.cc` does `#include
+   "_CROOTData.cc"` (an old "private implementation file, included not separately
+   compiled" idiom - it was never in `CICADA_SOURCEFILES` in the original CMakeLists.txt
+   either, consistent with this). Bazel's sandboxing only exposes files declared as
+   `srcs`/`hdrs`, and `hdrs = glob(["Library/*.hh"])` doesn't match a `.cc` file. Fixed by
+   explicitly adding `"Library/_CROOTData.cc"` to `hdrs` on both `cicada_headers` and
+   `cicada`.
+2. **`root_dictionary.bzl` passed full execroot-relative paths to `rootcling` for the
+   header arguments.** With `-inlineInputHeader`, rootcling embeds whatever string it's
+   given literally as the `#include` target in the generated `.cxx` - a path like
+   `external/+non_bazel_deps+cicada/Library/Foo.hh` doesn't resolve when that generated
+   file is later compiled from a different location under `bazel-out/`. Fixed by passing
+   bare basenames (`h.basename`) instead, relying on the `-I` flags (already correct) for
+   both `rootcling`'s own header lookup and the later real compile to find them - this
+   matches how CMake's own `ROOT_GENERATE_DICTIONARY` invokes `rootcling` too.
+
+
 ## What still needs building (in order)
 
-1. **`root_dictionary.bzl`** — a macro wrapping a `genrule` that shells out to
-   `rootcling` (from `@homebrew//:root`, once that formula is added to
-   `tools/homebrew.bzl`) to turn a `LinkDef.hh` + header list into a `.cxx` + `_rdict.pcm`,
-   with the `.pcm` wired in as `data` so ROOT's class loader finds it at runtime next to
-   the `.so`/binary. Needed for: `Source/Transform`, `Source/Utility` (the ROOT-gated
-   half, i.e. `KTRootGuiLoop`), `Source/IO`, `Source/EventAnalysis`, and Cicada's
-   `Library`.
-2. **`@homebrew//:root` and `@homebrew//:matio`** — extend `tools/homebrew.bzl`'s
-   `_FORMULAE` dict. `libmatio` is the actual Homebrew formula name for MatIO, not
-   `matio` — worth double-checking when you add it.
-3. **Cicada** — `third_party/cicada/BUILD.cicada.bazel`, using the dictionary macro from
-   step 1. `git_repository` for it is already stubbed (commented out) in
-   `tools/non_bazel_deps.bzl`.
-4. **The remaining 12 Katydid `Source/*` CMakeLists** → matching `BUILD.bazel` files,
-   same mechanical translation as `Source/Utility/BUILD.bazel`.
-5. **`cc_binary` targets** for `Source/Executables/Main/*` — these are what CLion's Bazel
-   plugin will expose as debuggable (lldb) run configurations.
+1. ~~`root_dictionary.bzl`~~ — **done and verified for real**, against actual ROOT via
+   Homebrew on Apple Silicon (ROOT 6.38/6.40). `bazel build //Source/Utility:katydid_utility`
+   with `--disk_cache=` (forcing everything to actually execute rather than replay from
+   cache) completed with `92 processes: 8 internal, 84 darwin-sandbox` — real `rootcling`
+   invocation, real compile of its output, real link. `Source/Utility` is fully done,
+   including `KTRootGuiLoop.cc` and the `UtilityDict` dictionary.
+2. ~~Cicada~~ — **done and verified for real**, including a from-clean, no-disk-cache
+   build (confirming nothing was riding on stale cache from the earlier debugging rounds).
+   Turns out Cicada needs no Nymph at all (checked its actual `#include`s) — only
+   `@scarab` (`logger.hh`, `_member_variables.hh`) and `@homebrew//:root`. Katydid's
+   top-level CMakeLists sets `Cicada_ENABLE_KATYDID_NAMESPACE FALSE` (overriding Cicada's
+   own default of ON), so the `KTROOTData`/`CicadaKTDict` half is deliberately left out —
+   matches the actual Katydid config, not Cicada's standalone default. The private
+   `.cc`-include idiom that bit `CROOTData.cc` doesn't recur elsewhere in Katydid's own
+   `Source/` tree (`grep -r '#include ".*\.cc"' Source` returns nothing) — one less thing
+   to watch for in the remaining modules.
+3. **The remaining 12 Katydid `Source/*` CMakeLists** → matching `BUILD.bazel` files,
+   same mechanical translation as `Source/Utility/BUILD.bazel`. `Transform`, `IO`, and
+   `EventAnalysis` each need their own `root_dictionary()` call the same way `Utility` did.
+4. **`cc_binary` targets** for `Source/Executables/Main/*` (`Katydid`, `Truncate`) — these
+   are what CLion's Bazel plugin will expose as debuggable (lldb) run configurations. Note
+   from `Source/Executables/Main/CMakeLists.txt`: the `Katydid` binary links against
+   *every* module's library, so this is the last step, not something to reach for early.
+
+## Real (non-Bazel-plumbing) bug found via Cicada's build
+
+**ROOT requires C++17; this codebase was pinned to C++11.** Homebrew's ROOT (6.38/6.40)
+hard-errors (`#error "ROOT requires support for C++17 or higher."`) when compiled under
+`-std=c++11`, which `.bazelrc` set project-wide to match this ~2018-era codebase. Fixed by
+bumping `.bazelrc` to `-std=c++17` globally (a strict superset for this code - nothing in
+Nymph/Scarab/Katydid uses anything C++17 removed, and this is the same codebase already
+smoke-tested clean against modern Boost) and removing the now-redundant `copts =
+["-std=c++11"]` from every `BUILD.bazel`/`BUILD.*.bazel` that had one (`Source/Utility`,
+`third_party/{nymph,scarab,yaml_cpp,cicada}`) - those would have overridden the global
+bump on the actual compile line otherwise. `defines = ["USE_CPP11"]` stays as-is on
+targets that had it - that's Katydid/Nymph/Scarab's own internal macro selecting their
+C++11-compatible code paths (vs. an older C++98 path), unrelated to the compiler's actual
+`-std=` flag.
 
 ## How to sanity-check this slice on your Mac
 
 ```sh
-brew install boost fftw          # if not already installed
-cd katydid                       # wherever you dropped these files
+brew install boost fftw libmatio root   # if not already installed
+cd katydid                              # wherever you dropped these files
 bazel build //Source/Utility:katydid_utility
+bazel build @cicada//:cicada            # the new, not-yet-tested piece
 ```
 First run will be slow (fetching Nymph/Scarab/rapidjson/yaml-cpp + resolving Boost via
 `brew --prefix`); after that, editing any `.cc`/`.hh` under `Source/Utility` and

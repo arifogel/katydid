@@ -193,7 +193,7 @@
   "moduleExtensions": {
     "//tools:homebrew.bzl%homebrew_deps": {
       "general": {
-        "bzlTransitiveDigest": "eBLBu1tI7fOsge/ICGE4PUCwY2nXKF1PvGq4jd1ELAc=",
+        "bzlTransitiveDigest": "R30E4RsMWHXHi7GFdlbYhChSg2DFR62HwLjesmMNu5Q=",
         "usagesDigest": "PMphiXiERR/CFHY4lr4RmfOy09JLDeAlNRkjRyumb8E=",
         "recordedInputs": [],
         "generatedRepoSpecs": {
@@ -206,7 +206,7 @@
     },
     "//tools:non_bazel_deps.bzl%non_bazel_deps": {
       "general": {
-        "bzlTransitiveDigest": "ZfQad5hW6WUYAS9SNa3GovcJSbJ3R0Gt08plyHpqMH8=",
+        "bzlTransitiveDigest": "G9HREfcLOloIinfjPbu+ixsbh5XLH1jJ0Va6nRrX0AU=",
         "usagesDigest": "JmphGTaV6uYIkt0OqF5xvMo6SkI5JADUiCcHwux0/Ik=",
         "recordedInputs": [
           "REPO_MAPPING:,bazel_tools bazel_tools"
@@ -242,6 +242,14 @@
               "remote": "https://github.com/jbeder/yaml-cpp.git",
               "commit": "3757b2023b71d183a341677feee693c71c2e0766",
               "build_file": "@@//third_party/yaml_cpp:BUILD.yaml_cpp.bazel"
+            }
+          },
+          "cicada": {
+            "repoRuleId": "@@bazel_tools//tools/build_defs/repo:git.bzl%git_repository",
+            "attributes": {
+              "remote": "https://github.com/Helium6CRES/cicada.git",
+              "commit": "329b058736771038c150933bc275448ca5f24245",
+              "build_file": "@@//third_party/cicada:BUILD.cicada.bazel"
             }
           }
         }

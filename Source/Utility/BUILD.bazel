@@ -1,8 +1,7 @@
 # Drop this file at Source/Utility/BUILD.bazel in the actual katydid checkout.
 #
-# Mirrors Source/Utility/CMakeLists.txt's UTILITY_NODICT_HEADERFILES / UTILITY_SOURCEFILES
-# (the ROOT_FOUND-gated pieces - KTRootGuiLoop.cc/.hh and the UtilityDict rootcling dictionary -
-# are deliberately left out; that's the next step, see NOTES.md).
+# Mirrors Source/Utility/CMakeLists.txt's UTILITY_NODICT_HEADERFILES + UTILITY_DICT_HEADERFILES +
+# UTILITY_SOURCEFILES + the ROOT_GENERATE_DICTIONARY(UtilityDict ...) call.
 #
 # KTSpline.cc is EXCLUDED: KTSpline.hh declares
 #     std::shared_ptr<Implementation> Implement(unsigned, double, double) const;
@@ -11,12 +10,42 @@
 # signature. That's a real bug on this branch, independent of this port - it will fail to
 # compile under any toolchain until fixed in source. Add it back to srcs once fixed.
 #
-# Verified: every other file here compiles and links cleanly (Boost 1.83 + g++, Linux) against
-# real Nymph/Scarab headers at the pinned commits.
+# Verified: everything except KTRootGuiLoop.cc/.hh and the UtilityDict dictionary compiles and
+# links cleanly (Boost 1.83 + g++, Linux) against real Nymph/Scarab headers at the pinned
+# commits. The ROOT/rootcling pieces below are NOT yet verified - I don't have ROOT available
+# where this was written. See tools/root_dictionary.bzl for the specific caveats.
+
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("//tools:root_dictionary.bzl", "root_dictionary")
 
 package(default_visibility = ["//visibility:public"])
 
+# Headers-only target so root_dictionary() below can see this module's own include path (to
+# resolve `#include "KTRootGuiLoop.hh"` etc.) plus everything transitively reachable through
+# Nymph/Scarab/Boost/ROOT - without depending on the full katydid_utility library, which would
+# be circular (katydid_utility's srcs include the dictionary this rule generates).
+cc_library(
+    name = "katydid_utility_headers",
+    hdrs = glob([
+        "*.hh",
+        "complexpolar/*.hh",
+    ]),
+    includes = ["."],
+    deps = [
+        "@nymph//:nymph",
+        "@scarab//:scarab",
+        "@homebrew//:boost",
+        "@homebrew//:fftw",
+        "@homebrew//:root",
+    ],
+)
+
+root_dictionary(
+    name = "UtilityDict",
+    headers = ["KTRootGuiLoop.hh"],  # UTILITY_DICT_HEADERFILES in the original CMakeLists.txt
+    linkdef = "LinkDef/UtilityLinkDef.hh",
+    deps = [":katydid_utility_headers"],
+)
 
 cc_library(
     name = "katydid_utility",
@@ -27,20 +56,25 @@ cc_library(
         "KTECDF.cc",
         "KTKatydidApp.cc",
         "KTRandom.cc",
+        "KTRootGuiLoop.cc",
         "KTSmooth.cc",
         # "KTSpline.cc",  # see note above - fix the header/source mismatch first
+        ":UtilityDict_cxx",
     ],
     hdrs = glob([
         "*.hh",
         "complexpolar/*.hh",
     ]),
+    # ROOT's class loader looks for the .pcm next to the .so/binary at runtime, not just at
+    # compile time - it has to be a runtime dependency, not only a build input.
+    data = [":UtilityDict_pcm"],
     includes = ["."],
-    defines = ["USE_CPP11"],
-    copts = ["-std=c++11"],
+    defines = ["USE_CPP11", "ROOT_FOUND"],
     deps = [
         "@nymph//:nymph",
         "@scarab//:scarab",
         "@homebrew//:boost",
         "@homebrew//:fftw",
+        "@homebrew//:root",
     ],
 )
