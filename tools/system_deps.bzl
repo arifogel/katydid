@@ -52,10 +52,10 @@ _MAC_FORMULAE = {
 }
 
 # Linux: apt-installed Boost/FFTW/MatIO need no -I/-L at all (default search paths already
-# cover them) - just -l flags, after checking the right -dev packages are actually installed.
-# Package names/versions confirmed against Ubuntu 24.04 (noble)'s package index directly,
-# not assumed - matio's shared lib is libmatio13, but libmatio-dev provides the unversioned
-# libmatio.so symlink needed for a plain -lmatio to resolve, same pattern as most -dev packages.
+# cover them) - just -l flags. Package names/versions confirmed against Ubuntu 24.04 (noble)'s
+# package index directly, not assumed - matio's shared lib is libmatio13, but libmatio-dev
+# provides the unversioned libmatio.so symlink needed for a plain -lmatio to resolve, same
+# pattern as most -dev packages.
 _LINUX_APT_LIBS = {
     "boost": {
         "packages": [
@@ -98,6 +98,23 @@ _LINUX_DNF_LIBS = {
     },
 }
 
+# Checked by looking for the actual header each library installs, NOT by asking the package
+# manager whether a specific package name is "installed" (dpkg -s / rpm -q). That used to be
+# the check here, and it produced a real false-negative failure: Ubuntu's boost packages use
+# transitional wrapper packages (e.g. libboost-filesystem-dev just Depends: on the real
+# libboost-filesystem1.83-dev), and a cache-hit restore from awalsh128/cache-apt-pkgs-action
+# doesn't fully register those transitional wrappers in dpkg's database, even though the real
+# headers/libraries are genuinely present and working - `dpkg -s libboost-filesystem-dev`
+# reported "not installed" on a build that was otherwise completely fine. Checking for the
+# header directly is immune to this: it's what we actually need, it's identical logic on both
+# apt and dnf (same /usr/include convention either way), and it can't be fooled by any package
+# manager's internal bookkeeping.
+_LINUX_HEADER_CHECK = {
+    "boost": "usr/include/boost/version.hpp",
+    "fftw": "usr/include/fftw3.h",
+    "matio": "usr/include/matio.h",
+}
+
 def _is_macos(repository_ctx):
     return repository_ctx.os.name.lower().startswith("mac")
 
@@ -115,16 +132,12 @@ def _linux_pkg_manager(repository_ctx):
         "existing apt/dnf ones for the pattern).",
     )
 
-def _check_and_report_missing(repository_ctx, check_cmd, packages, install_hint):
-    missing = []
-    for pkg in packages:
-        result = repository_ctx.execute(check_cmd + [pkg])
-        if result.return_code != 0:
-            missing.append(pkg)
-    if missing:
-        fail("Missing package(s): {missing}\nRun:\n  {hint}".format(
-            missing = ", ".join(missing),
-            hint = install_hint.format(pkgs = " ".join(missing)),
+def _check_header_or_fail(repository_ctx, formula, header, packages, install_hint):
+    if not repository_ctx.path("/" + header).exists:
+        fail("Missing header /{header} (needed for {formula}) - looks like it isn't installed.\nRun:\n  {hint}".format(
+            header = header,
+            formula = formula,
+            hint = install_hint.format(pkgs = " ".join(packages)),
         ))
 
 def _root_config_not_found_error():
@@ -236,15 +249,16 @@ cc_library(
 
     else:
         pkg_manager, linux_libs = _linux_pkg_manager(repository_ctx)
-        if pkg_manager == "apt":
-            check_cmd = ["dpkg", "-s"]
-            install_hint = "sudo apt install {pkgs}"
-        else:  # dnf
-            check_cmd = ["rpm", "-q"]
-            install_hint = "sudo dnf install {pkgs}"
+        install_hint = "sudo apt install {pkgs}" if pkg_manager == "apt" else "sudo dnf install {pkgs}"
 
         for formula, info in linux_libs.items():
-            _check_and_report_missing(repository_ctx, check_cmd, info["packages"], install_hint)
+            _check_header_or_fail(
+                repository_ctx,
+                formula,
+                _LINUX_HEADER_CHECK[formula],
+                info["packages"],
+                install_hint,
+            )
 
             linkopts = ["-l" + lib for lib in info["libs"]]
 

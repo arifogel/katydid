@@ -120,7 +120,11 @@ jobs:
       # AlmaLinux 9 (RHEL family, dnf/EPEL) inside the official almalinux:9 container image -
       # GitHub has no native AlmaLinux runner. gcc-c++ is needed for Bazel's own C++ toolchain
       # autodetection to find a compiler at all in this minimal image - not a Katydid dependency
-      # itself. Package names confirmed against the real AlmaLinux/EPEL package index, not
+      # itself. git is likewise not a Katydid dependency directly - it's needed because
+      # tools/non_bazel_deps.bzl fetches Nymph/Scarab/Cicada/rapidjson/yaml-cpp via Bazel's
+      # git_repository rule, which shells out to a real `git` binary; the minimal almalinux:9
+      # image doesn't include one by default (confirmed by the actual failure: "execvp(git, ...):
+      # No such file or directory"). Package names confirmed against the real AlmaLinux/EPEL package index, not
       # assumed: boost-devel/fftw-devel/tbb-devel are all in AlmaLinux 9's own AppStream repo;
       # matio-devel specifically needs EPEL (isn't in AppStream or CRB). CRB is enabled
       # defensively even though none of these four appear to need it - costs nothing if unused,
@@ -133,6 +137,7 @@ jobs:
           dnf config-manager --set-enabled crb
           dnf install -y --setopt=keepcache=True \
             gcc-c++ \
+            git \
             wget \
             tar \
             boost-devel \
