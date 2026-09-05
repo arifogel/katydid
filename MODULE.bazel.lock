@@ -193,7 +193,7 @@
   "moduleExtensions": {
     "//tools:non_bazel_deps.bzl%non_bazel_deps": {
       "general": {
-        "bzlTransitiveDigest": "qjCCycuMiftdzmu4XrEDhlaJIRZAFldUZQaNUdIiAKQ=",
+        "bzlTransitiveDigest": "Qz9Y3ZxSuiFAO4dsE9m+4KpIZkrrQjYb5kd1x0njefo=",
         "usagesDigest": "JmphGTaV6uYIkt0OqF5xvMo6SkI5JADUiCcHwux0/Ik=",
         "recordedInputs": [
           "REPO_MAPPING:,bazel_tools bazel_tools"
@@ -226,7 +226,7 @@
             "repoRuleId": "@@bazel_tools//tools/build_defs/repo:git.bzl%git_repository",
             "attributes": {
               "remote": "https://github.com/miloyip/rapidjson.git",
-              "commit": "5de06bfa37495b529dc00139f1b138a526fff27a",
+              "commit": "24b5e7a8b27f42fa16b96fc70aade9106cf7102f",
               "build_file": "@@//third_party/rapidjson:BUILD.rapidjson.bazel"
             }
           },
