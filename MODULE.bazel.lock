@@ -193,7 +193,7 @@
   "moduleExtensions": {
     "//tools:non_bazel_deps.bzl%non_bazel_deps": {
       "general": {
-        "bzlTransitiveDigest": "qjCCycuMiftdzmu4XrEDhlaJIRZAFldUZQaNUdIiAKQ=",
+        "bzlTransitiveDigest": "lYWJi2aFo0Hrf6CtlLfIybQd84LNrBLNLDd8+SIJCC4=",
         "usagesDigest": "JmphGTaV6uYIkt0OqF5xvMo6SkI5JADUiCcHwux0/Ik=",
         "recordedInputs": [
           "REPO_MAPPING:,bazel_tools bazel_tools"
@@ -203,7 +203,7 @@
             "repoRuleId": "@@bazel_tools//tools/build_defs/repo:git.bzl%git_repository",
             "attributes": {
               "remote": "https://github.com/project8/scarab.git",
-              "commit": "ef2af248c5db7c92c84952a57759ba0f145f6cd4",
+              "commit": "8a387c7daa8b587b4a64cd47891c42b2202e2809",
               "build_file": "@@//third_party/scarab:BUILD.scarab.bazel",
               "patches": [
                 "@@//third_party/scarab:destroyer-no-delete-at-exit.patch",
