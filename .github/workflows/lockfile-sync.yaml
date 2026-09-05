@@ -7,6 +7,7 @@ on:
       - "MODULE.bazel"
       - ".bazelrc"
       - ".bazelversion"
+      - "**/*.bzl"
 
 env:
   # Keep in sync with .github/workflows/ci.yaml's ROOT_VERSION.
