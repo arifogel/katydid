@@ -7,3 +7,5 @@ build --host_cxxopt=-std=c++17
 
 # Makes `bazel build ...` and CLion's Bazel plugin agree on what "everything" means.
 build --curses=yes
+# Fail builds/tests if MODULE.bazel and MODULE.bazel.lock are out of sync
+common --lockfile_mode=error

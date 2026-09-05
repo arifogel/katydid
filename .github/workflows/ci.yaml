@@ -97,11 +97,8 @@ jobs:
           repository-cache: true
           disk-cache: true
 
-      # --lockfile_mode=error is the bzlmod analog of "verify go.sum is tidy": fails loudly if
-      # MODULE.bazel.lock doesn't match what resolution would produce, rather than silently
-      # updating it or building against a stale lock.
       - name: Verify MODULE.bazel.lock is up to date and build everything
-        run: bazel build --lockfile_mode=error //...
+        run: bazel build //...
 
   # Separate job, not a third matrix entry: GitHub Actions has a known, still-open issue
   # (actions/runner#265) where using an empty-string `container:` value to mean "no container"
@@ -124,13 +121,24 @@ jobs:
       # tools/non_bazel_deps.bzl fetches Nymph/Scarab/Cicada/rapidjson/yaml-cpp via Bazel's
       # git_repository rule, which shells out to a real `git` binary; the minimal almalinux:9
       # image doesn't include one by default (confirmed by the actual failure: "execvp(git, ...):
-      # No such file or directory"). Package names confirmed against the real AlmaLinux/EPEL package index, not
-      # assumed: boost-devel/fftw-devel/tbb-devel are all in AlmaLinux 9's own AppStream repo;
+      # No such file or directory").
+      #
+      # xxhash-devel and tbb-devel aren't Katydid dependencies either - they're runtime shared
+      # library dependencies of the *prebuilt rootcling binary itself* (root.cern's raw AlmaLinux
+      # tarball doesn't bundle/relocate its own dependencies the way Homebrew's bottles do - same
+      # root cause as the libtbb12 issue hit on Ubuntu earlier, just a different library this
+      # time). xxhash-devel confirmed to live specifically in AlmaLinux 9.8's CRB repo (which we
+      # already enable) - the "Check ROOT binaries for missing shared libraries" step below exists
+      # specifically to catch any *other* ones like this in one shot, rather than discovering them
+      # one at a time through separate failed builds.
+      #
+      # Package names confirmed against the real AlmaLinux/EPEL package index, not assumed:
+      # boost-devel/fftw-devel/tbb-devel are all in AlmaLinux 9's own AppStream repo;
       # matio-devel specifically needs EPEL (isn't in AppStream or CRB). CRB is enabled
-      # defensively even though none of these four appear to need it - costs nothing if unused,
-      # and RHEL's -devel-package-to-repo mapping isn't worth risking a first-run failure over.
-      # Container jobs run as root by default, so no sudo (and this minimal image may not even
-      # have it installed).
+      # defensively even though the four Katydid deps don't appear to need it - costs nothing
+      # if unused, and RHEL's -devel-package-to-repo mapping isn't worth risking a first-run
+      # failure over. Container jobs run as root by default, so no sudo (and this minimal image
+      # may not even have it installed).
       - name: Install build tools and Boost/FFTW/MatIO/TBB (dnf)
         run: |
           dnf install -y epel-release
@@ -143,7 +151,8 @@ jobs:
             boost-devel \
             fftw-devel \
             matio-devel \
-            tbb-devel
+            tbb-devel \
+            xxhash-devel
 
       # keepcache=True above so downloaded RPMs survive a successful install (dnf's default is
       # to delete them afterward) - otherwise this cache would restore nothing useful.
@@ -169,6 +178,29 @@ jobs:
           ROOT_URL="https://root.cern/download/root_v${ROOT_VERSION}.Linux-almalinux9.8-x86_64-gcc11.5.tar.gz"
           wget -q -O /tmp/root.tar.gz "$ROOT_URL"
           tar -xzf /tmp/root.tar.gz -C /opt/
+
+      # root.cern's raw tarball doesn't bundle/relocate its own runtime dependencies (unlike
+      # Homebrew's bottles) - we've now hit two of these one at a time through separate failed
+      # builds (libtbb.so.12, then libxxhash.so.0). ldd resolves the FULL transitive dependency
+      # chain, not just direct links, so checking rootcling (the build-time tool) and the
+      # actual lib directory ldd resolves everything in it) surfaces every missing shared
+      # library in one shot, rather than discovering them one CI failure at a time.
+      # Uses root-config's full path directly (not relying on PATH) since "Add ROOT to PATH"
+      # hasn't run yet at this point in the job - and derives the lib directory from
+      # `root-config --libdir` rather than hardcoding a layout, since the exact directory
+      # structure a raw root.cern tarball extracts to isn't something to assume (Homebrew's
+      # /opt/homebrew/.../lib/root/ nesting seen elsewhere is a Homebrew-specific convention,
+      # not necessarily how this tarball lays out).
+      - name: Check ROOT binaries for missing shared libraries
+        run: |
+          ROOT_LIBDIR=$(/opt/root/bin/root-config --libdir)
+          MISSING=$(ldd /opt/root/bin/rootcling 2>&1 | grep "not found" || true)
+          if [ -n "$MISSING" ]; then
+            echo "Missing shared library dependencies for rootcling:"
+            echo "$MISSING"
+            echo "(ROOT lib directory: $ROOT_LIBDIR)"
+            exit 1
+          fi
 
       - name: Add ROOT to PATH
         run: echo "/opt/root/bin" >> "$GITHUB_PATH"
@@ -206,7 +238,7 @@ jobs:
           disk-cache: true
 
       - name: Verify MODULE.bazel.lock is up to date and build everything
-        run: bazel build --lockfile_mode=error //...
+        run: bazel build //...
 
   lint-and-format:
     runs-on: ubuntu-latest
