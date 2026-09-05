@@ -1,5 +1,5 @@
-# Drop this file at vendor/nanoflann/BUILD.bazel (i.e. the same directory as nanoflann.hpp,
-# after the External -> vendor rename). Header-only.
+# BUILD file for the vendored copy of nanoflann (a header-only nearest-neighbor search
+# library), used by Katydid's Data module for k-d tree-based clustering.
 
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 

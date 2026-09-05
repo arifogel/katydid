@@ -1,0 +1,2 @@
+# Intentionally empty. Its only purpose is to mark this directory as a Bazel package, which
+# some Bazel labels used elsewhere in this repository need to resolve correctly.

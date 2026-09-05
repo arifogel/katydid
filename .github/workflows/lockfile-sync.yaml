@@ -24,12 +24,10 @@ jobs:
           # Requires a PAT or App Token with repo write permissions
           token: ${{ secrets.PAT_WITH_WRITE_ACCESS }}
 
-      # bazel mod deps has to evaluate every module extension in MODULE.bazel to compute the
-      # lockfile - including tools/system_deps.bzl's, which hard-fails without these actually
-      # installed (unlike, say, rules_go's or a pypi extension, which don't depend on native
-      # system libraries). Same provisioning as ci.yaml's Linux path, not just generic Bazel
-      # setup - see ci.yaml for why this uses cache-apt-pkgs-action instead of plain apt-get
-      # and for the libtbb12/rootcling note.
+      # Regenerating MODULE.bazel.lock requires evaluating every module extension declared in
+      # MODULE.bazel, including tools/system_deps.bzl's - which requires Boost, FFTW, MatIO,
+      # and ROOT to actually be present on this runner, the same as the main CI workflow's
+      # Ubuntu job. See ci.yaml for the reasoning behind this specific set of packages.
       - name: Install Boost/FFTW/MatIO/TBB
         uses: awalsh128/cache-apt-pkgs-action@553a35bb8ebd9fcabcb1c9451aa4c98e1b4ca8a9 # v1.6.3
         with:

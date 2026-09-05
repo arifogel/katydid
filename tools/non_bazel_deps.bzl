@@ -1,25 +1,25 @@
-"""Fetches the git-submodule dependencies that have no native Bazel support of their own.
+"""Fetches Katydid's own bundled dependencies that have no native Bazel support of their own.
 
-Each of these is pulled at the exact commit recorded in the original katydid checkout's
-`git submodule status` (branch feature/FreqDomainInput):
+Each is pulled as a pinned git commit, matching the commit that the project's canonical CMake
+build (via `git submodule status`) uses:
 
-    329b058736771038c150933bc275448ca5f24245  Cicada   (v1.3.2-1-g329b058)
-    f3697b89f345894bc20c2c2d07fd553aa3b22de2  Nymph    (v1.4.7)
-    ef2af248c5db7c92c84952a57759ba0f145f6cd4  Scarab   (pinned by both Nymph and Cicada - identical
-                                                         commit in both, so no version conflict)
-    5de06bfa37495b529dc00139f1b138a526fff27a  rapidjson (pinned by Scarab)
-    3757b2023b71d183a341677feee693c71c2e0766  yaml-cpp  (pinned by Scarab)
+    Cicada     https://github.com/Helium6CRES/cicada.git
+    Nymph      https://github.com/project8/nymph.git
+    Scarab     https://github.com/project8/scarab.git      (pinned identically by both Nymph
+                                                              and Cicada - no version conflict)
+    rapidjson  https://github.com/miloyip/rapidjson.git     (pinned by Scarab)
+    yaml-cpp   https://github.com/jbeder/yaml-cpp.git       (pinned by Scarab)
 
-Source/Time/Monarch is NOT fetched: Katydid_USE_MONARCH defaults OFF in CMakeLists.txt and
-nothing outside its own #ifdef touches it. Add it here if that ever changes.
+If Katydid's submodule pins change (e.g. moving to a newer Nymph release), update the `commit`
+value below to match - there is no automatic sync between this file and `.gitmodules`.
 
-Cicada is not yet wired in - it needs the rootcling/ROOT_GENERATE_DICTIONARY genrule support
-(root_dictionary.bzl), which hasn't been built yet. See NOTES.md.
+`Source/Time/Monarch` is intentionally not fetched here: `Katydid_USE_MONARCH` defaults off in
+the CMake build, and nothing outside its own `#ifdef` guard references it.
 
-We fetch rapidjson and yaml-cpp as their own top-level Bazel repos rather than relying on the
-copies nested inside Scarab's own submodule checkout - this avoids needing
-`git_repository(init_submodules = True)` (recursive submodule fetch inside a fetched repo,
-which is flaky) and keeps each dependency's pin independently visible here.
+rapidjson and yaml-cpp are fetched as their own top-level repositories, rather than relying on
+the copies nested inside Scarab's own submodule checkout. This avoids needing
+`git_repository(init_submodules = True)` (a recursive submodule fetch inside an already-fetched
+repository, which is unreliable) and keeps each dependency's pin independently visible here.
 """
 
 load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")

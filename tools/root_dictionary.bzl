@@ -1,23 +1,12 @@
 """Generates a ROOT dictionary (.cxx + _rdict.pcm) from a LinkDef header, replacing CMake's
-ROOT_GENERATE_DICTIONARY() macro (used by Nymph/Scarab's PackageBuilder-based CMakeLists.txt
-for Katydid's Transform/Utility/IO/EventAnalysis *Dict targets, and Cicada's CicadaDict).
+ROOT_GENERATE_DICTIONARY() macro. Used by Katydid's Utility and IO modules, and by Cicada.
 
-NOT YET RUN AGAINST REAL ROOT - this was written without a ROOT install available, so treat it
-as a first draft. `rootcling`'s exact flags have shifted a bit across ROOT versions
-historically, and Homebrew's ROOT (6.38/6.40) is considerably newer than what this project was
-written against (early ROOT 6.0x). Sanity-check by hand first if it misbehaves:
-
-    root-config --incdir --libdir --bindir
-    <bindir>/rootcling -f /tmp/Test.cxx -inlineInputHeader -I<your include dirs> <headers...> <LinkDef.h>
-
-and compare against what the original CMake build actually ran (`make VERBOSE=1` in a CMake
-build dir shows the real rootcling invocation, if you still have that Docker toolchain handy).
-
-This is deliberately a real Starlark rule, not a genrule: rootcling needs to see every header
-transitively reachable from the dictionary headers (Nymph/Scarab/Boost, not just the local
-module), and a genrule has no way to discover that automatically - only a rule that reads the
-CcInfo provider of `deps` can pull the real transitive include dirs and headers out of Bazel's
-own compilation-context bookkeeping.
+This is a real Starlark rule rather than a genrule, because rootcling needs to see every
+header transitively reachable from the dictionary headers (via Nymph, Scarab, Boost, and so
+on), not just the headers local to the module being built. A genrule has no way to discover
+that automatically; only a rule that reads the CcInfo provider of its `deps` can pull the
+real transitive include directories and headers out of Bazel's own compilation-context
+bookkeeping.
 """
 
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")

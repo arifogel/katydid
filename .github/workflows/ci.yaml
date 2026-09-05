@@ -7,9 +7,10 @@ on:
     branches: [main]
 
 env:
-  # Bump this (and nowhere else) to change the pinned Linux ROOT version. Confirmed against
-  # root.cern's own release page as a real, current binary distribution for Ubuntu 24.04 -
-  # https://root.cern/releases/release-64004/ - not just a URL that happens to resolve.
+  # The ROOT version used by the Ubuntu and AlmaLinux jobs below. Bump this (and nowhere else)
+  # to change it - both jobs' download URLs are built from this value. Confirm any new version
+  # is actually published for both platforms at https://root.cern/install/all_releases/ before
+  # bumping.
   ROOT_VERSION: "6.40.04"
 
 jobs:
@@ -25,22 +26,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      # --- Linux: apt for Boost/FFTW/MatIO (installs into default search paths, no discovery
-      # needed - see tools/system_deps.bzl), pinned root.cern tarball for ROOT (apt has no
-      # usable ROOT package on Ubuntu, and building it from source is not reasonable for CI).
-      # Deliberately NOT using install-ubuntu-24.04-build-deps.sh's equivs/.deb machinery here -
-      # that exists for clean removal on a persistent dev machine, which is moot on a runner
-      # that's destroyed after the job anyway.
+      # --- Linux: Boost, FFTW, and MatIO come from apt (which installs into locations the
+      # compiler already searches by default, so no further configuration is needed - see
+      # tools/system_deps.bzl). ROOT comes from a prebuilt binary published by the ROOT team,
+      # since Ubuntu does not package a usable ROOT build.
       #
-      # cache-apt-pkgs-action (not plain apt-get) so these are cached across runs too, same
-      # reasoning as the ROOT/Homebrew caching below - libmatio-dev alone pulls in libhdf5-dev
-      # transitively, which isn't a small download either.
-      #
-      # libtbb12 isn't one of Katydid's own dependencies - it's needed because the prebuilt
-      # rootcling binary (from the ROOT tarball below) dynamically links against libtbb.so.12,
-      # and root.cern's raw tarball doesn't bundle/relocate it the way Homebrew's bottles do.
-      # Once it's an ordinary apt package it lands in the default linker search path
-      # automatically - no LD_LIBRARY_PATH or rpath juggling needed.
+      # cache-apt-pkgs-action (rather than a plain `apt-get install`) caches these packages
+      # across CI runs. libtbb12 is not one of Katydid's own dependencies - it is a runtime
+      # dependency of the prebuilt `rootcling` binary fetched below, which (unlike the ROOT
+      # builds installed via Homebrew on macOS) does not bundle its own copy of everything it
+      # depends on.
       - name: Install Boost/FFTW/MatIO/TBB (Linux, cached)
         if: runner.os == 'Linux'
         uses: awalsh128/cache-apt-pkgs-action@553a35bb8ebd9fcabcb1c9451aa4c98e1b4ca8a9 # v1.6.3
@@ -74,9 +69,9 @@ jobs:
         if: runner.os == 'Linux'
         run: echo "/opt/root/bin" >> "$GITHUB_PATH"
 
-      # --- macOS: Homebrew is preinstalled on the runner, but root/boost/fftw/libmatio are not,
-      # and (like the Linux ROOT tarball) brew's own bottle downloads are large enough on a
-      # fully ephemeral runner to be worth caching across runs.
+      # --- macOS: Homebrew is preinstalled on GitHub's runners, but ROOT, Boost, FFTW, and
+      # MatIO are not, and are large enough downloads to be worth caching across CI runs even
+      # though each run starts from a fresh virtual machine.
       - name: Cache Homebrew downloads (macOS)
         if: runner.os == 'macOS'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
@@ -100,10 +95,11 @@ jobs:
       - name: Verify MODULE.bazel.lock is up to date and build everything
         run: bazel build //...
 
-  # Separate job, not a third matrix entry: GitHub Actions has a known, still-open issue
-  # (actions/runner#265) where using an empty-string `container:` value to mean "no container"
-  # on some matrix entries can fail workflow validation outright. Not worth that risk against
-  # the two platforms that already work - this stays fully independent, always containerized.
+  # AlmaLinux 9 is tested as its own job, inside the official almalinux:9 container image,
+  # rather than as a third value in the matrix above: GitHub Actions has a known issue
+  # (https://github.com/actions/runner/issues/265) where using an empty `container:` value to
+  # mean "run natively, no container" for some matrix combinations can fail workflow validation
+  # outright. A fully separate job avoids that risk entirely.
   build-and-test-almalinux:
     name: Bazel Build (almalinux-9)
     runs-on: ubuntu-latest
@@ -114,31 +110,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      # AlmaLinux 9 (RHEL family, dnf/EPEL) inside the official almalinux:9 container image -
-      # GitHub has no native AlmaLinux runner. gcc-c++ is needed for Bazel's own C++ toolchain
-      # autodetection to find a compiler at all in this minimal image - not a Katydid dependency
-      # itself. git is likewise not a Katydid dependency directly - it's needed because
-      # tools/non_bazel_deps.bzl fetches Nymph/Scarab/Cicada/rapidjson/yaml-cpp via Bazel's
-      # git_repository rule, which shells out to a real `git` binary; the minimal almalinux:9
-      # image doesn't include one by default (confirmed by the actual failure: "execvp(git, ...):
-      # No such file or directory").
+      # AlmaLinux is a RHEL-family Linux distribution, using dnf (and the EPEL and CRB add-on
+      # repositories) rather than apt. gcc-c++ and git are not Katydid dependencies as such -
+      # they are needed for Bazel itself to work at all (a C++ compiler, and the `git` command
+      # Bazel uses to fetch Katydid's own bundled dependencies), and are not present in this
+      # minimal container image by default.
       #
-      # xxhash-devel and tbb-devel aren't Katydid dependencies either - they're runtime shared
-      # library dependencies of the *prebuilt rootcling binary itself* (root.cern's raw AlmaLinux
-      # tarball doesn't bundle/relocate its own dependencies the way Homebrew's bottles do - same
-      # root cause as the libtbb12 issue hit on Ubuntu earlier, just a different library this
-      # time). xxhash-devel confirmed to live specifically in AlmaLinux 9.8's CRB repo (which we
-      # already enable) - the "Check ROOT binaries for missing shared libraries" step below exists
-      # specifically to catch any *other* ones like this in one shot, rather than discovering them
-      # one at a time through separate failed builds.
-      #
-      # Package names confirmed against the real AlmaLinux/EPEL package index, not assumed:
-      # boost-devel/fftw-devel/tbb-devel are all in AlmaLinux 9's own AppStream repo;
-      # matio-devel specifically needs EPEL (isn't in AppStream or CRB). CRB is enabled
-      # defensively even though the four Katydid deps don't appear to need it - costs nothing
-      # if unused, and RHEL's -devel-package-to-repo mapping isn't worth risking a first-run
-      # failure over. Container jobs run as root by default, so no sudo (and this minimal image
-      # may not even have it installed).
+      # xxhash-devel and tbb-devel are, like libtbb12 in the Ubuntu job above, not Katydid
+      # dependencies either - they are runtime dependencies of the prebuilt `rootcling` binary
+      # fetched below. matio-devel requires the EPEL repository; boost-devel, fftw-devel, and
+      # tbb-devel are in AlmaLinux's own default repository. CRB is enabled in case any future
+      # dependency needs it - enabling it costs nothing if unused.
       - name: Install build tools and Boost/FFTW/MatIO/TBB (dnf)
         run: |
           dnf install -y epel-release
@@ -154,17 +136,14 @@ jobs:
             tbb-devel \
             xxhash-devel
 
-      # keepcache=True above so downloaded RPMs survive a successful install (dnf's default is
-      # to delete them afterward) - otherwise this cache would restore nothing useful.
+      # keepcache=True above is needed for this cache to actually help: dnf deletes downloaded
+      # packages after a successful install by default.
       - name: Cache dnf packages
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: /var/cache/dnf
           key: dnf-cache-almalinux9
 
-      # root.cern's binary specifically targets AlmaLinux 9.8 (matches your actual Wulf cluster's
-      # 9.7 too - RHEL-family point releases are ABI-stable within a major version by design, so
-      # a 9.8 build runs identically on 9.7). Same ROOT_VERSION as the Ubuntu job above.
       - name: Cache ROOT
         id: cache-root-almalinux
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
@@ -179,18 +158,11 @@ jobs:
           wget -q -O /tmp/root.tar.gz "$ROOT_URL"
           tar -xzf /tmp/root.tar.gz -C /opt/
 
-      # root.cern's raw tarball doesn't bundle/relocate its own runtime dependencies (unlike
-      # Homebrew's bottles) - we've now hit two of these one at a time through separate failed
-      # builds (libtbb.so.12, then libxxhash.so.0). ldd resolves the FULL transitive dependency
-      # chain, not just direct links, so checking rootcling (the build-time tool) and the
-      # actual lib directory ldd resolves everything in it) surfaces every missing shared
-      # library in one shot, rather than discovering them one CI failure at a time.
-      # Uses root-config's full path directly (not relying on PATH) since "Add ROOT to PATH"
-      # hasn't run yet at this point in the job - and derives the lib directory from
-      # `root-config --libdir` rather than hardcoding a layout, since the exact directory
-      # structure a raw root.cern tarball extracts to isn't something to assume (Homebrew's
-      # /opt/homebrew/.../lib/root/ nesting seen elsewhere is a Homebrew-specific convention,
-      # not necessarily how this tarball lays out).
+      # The prebuilt ROOT binary depends on a number of shared libraries that are not always
+      # present on a fresh container image; missing ones surface as a build failure much later,
+      # inside the actual Bazel build. This step catches all of them at once, right after
+      # extracting ROOT, by asking the dynamic linker (ldd) to resolve rootcling's complete
+      # dependency chain up front.
       - name: Check ROOT binaries for missing shared libraries
         run: |
           ROOT_LIBDIR=$(/opt/root/bin/root-config --libdir)
@@ -205,25 +177,19 @@ jobs:
       - name: Add ROOT to PATH
         run: echo "/opt/root/bin" >> "$GITHUB_PATH"
 
-      # bazel-contrib/setup-bazel's automatic bazelisk installation didn't produce a working
-      # `bazel` on PATH inside this minimal container image (exact cause unconfirmed - possibly
-      # a missing tool its installer expects, possibly something else container-specific). Rather
-      # than debug that action's internals blind, install bazelisk explicitly and directly -
-      # this is the standard, widely-used pattern for exactly this situation (see e.g. Envoy's
-      # and IREE's own build docs, which do the identical wget-and-chmod).
+      # bazel-contrib/setup-bazel's usual automatic Bazel installation does not reliably work
+      # inside this minimal container image, so Bazelisk (the tool that installs the correct
+      # Bazel version automatically) is installed directly here instead, using the standard
+      # installation method documented by the Bazel project itself.
       - name: Install Bazelisk directly (works regardless of what setup-bazel's installer needs)
         run: |
           wget -q -O /usr/local/bin/bazel \
             https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-amd64
           chmod +x /usr/local/bin/bazel
 
-      # bazel-contrib/setup-bazel's own bazelisk-cache option *should* cover this, but its
-      # install logic already misbehaved once in this exact container (see the step above) -
-      # not assuming its caching logic is any more trustworthy here without separate
-      # confirmation. This is the actual expensive thing worth caching (a full Bazel release
-      # binary, 50-80MB+) - bazelisk itself is tiny and not worth caching on its own.
-      # Directory per bazelisk's own convention (Go's os.UserCacheDir(): $XDG_CACHE_HOME/bazelisk,
-      # else $HOME/.cache/bazelisk - root's HOME here, since container jobs run as root).
+      # Caches the actual Bazel release binary that Bazelisk downloads (much larger than
+      # Bazelisk itself), in case setup-bazel's own caching does not take effect reliably in
+      # this container the way it does on the native runners above.
       - name: Cache Bazelisk's downloaded Bazel binary
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:

@@ -193,7 +193,7 @@
   "moduleExtensions": {
     "//tools:non_bazel_deps.bzl%non_bazel_deps": {
       "general": {
-        "bzlTransitiveDigest": "G9HREfcLOloIinfjPbu+ixsbh5XLH1jJ0Va6nRrX0AU=",
+        "bzlTransitiveDigest": "c/OoewhufalUMF5u52kYjWMMi1vtyvgi/SoCl16E1ps=",
         "usagesDigest": "JmphGTaV6uYIkt0OqF5xvMo6SkI5JADUiCcHwux0/Ik=",
         "recordedInputs": [
           "REPO_MAPPING:,bazel_tools bazel_tools"
@@ -244,7 +244,7 @@
     },
     "//tools:system_deps.bzl%homebrew_deps": {
       "general": {
-        "bzlTransitiveDigest": "EK4TNV45s6cy6Odg7DXQURdD8B2ZhLnsBKeqNpj76aA=",
+        "bzlTransitiveDigest": "EUdEGdkEahsxCqttMG71A6FRvGcdrJhc8cuOG1BbQuM=",
         "usagesDigest": "mgmJnKeAVyB0XvFlm7bQLtJ2sL4FttkUFYLMwdk9SYE=",
         "recordedInputs": [],
         "generatedRepoSpecs": {

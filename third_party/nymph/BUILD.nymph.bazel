@@ -1,43 +1,16 @@
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 
-# BUILD file for @nymph (github.com/project8/nymph @ f3697b89f345894bc20c2c2d07fd553aa3b22de2).
+# BUILD file for @nymph (github.com/project8/nymph), the processing-framework library that
+# Katydid is built on top of (processors, data objects, the run-time application/configuration
+# system).
 #
-# Nymph/Library/CMakeLists.txt builds ONE combined library out of Utility/ + Data/ + Processor/ +
-# IO/ + Application/ (pbuilder_library( Nymph NYMPH_SOURCEFILES "" )) - mirrored here as one
-# cc_library. Source list copied exactly from that CMakeLists.txt, not globbed.
-#
-# Verified: Utility/ and Application/KTApplication.cc + KTCommandLineHandler.cc + KTConfigurator.cc
-# compile and link cleanly against Boost 1.83 + g++ (Linux), against real Scarab/rapidjson headers.
-# Data/, Processor/, IO/, and the rest of Application/ are included below for completeness (Katydid
-# needs them for modules beyond Utility) but have NOT been individually compile-tested yet.
-#
-# Python bindings (NymphPy) are skipped - Katydid_USE_PYTHON is off.
+# Nymph's Python bindings are not built here - Katydid does not use them.
 
 package(default_visibility = ["//visibility:public"])
 
 cc_library(
     name = "nymph",
     srcs = [
-        # Library/CMakeLists.txt: NYMPH_SOURCEFILES
-        "Library/Utility/KTCacheDirectory.cc",
-        "Library/Utility/KTConfigurable.cc",
-        "Library/Utility/KTDirectory.cc",
-        "Library/Utility/KTEventLoop.cc",
-        "Library/Utility/KTException.cc",
-        "Library/Utility/KTLogger.cc",
-        "Library/Utility/KTTime.cc",
-        "Library/Data/KTApplyCut.cc",
-        "Library/Data/KTCut.cc",
-        "Library/Data/KTCutFilter.cc",
-        "Library/Data/KTCutStatus.cc",
-        "Library/Data/KTData.cc",
-        "Library/Processor/KTPrimaryProcessor.cc",
-        "Library/Processor/KTProcessor.cc",
-        "Library/Processor/KTSignal.cc",
-        "Library/Processor/KTSignalWrapper.cc",
-        "Library/Processor/KTSlotWrapper.cc",
-        "Library/IO/KTReader.cc",
-        "Library/IO/KTWriter.cc",
         "Library/Application/KTApplication.cc",
         "Library/Application/KTCommandLineHandler.cc",
         "Library/Application/KTConfigurator.cc",
@@ -47,6 +20,25 @@ cc_library(
         "Library/Application/KTProcessorToolbox.cc",
         "Library/Application/KTRunNymph.cc",
         "Library/Application/KTThroughputProfiler.cc",
+        "Library/Data/KTApplyCut.cc",
+        "Library/Data/KTCut.cc",
+        "Library/Data/KTCutFilter.cc",
+        "Library/Data/KTCutStatus.cc",
+        "Library/Data/KTData.cc",
+        "Library/IO/KTReader.cc",
+        "Library/IO/KTWriter.cc",
+        "Library/Processor/KTPrimaryProcessor.cc",
+        "Library/Processor/KTProcessor.cc",
+        "Library/Processor/KTSignal.cc",
+        "Library/Processor/KTSignalWrapper.cc",
+        "Library/Processor/KTSlotWrapper.cc",
+        "Library/Utility/KTCacheDirectory.cc",
+        "Library/Utility/KTConfigurable.cc",
+        "Library/Utility/KTDirectory.cc",
+        "Library/Utility/KTEventLoop.cc",
+        "Library/Utility/KTException.cc",
+        "Library/Utility/KTLogger.cc",
+        "Library/Utility/KTTime.cc",
     ],
     hdrs = glob([
         "Library/Utility/*.hh",

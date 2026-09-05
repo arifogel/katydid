@@ -17,9 +17,9 @@ no explicit discovery at all - both install into the compiler/linker's default s
 paths, unlike Homebrew, which deliberately keeps things out of the way.
 
 Usage from a BUILD file: deps = ["@homebrew//:boost", "@homebrew//:fftw"]
-(the repo is still named "homebrew" even though it also covers apt on Linux now - renaming
-the exposed repo name would mean touching every BUILD file that references it, for no real
-benefit; only this file's own name changed, from tools/homebrew.bzl.)
+(the repository is named "homebrew" for historical reasons, even though it also covers
+apt/dnf on Linux - renaming it would mean touching every BUILD file that references it, for
+no real benefit.)
 """
 
 _MAC_FORMULAE = {
@@ -98,17 +98,15 @@ _LINUX_DNF_LIBS = {
     },
 }
 
-# Checked by looking for the actual header each library installs, NOT by asking the package
-# manager whether a specific package name is "installed" (dpkg -s / rpm -q). That used to be
-# the check here, and it produced a real false-negative failure: Ubuntu's boost packages use
-# transitional wrapper packages (e.g. libboost-filesystem-dev just Depends: on the real
-# libboost-filesystem1.83-dev), and a cache-hit restore from awalsh128/cache-apt-pkgs-action
-# doesn't fully register those transitional wrappers in dpkg's database, even though the real
-# headers/libraries are genuinely present and working - `dpkg -s libboost-filesystem-dev`
-# reported "not installed" on a build that was otherwise completely fine. Checking for the
-# header directly is immune to this: it's what we actually need, it's identical logic on both
-# apt and dnf (same /usr/include convention either way), and it can't be fooled by any package
-# manager's internal bookkeeping.
+# Checked by looking for the actual header each library installs, not by asking the package
+# manager whether a specific package name is "installed" (`dpkg -s` / `rpm -q`). The latter is
+# unreliable on Linux in a way worth avoiding: some package managers use "transitional" wrapper
+# packages for versioned libraries (e.g. Ubuntu's libboost-filesystem-dev simply depends on the
+# real libboost-filesystem1.83-dev), and some caching mechanisms used in CI do not reliably
+# register these wrapper packages, even though the underlying files are genuinely present and
+# working. Checking for the header directly avoids this: it is what is actually needed, it is
+# identical logic on both apt and dnf, and it cannot be fooled by a package manager's internal
+# bookkeeping.
 _LINUX_HEADER_CHECK = {
     "boost": "usr/include/boost/version.hpp",
     "fftw": "usr/include/fftw3.h",

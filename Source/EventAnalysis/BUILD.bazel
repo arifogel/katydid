@@ -1,16 +1,9 @@
-# Drop this file at Source/EventAnalysis/BUILD.bazel in the actual katydid checkout.
+# Builds Katydid's EventAnalysis module: processors that identify and classify particle tracks
+# and events from spectrogram data (clustering, cut classes, track/event builders, and
+# classifiers), plus the ROOT-based TMVA and linear density fitting processors.
 #
-# Mirrors Source/EventAnalysis/CMakeLists.txt's EVENTANALYSIS_HEADERFILES/SOURCEFILES exactly.
-# Like Transform, its ROOT_GENERATE_DICTIONARY call is fully commented out in this branch - no
-# root_dictionary() needed here despite the name-pattern similarity to Utility/IO/Cicada.
-# KTDLIBClassifier.cc/.hh excluded: gated on DLIB_FOUND, which is never true in this project's
-# actual config (Katydid_USE_DLIB off by default) - confirmed via #include inspection that
-# dlib/*.h usage is confined to exactly that one file.
-#
-# NOT YET BUILT/TESTED - and not testable until Source/IO exists (KATYDID_LIBS includes
-# KatydidIO). CutClasses/ gets its own includes entry, matching the top-level CMakeLists.txt's
-# own separate include_directories() entry for it (same "each subdir individually on the
-# search path" style seen in IO).
+# KTDLIBClassifier.cc/.hh is excluded here: it depends on the DLIB machine-learning library,
+# which is not part of Katydid's default configuration.
 
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 
@@ -29,37 +22,36 @@ cc_library(
         "CutClasses/KTMultiPeakTrackEventSequenceIDCut.cc",
         "CutClasses/KTMultiPeakTrackMultiplicityCut.cc",
         "CutClasses/KTNTracksNPointsNUPCut.cc",
+        "CutClasses/KTPowerFitCut.cc",
+        "CutClasses/KTProcessedTrackCut.cc",
         "CutClasses/KTSequentialLineNUPCut.cc",
         "CutClasses/KTSequentialLinePointDensityCut.cc",
         "CutClasses/KTSequentialLineSNRCut.cc",
-        "KTCollinearTrackClustering.cc",
-        "CutClasses/KTPowerFitCut.cc",
-        "CutClasses/KTProcessedTrackCut.cc",
-        "CutClasses/KTTrackMainbandCut.cc",
-        "CutClasses/KTTrackMVACut.cc",
         "CutClasses/KTTrackFreqCut.cc",
+        "CutClasses/KTTrackMVACut.cc",
+        "CutClasses/KTTrackMainbandCut.cc",
         "CutClasses/KTTrackTimeCut.cc",
-        "KTDataCutter.cc",
-        "KTDBSCANEventSIDClustering.cc",
+        "KTCollinearTrackClustering.cc",
         "KTDBSCANEventClustering.cc",
-        "KTDBSCANTrackClustering.cc",
+        "KTDBSCANEventSIDClustering.cc",
         "KTDBSCANLongTrackCollinearClustering.cc",
-        "KTMultiBandEventBuilder.cc",
+        "KTDBSCANTrackClustering.cc",
+        "KTDataCutter.cc",
         "KTFrequencyCandidateIdentifier.cc",
         "KTIterativeTrackClustering.cc",
+        "KTLinearDensityProbeFit.cc",
+        "KTMultiBandEventBuilder.cc",
         "KTMultiPeakEventBuilder.cc",
-        "KTMultiPeakTrackProcessing.cc",
         "KTMultiPeakTrackBuilder.cc",
+        "KTMultiPeakTrackProcessing.cc",
         "KTMultiSliceClustering.cc",
         "KTOverlappingTrackClustering.cc",
         "KTRPClassifier.cc",
         "KTSidebandCorrection.cc",
         "KTSpectrogramCollector.cc",
+        "KTTMVAClassifier.cc",
         "KTTrackProcessingDoubleCuts.cc",
         "KTTrackProcessingWeightedSlope.cc",
-        # ROOT_FOUND block - always true here (@homebrew//:root always provides real ROOT)
-        "KTLinearDensityProbeFit.cc",
-        "KTTMVAClassifier.cc",
     ],
     hdrs = glob([
         "*.hh",

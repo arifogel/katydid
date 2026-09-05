@@ -1,15 +1,13 @@
-# BUILD file for @cicada (github.com/Helium6CRES/cicada @ 329b058736771038c150933bc275448ca5f24245).
+# BUILD file for @cicada (github.com/Helium6CRES/cicada), Katydid's classifier-results data
+# format library.
 #
-# Mirrors Library/CMakeLists.txt's CICADA_SOURCEFILES + the ROOT_GENERATE_DICTIONARY(CicadaDict...)
-# call. Katydid's top-level CMakeLists.txt sets Cicada_ENABLE_KATYDID_NAMESPACE FALSE (overriding
-# Cicada's own default of ON), so the KTROOTData.hh/.cc + CicadaKTDict half of Library/CMakeLists.txt
-# is deliberately NOT built here - matches the actual Katydid configuration, not Cicada's standalone
-# default. Cicada_ADD_CICADA_PY is skipped entirely: it only templates+installs a convenience .py
-# file, nothing to compile, irrelevant to the C++ build.
+# Cicada supports two build configurations, controlled by whether classes live under a
+# "KT"-prefixed namespace; Katydid's configuration uses the non-namespaced variant, so the
+# KTROOTData/CicadaKTDict half of Cicada's own build is not built here. Cicada's optional Python
+# bindings are not built either - Katydid does not use them.
 #
-# Cicada needs no Nymph at all (verified via its actual #include list) - only @scarab (logger.hh,
-# _member_variables.hh) and ROOT (TObject.h, TClonesArray.h). Not yet compile-tested (no ROOT
-# available where this was written) - same caveats as tools/root_dictionary.bzl.
+# Cicada does not depend on Nymph - only on Scarab (for logging and reflection utilities) and
+# ROOT.
 
 load("@//tools:root_dictionary.bzl", "root_dictionary")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
@@ -19,10 +17,9 @@ package(default_visibility = ["//visibility:public"])
 cc_library(
     name = "cicada_headers",
     hdrs = glob(["Library/*.hh"]) + [
-        # CROOTData.cc does `#include "_CROOTData.cc"` - an old-school "private implementation
-        # file included, not separately compiled" idiom. It's never in CICADA_SOURCEFILES in
-        # the original CMakeLists.txt either. Needs to be visible in the sandbox as a header,
-        # even though it's a .cc.
+        # CROOTData.cc includes _CROOTData.cc directly, an older C++ idiom for splitting a
+        # class's implementation across multiple files without compiling each one separately.
+        # It needs to be visible to the compiler like a header, even though it is a .cc file.
         "Library/_CROOTData.cc",
     ],
     includes = ["Library"],
@@ -55,7 +52,7 @@ cc_library(
         "Library/CROOTData.cc",
         ":CicadaDict_cxx",
     ],
-    hdrs = glob(["Library/*.hh"]) + ["Library/_CROOTData.cc"],  # see cicada_headers above
+    hdrs = glob(["Library/*.hh"]) + ["Library/_CROOTData.cc"],
     data = [":CicadaDict_pcm"],
     defines = ["USE_CPP11"],
     includes = ["Library"],

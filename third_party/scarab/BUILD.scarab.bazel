@@ -1,25 +1,20 @@
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 
-# BUILD file for @scarab (github.com/project8/scarab @ ef2af248c5db7c92c84952a57759ba0f145f6cd4).
+# BUILD file for @scarab (github.com/project8/scarab), the common utility library shared by
+# Nymph, Cicada, and other Project 8 software (configuration parsing, logging, and related
+# infrastructure).
 #
-# Scarab's own library/CMakeLists.txt builds ONE combined library out of
-# utility/ + logger/ + param/ + param/codec/json/ + param/codec/yaml/ + authentication/
-# (see pbuilder_library( Scarab Scarab_SOURCES "" ) there) - this mirrors that with one
-# cc_library rather than one target per subdirectory, matching what Katydid/Nymph actually
-# link against. Source lists are copied exactly from each subdirectory's CMakeLists.txt
-# rather than globbed, to avoid silently picking up test/ files.
-#
-# Verified: compiles and links cleanly against Boost 1.83 + g++ (Linux) as of this port.
-# param/codec/msgpack/ is NOT built here - Katydid never turns Scarab_BUILD_CODEC_MSGPACK on.
+# Scarab's optional MessagePack configuration codec is not built here - Katydid's
+# configuration only uses Scarab's JSON and YAML codecs.
 
 package(default_visibility = ["//visibility:public"])
 
+# Scarab's version and build metadata are normally filled in by CMake at configure time;
+# substituted here the same way, from Scarab's own VERSION file and pinned commit.
 genrule(
     name = "scarab_version_cc",
     srcs = ["library/utility/scarab_version.cc.in"],
     outs = ["scarab_version.cc"],
-    # Mirrors CMake's configure_file() substitution of library/CMakeLists.txt's project(Scarab
-    # VERSION ...) (read from Scarab/VERSION = "1 6 3") and pbuilder_prepare_project()'s git info.
     cmd = """
         sed -e 's/@Scarab_VERSION_MAJOR@/1/' \
             -e 's/@Scarab_VERSION_MINOR@/6/' \
@@ -34,7 +29,16 @@ genrule(
 cc_library(
     name = "scarab",
     srcs = [
-        # library/utility/CMakeLists.txt
+        "library/authentication/authentication.cc",
+        "library/logger/logger.cc",
+        "library/param/codec/json/param_json.cc",
+        "library/param/codec/yaml/param_yaml.cc",
+        "library/param/configurator.cc",
+        "library/param/global_config.cc",
+        "library/param/param.cc",
+        "library/param/param_codec.cc",
+        "library/param/parsable.cc",
+        "library/param/parser.cc",
         "library/utility/cancelable.cc",
         "library/utility/digital.cc",
         "library/utility/error.cc",
@@ -42,21 +46,6 @@ cc_library(
         "library/utility/time.cc",
         "library/utility/typename.cc",
         ":scarab_version_cc",
-        # library/logger/CMakeLists.txt
-        "library/logger/logger.cc",
-        # library/param/CMakeLists.txt
-        "library/param/configurator.cc",
-        "library/param/global_config.cc",
-        "library/param/param.cc",
-        "library/param/param_codec.cc",
-        "library/param/parsable.cc",
-        "library/param/parser.cc",
-        # library/param/codec/json/CMakeLists.txt
-        "library/param/codec/json/param_json.cc",
-        # library/param/codec/yaml/CMakeLists.txt
-        "library/param/codec/yaml/param_yaml.cc",
-        # library/authentication/CMakeLists.txt
-        "library/authentication/authentication.cc",
     ],
     hdrs = glob([
         "library/utility/*.hh",
@@ -67,8 +56,6 @@ cc_library(
         "library/authentication/*.hh",
     ]),
     defines = [
-        # From library/CMakeLists.txt: add_definitions( -DRAPIDJSON_FILE_BUFFER_SIZE=... )
-        # and -DUSE_CODEC_JSON, and PackageBuilder.cmake's -DUSE_CPP11.
         "RAPIDJSON_FILE_BUFFER_SIZE=65536",
         "USE_CODEC_JSON",
         "USE_CPP11",

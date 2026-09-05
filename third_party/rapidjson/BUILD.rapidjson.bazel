@@ -1,7 +1,7 @@
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 
-# BUILD file for @rapidjson (github.com/miloyip/rapidjson @ 5de06bfa37495b529dc00139f1b138a526fff27a),
-# pinned by Scarab. Header-only.
+# BUILD file for @rapidjson (github.com/miloyip/rapidjson), a header-only JSON library used by
+# Scarab to read Katydid's JSON configuration files.
 
 package(default_visibility = ["//visibility:public"])
 
