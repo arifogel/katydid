@@ -103,6 +103,81 @@ jobs:
       - name: Verify MODULE.bazel.lock is up to date and build everything
         run: bazel build --lockfile_mode=error //...
 
+  # Separate job, not a third matrix entry: GitHub Actions has a known, still-open issue
+  # (actions/runner#265) where using an empty-string `container:` value to mean "no container"
+  # on some matrix entries can fail workflow validation outright. Not worth that risk against
+  # the two platforms that already work - this stays fully independent, always containerized.
+  build-and-test-almalinux:
+    name: Bazel Build (almalinux-9)
+    runs-on: ubuntu-latest
+    container:
+      image: almalinux:9
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      # AlmaLinux 9 (RHEL family, dnf/EPEL) inside the official almalinux:9 container image -
+      # GitHub has no native AlmaLinux runner. gcc-c++ is needed for Bazel's own C++ toolchain
+      # autodetection to find a compiler at all in this minimal image - not a Katydid dependency
+      # itself. Package names confirmed against the real AlmaLinux/EPEL package index, not
+      # assumed: boost-devel/fftw-devel/tbb-devel are all in AlmaLinux 9's own AppStream repo;
+      # matio-devel specifically needs EPEL (isn't in AppStream or CRB). CRB is enabled
+      # defensively even though none of these four appear to need it - costs nothing if unused,
+      # and RHEL's -devel-package-to-repo mapping isn't worth risking a first-run failure over.
+      # Container jobs run as root by default, so no sudo (and this minimal image may not even
+      # have it installed).
+      - name: Install build tools and Boost/FFTW/MatIO/TBB (dnf)
+        run: |
+          dnf install -y epel-release
+          dnf config-manager --set-enabled crb
+          dnf install -y --setopt=keepcache=True \
+            gcc-c++ \
+            wget \
+            tar \
+            boost-devel \
+            fftw-devel \
+            matio-devel \
+            tbb-devel
+
+      # keepcache=True above so downloaded RPMs survive a successful install (dnf's default is
+      # to delete them afterward) - otherwise this cache would restore nothing useful.
+      - name: Cache dnf packages
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: /var/cache/dnf
+          key: dnf-cache-almalinux9
+
+      # root.cern's binary specifically targets AlmaLinux 9.8 (matches your actual Wulf cluster's
+      # 9.7 too - RHEL-family point releases are ABI-stable within a major version by design, so
+      # a 9.8 build runs identically on 9.7). Same ROOT_VERSION as the Ubuntu job above.
+      - name: Cache ROOT
+        id: cache-root-almalinux
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: /opt/root
+          key: root-almalinux9-${{ env.ROOT_VERSION }}-gcc11.5
+
+      - name: Download and extract ROOT
+        if: steps.cache-root-almalinux.outputs.cache-hit != 'true'
+        run: |
+          ROOT_URL="https://root.cern/download/root_v${ROOT_VERSION}.Linux-almalinux9.8-x86_64-gcc11.5.tar.gz"
+          wget -q -O /tmp/root.tar.gz "$ROOT_URL"
+          tar -xzf /tmp/root.tar.gz -C /opt/
+
+      - name: Add ROOT to PATH
+        run: echo "/opt/root/bin" >> "$GITHUB_PATH"
+
+      - name: Set up Bazel & Caching
+        uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # 0.19.0
+        with:
+          bazelisk-cache: true
+          repository-cache: true
+          disk-cache: true
+
+      - name: Verify MODULE.bazel.lock is up to date and build everything
+        run: bazel build --lockfile_mode=error //...
+
   lint-and-format:
     runs-on: ubuntu-latest
     steps:

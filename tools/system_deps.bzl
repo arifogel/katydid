@@ -1,18 +1,20 @@
 """Wraps system-provided libraries (Boost, FFTW, MatIO, ROOT) as cc_library targets - via
-Homebrew on macOS, via apt on Linux. ROOT is handled the same way on both: neither path
-assumes Homebrew or apt actually provides it (apt's ROOT packaging is inconsistent across
-Ubuntu releases, and building ROOT from source is squarely "unreasonable to build from
-source" territory) - instead this just requires `root-config` to already be on PATH,
-however it got there (a Homebrew symlink, or a prebuilt tarball from root.cern extracted
-somewhere like /opt/root with its bin/ added to PATH - both work identically here, since
-root-config is ROOT's own official query tool regardless of how it was installed).
+Homebrew on macOS, via apt or dnf on Linux (whichever is actually on PATH - not a hardcoded
+distro list, so this doesn't need editing again for the next Linux flavor that shows up).
+ROOT is handled the same way on every OS: none of the three assume the package manager
+actually provides it (apt's/dnf's ROOT packaging is inconsistent-to-nonexistent across
+distros, and building ROOT from source is squarely "unreasonable to build from source"
+territory) - instead this just requires `root-config` to already be on PATH, however it got
+there (a Homebrew symlink, or a prebuilt tarball from root.cern extracted somewhere like
+/opt/root with its bin/ added to PATH - all work identically here, since root-config is
+ROOT's own official query tool regardless of how it was installed).
 
 This is a deliberate trade: none of this is built hermetically by Bazel, and the exact
 version you get depends on what's already on the machine. In exchange, there's no need to
 compile ROOT from source inside the Bazel graph (slow, and not something the Bazel
-ecosystem supports out of the box), and on Linux, apt-installed Boost/FFTW/MatIO need no
-explicit discovery at all - apt installs into the compiler/linker's default search paths,
-unlike Homebrew, which deliberately keeps things out of the way.
+ecosystem supports out of the box), and on Linux, apt/dnf-installed Boost/FFTW/MatIO need
+no explicit discovery at all - both install into the compiler/linker's default search
+paths, unlike Homebrew, which deliberately keeps things out of the way.
 
 Usage from a BUILD file: deps = ["@homebrew//:boost", "@homebrew//:fftw"]
 (the repo is still named "homebrew" even though it also covers apt on Linux now - renaming
@@ -56,7 +58,7 @@ _MAC_FORMULAE = {
 # libmatio.so symlink needed for a plain -lmatio to resolve, same pattern as most -dev packages.
 _LINUX_APT_LIBS = {
     "boost": {
-        "apt_packages": [
+        "packages": [
             "libboost-filesystem-dev",
             "libboost-thread-dev",
             "libboost-date-time-dev",
@@ -65,18 +67,65 @@ _LINUX_APT_LIBS = {
         "libs": ["boost_filesystem", "boost_thread", "boost_date_time", "boost_program_options"],
     },
     "fftw": {
-        "apt_packages": ["libfftw3-dev"],
+        "packages": ["libfftw3-dev"],
         "libs": ["fftw3"],
         "defines": ["FFTW_FOUND"],
     },
     "matio": {
-        "apt_packages": ["libmatio-dev"],
+        "packages": ["libmatio-dev"],
+        "libs": ["matio"],
+    },
+}
+
+# AlmaLinux 9 / RHEL 9 family (dnf). Same "no -I/-L needed" reasoning as apt - dnf also installs
+# into the compiler/linker's default search paths. Package names confirmed against the real
+# AlmaLinux/EPEL package index, not assumed: boost-devel/fftw-devel/tbb-devel all live in
+# AlmaLinux 9's own AppStream repo; matio-devel specifically needs EPEL
+# (`dnf install epel-release`) - it isn't in AppStream or CRB.
+_LINUX_DNF_LIBS = {
+    "boost": {
+        "packages": ["boost-devel"],
+        "libs": ["boost_filesystem", "boost_thread", "boost_date_time", "boost_program_options"],
+    },
+    "fftw": {
+        "packages": ["fftw-devel"],
+        "libs": ["fftw3"],
+        "defines": ["FFTW_FOUND"],
+    },
+    "matio": {
+        "packages": ["matio-devel"],
         "libs": ["matio"],
     },
 }
 
 def _is_macos(repository_ctx):
     return repository_ctx.os.name.lower().startswith("mac")
+
+# Distinguishes apt-based vs dnf-based Linux by which package manager binary is actually on
+# PATH, rather than parsing /etc/os-release or hardcoding a list of distro names - robust to
+# whatever distro shows up next without needing this file edited again.
+def _linux_pkg_manager(repository_ctx):
+    if repository_ctx.which("apt-get"):
+        return "apt", _LINUX_APT_LIBS
+    if repository_ctx.which("dnf"):
+        return "dnf", _LINUX_DNF_LIBS
+    fail(
+        "Could not find `apt-get` or `dnf` on PATH - tools/system_deps.bzl doesn't know how " +
+        "to install Boost/FFTW/MatIO on this Linux distro yet. Add a branch for it (see the " +
+        "existing apt/dnf ones for the pattern).",
+    )
+
+def _check_and_report_missing(repository_ctx, check_cmd, packages, install_hint):
+    missing = []
+    for pkg in packages:
+        result = repository_ctx.execute(check_cmd + [pkg])
+        if result.return_code != 0:
+            missing.append(pkg)
+    if missing:
+        fail("Missing package(s): {missing}\nRun:\n  {hint}".format(
+            missing = ", ".join(missing),
+            hint = install_hint.format(pkgs = " ".join(missing)),
+        ))
 
 def _root_config_not_found_error():
     return (
@@ -186,24 +235,20 @@ cc_library(
 """.format(formula = formula, defines = repr(info.get("defines", [])), linkopts = repr(linkopts)))
 
     else:
-        for formula, info in _LINUX_APT_LIBS.items():
-            missing = []
-            for pkg in info["apt_packages"]:
-                result = repository_ctx.execute(["dpkg", "-s", pkg])
-                if result.return_code != 0:
-                    missing.append(pkg)
-            if missing:
-                fail(
-                    "Missing apt package(s) for {formula}: {missing}\nRun:\n  sudo apt install {pkgs}".format(
-                        formula = formula,
-                        missing = ", ".join(missing),
-                        pkgs = " ".join(info["apt_packages"]),
-                    ),
-                )
+        pkg_manager, linux_libs = _linux_pkg_manager(repository_ctx)
+        if pkg_manager == "apt":
+            check_cmd = ["dpkg", "-s"]
+            install_hint = "sudo apt install {pkgs}"
+        else:  # dnf
+            check_cmd = ["rpm", "-q"]
+            install_hint = "sudo dnf install {pkgs}"
+
+        for formula, info in linux_libs.items():
+            _check_and_report_missing(repository_ctx, check_cmd, info["packages"], install_hint)
 
             linkopts = ["-l" + lib for lib in info["libs"]]
 
-            # No hdrs/includes: apt already put the headers on the compiler's default system
+            # No hdrs/includes: apt/dnf already put the headers on the compiler's default system
             # include path (/usr/include), which Bazel's auto-configured C++ toolchain always
             # allows inside the sandbox - the same mechanism that makes <vector>/<stdio.h> work
             # without declaring them as hdrs on any target.
