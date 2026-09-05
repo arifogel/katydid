@@ -244,7 +244,7 @@
     },
     "//tools:system_deps.bzl%homebrew_deps": {
       "general": {
-        "bzlTransitiveDigest": "Cq3PXCz0LkDGXdFrzaBHzpYWCE9kyg6NLSnxOp4Gg/k=",
+        "bzlTransitiveDigest": "UppwnSeoV2gcxhWQu6RPFdilg8LxMT5wkmshpvbNY4U=",
         "usagesDigest": "mgmJnKeAVyB0XvFlm7bQLtJ2sL4FttkUFYLMwdk9SYE=",
         "recordedInputs": [],
         "generatedRepoSpecs": {
