@@ -32,11 +32,15 @@ jobs:
       # since Ubuntu does not package a usable ROOT build.
       #
       # cache-apt-pkgs-action (rather than a plain `apt-get install`) caches these packages
-      # across CI runs. libtbb12 is not one of Katydid's own dependencies - it is a runtime
-      # dependency of the prebuilt `rootcling` binary fetched below, which (unlike the ROOT
-      # builds installed via Homebrew on macOS) does not bundle its own copy of everything it
-      # depends on.
-      - name: Install Boost/FFTW/MatIO/TBB (Linux, cached)
+      # across CI runs. libtbb12 and libblas3 are not Katydid's own dependencies - they are
+      # runtime dependencies of ROOT's own prebuilt binaries and shared libraries (rootcling
+      # itself needs libtbb12; every test binary here links ROOT's shared libraries, which need
+      # libblas3), which (unlike the ROOT build installed via Homebrew on macOS) does not
+      # bundle its own copy of everything it depends on. A missing one here doesn't show up
+      # until every single test fails at runtime with a bare "Exit 127" - see the "Check a
+      # built test binary" step below, which exists specifically to catch this class of
+      # problem with a clear error message instead.
+      - name: Install Boost/FFTW/MatIO/ROOT runtime deps (Linux, cached)
         if: runner.os == 'Linux'
         uses: awalsh128/cache-apt-pkgs-action@553a35bb8ebd9fcabcb1c9451aa4c98e1b4ca8a9 # v1.6.3
         with:
@@ -48,6 +52,7 @@ jobs:
             libfftw3-dev
             libmatio-dev
             libtbb12
+            libblas3
           version: 1.0
 
       - name: Cache ROOT (Linux)
@@ -137,10 +142,16 @@ jobs:
       #
       # xxhash-devel and tbb-devel are, like libtbb12 in the Ubuntu job above, not Katydid
       # dependencies either - they are runtime dependencies of the prebuilt `rootcling` binary
-      # fetched below. matio-devel requires the EPEL repository; boost-devel, fftw-devel, and
-      # tbb-devel are in AlmaLinux's own default repository. CRB is enabled in case any future
-      # dependency needs it - enabling it costs nothing if unused.
-      - name: Install build tools and Boost/FFTW/MatIO/TBB (dnf)
+      # fetched below. freetype and gsl are the same category again, but for ROOT's own shared
+      # libraries rather than rootcling specifically: every test binary here links ROOT, which
+      # needs both at runtime (font rendering and linear algebra, respectively). A missing one
+      # here doesn't show up until every single test fails at runtime with a bare "Exit 127" -
+      # see the "Check a built test binary" step below, which exists specifically to catch this
+      # class of problem with a clear error message instead. matio-devel requires the EPEL
+      # repository; boost-devel, fftw-devel, tbb-devel, freetype, and gsl are in AlmaLinux's own
+      # default repository. CRB is enabled in case any future dependency needs it - enabling it
+      # costs nothing if unused.
+      - name: Install build tools and Boost/FFTW/MatIO/ROOT runtime deps (dnf)
         run: |
           dnf install -y epel-release
           dnf config-manager --set-enabled crb
@@ -153,7 +164,9 @@ jobs:
             fftw-devel \
             matio-devel \
             tbb-devel \
-            xxhash-devel
+            xxhash-devel \
+            freetype \
+            gsl
 
       # keepcache=True above is needed for this cache to actually help: dnf deletes downloaded
       # packages after a successful install by default.
