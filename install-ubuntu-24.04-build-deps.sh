@@ -10,7 +10,7 @@ Package: katydid-build-deps
 Version: 1.0
 Architecture: all
 Maintainer: Your Name <you@example.com>
-Depends: libboost-filesystem-dev, libboost-thread-dev, libboost-date-time-dev, libboost-program-options-dev, libfftw3-dev, libmatio-dev, libtbb12
+Depends: libboost-filesystem-dev, libboost-thread-dev, libboost-date-time-dev, libboost-program-options-dev, libfftw3-dev, libmatio-dev, libtbb12, libblas3
 Description: Build dependencies for katydid-bazel
  Dummy metapackage so the underlying -dev packages can be
  removed as a unit via apt autoremove.
