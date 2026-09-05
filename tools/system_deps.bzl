@@ -16,10 +16,7 @@ ecosystem supports out of the box), and on Linux, apt/dnf-installed Boost/FFTW/M
 no explicit discovery at all - both install into the compiler/linker's default search
 paths, unlike Homebrew, which deliberately keeps things out of the way.
 
-Usage from a BUILD file: deps = ["@homebrew//:boost", "@homebrew//:fftw"]
-(the repository is named "homebrew" for historical reasons, even though it also covers
-apt/dnf on Linux - renaming it would mean touching every BUILD file that references it, for
-no real benefit.)
+Usage from a BUILD file: deps = ["@system_libs//:boost", "@system_libs//:fftw"]
 """
 
 _MAC_FORMULAE = {
@@ -39,7 +36,7 @@ _MAC_FORMULAE = {
         "libs": ["fftw3"],
         # Katydid's code checks #ifdef FFTW_FOUND (e.g. Data/Time/KTPhysicalArrayFFTW.hh) to
         # choose between real fftw3.h and a bundled stand-in header. Defining it here, once,
-        # propagates transitively to every target that depends on @homebrew//:fftw (directly
+        # propagates transitively to every target that depends on @system_libs//:fftw (directly
         # or via Utility) - same as CMake's `add_definitions(-DFFTW_FOUND)` did project-wide.
         "defines": ["FFTW_FOUND"],
     },
@@ -149,7 +146,7 @@ def _root_config_not_found_error():
         "Or adjust tools/system_deps.bzl if ROOT lives somewhere else."
     )
 
-def _homebrew_repo_impl(repository_ctx):
+def _system_libs_repo_impl(repository_ctx):
     is_macos = _is_macos(repository_ctx)
 
     build_file_parts = ['load("@rules_cc//cc:cc_library.bzl", "cc_library")']
@@ -274,12 +271,12 @@ cc_library(
 
     repository_ctx.file("BUILD.bazel", "\n".join(build_file_parts))
 
-_homebrew_repo = repository_rule(
-    implementation = _homebrew_repo_impl,
+_system_libs_repo = repository_rule(
+    implementation = _system_libs_repo_impl,
     local = True,  # re-evaluate every build so `brew upgrade`/`apt install`/etc. is picked up
 )
 
-def _homebrew_deps_impl(_module_ctx):
-    _homebrew_repo(name = "homebrew")
+def _system_deps_impl(_module_ctx):
+    _system_libs_repo(name = "system_libs")
 
-homebrew_deps = module_extension(implementation = _homebrew_deps_impl)
+system_deps = module_extension(implementation = _system_deps_impl)

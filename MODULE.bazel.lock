@@ -242,14 +242,14 @@
         }
       }
     },
-    "//tools:system_deps.bzl%homebrew_deps": {
+    "//tools:system_deps.bzl%system_deps": {
       "general": {
-        "bzlTransitiveDigest": "EUdEGdkEahsxCqttMG71A6FRvGcdrJhc8cuOG1BbQuM=",
-        "usagesDigest": "mgmJnKeAVyB0XvFlm7bQLtJ2sL4FttkUFYLMwdk9SYE=",
+        "bzlTransitiveDigest": "C3mhY8oIo/2Q6VxTG0W91TZMKMzYpmlBijzsWwJ3AfM=",
+        "usagesDigest": "PFljPu5vgSoTlnuznl8mgsJAHt0kfmdVZ9S4XCZ1Usk=",
         "recordedInputs": [],
         "generatedRepoSpecs": {
-          "homebrew": {
-            "repoRuleId": "@@//tools:system_deps.bzl%_homebrew_repo",
+          "system_libs": {
+            "repoRuleId": "@@//tools:system_deps.bzl%_system_libs_repo",
             "attributes": {}
           }
         }

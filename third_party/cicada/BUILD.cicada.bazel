@@ -24,8 +24,8 @@ cc_library(
     ],
     includes = ["Library"],
     deps = [
-        "@homebrew//:root",
         "@scarab",
+        "@system_libs//:root",
     ],
 )
 
@@ -57,7 +57,7 @@ cc_library(
     defines = ["USE_CPP11"],
     includes = ["Library"],
     deps = [
-        "@homebrew//:root",
         "@scarab",
+        "@system_libs//:root",
     ],
 )

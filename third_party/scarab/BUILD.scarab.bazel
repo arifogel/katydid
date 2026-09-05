@@ -69,8 +69,8 @@ cc_library(
         "library/utility",
     ],
     deps = [
-        "@homebrew//:boost",
         "@rapidjson",
+        "@system_libs//:boost",
         "@yaml_cpp",
     ],
 )
