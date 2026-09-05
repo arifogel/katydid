@@ -74,6 +74,13 @@ jobs:
             libmatio-dev \
             libtbb12 \
             libblas3
+          # lock and partial/ are apt's own root-owned runtime bookkeeping, not downloaded
+          # package files - the cache step above only wants the actual .deb files. Left in
+          # place, both are unreadable by the (non-root) runner user, and the post-job cache
+          # save step fails outright trying to archive them ("Permission denied"), taking the
+          # whole cache down with it rather than just skipping these two paths.
+          sudo rm -f /var/cache/apt/archives/lock
+          sudo rm -rf /var/cache/apt/archives/partial
 
       - name: Cache ROOT (Linux)
         if: runner.os == 'Linux'
