@@ -1,0 +1,27 @@
+--- a/library/utility/destroyer.hh	2026-09-05 06:00:47.049390992 +0000
++++ b/library/utility/destroyer.hh	2026-09-05 06:00:59.668397190 +0000
+@@ -38,7 +38,23 @@
+     template< class XDoomed >
+     destroyer< XDoomed >::~destroyer()
+     {
+-        delete f_doomed;
++        // Intentionally does NOT delete f_doomed here (patched - see
++        // third_party/scarab/destroyer-no-delete-at-exit.patch for the full explanation).
++        //
++        // This destroyer and the owning singleton<x_type>'s std::mutex are separate objects
++        // with static storage duration, and the C++ standard does not guarantee the order in
++        // which static destructors run relative to each other - both across different
++        // singleton<T> instantiations and across translation units. If f_doomed's destructor
++        // touches a mutex (its own, or another singleton's, e.g. via a factory registry) that
++        // has already been destroyed, locking it fails and the program aborts at exit
++        // ("mutex lock failed: Invalid argument" on libc++). Leaking this object at process
++        // exit - letting the OS reclaim the memory instead of running its destructor - avoids
++        // the entire hazard rather than trying to fix a specific ordering, and is standard
++        // practice for long-lived registry/singleton objects like this one.
++        //
++        // kill_instance()/delete_instance() are unaffected by this change and still fully
++        // destroy and recreate the instance normally during regular program execution - only
++        // static-destruction-time cleanup at process exit is skipped.
+     }
+ 
+     template< class XDoomed >

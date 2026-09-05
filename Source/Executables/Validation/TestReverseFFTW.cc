@@ -100,8 +100,8 @@ int main()
     fsHist->SetDirectory(file);
     tsHist->Write();
     fsHist->Write();
-    //file->Close();
-    //delete file;
+    file->Close();
+    delete file;
 #endif
 
     // Use Parseval's theorem to check the normalization of the FFT

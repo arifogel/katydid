@@ -30,6 +30,15 @@ def _non_bazel_deps_impl(_module_ctx):
         remote = "https://github.com/project8/scarab.git",
         commit = "ef2af248c5db7c92c84952a57759ba0f145f6cd4",
         build_file = "//third_party/scarab:BUILD.scarab.bazel",
+        # Fixes two real static-destruction-order bugs in Scarab's own singleton/factory/logger
+        # machinery, both discovered via the same symptom: a program that completes successfully
+        # but then crashes on exit with "mutex lock failed: Invalid argument" while destroying
+        # static/global objects. See the patch files themselves for the full explanation of each.
+        patches = [
+            "//third_party/scarab:destroyer-no-delete-at-exit.patch",
+            "//third_party/scarab:logger-leak-mutex-at-exit.patch",
+        ],
+        patch_args = ["-p1"],
     )
 
     git_repository(

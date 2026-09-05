@@ -1,0 +1,6 @@
+# Exposes GaussianKernel.json so it can be used as a `data` dependency by
+# Source/Executables/Validation:TestConvolution1D, which reads it as a sample convolution
+# kernel. This directory had no BUILD.bazel at all before - nothing else here is built or
+# referenced by anything else in the Bazel graph, so this stays minimal on purpose.
+
+exports_files(["GaussianKernel.json"])

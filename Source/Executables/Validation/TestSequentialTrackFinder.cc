@@ -74,7 +74,10 @@ KTDiscriminatedPoints1DData createFakeData(unsigned sliceNumber, double timeBinW
 
         double power = powerDistribution();
         unsigned iBin = yBin();
-        disc1d.AddPoint(iBin, KTDiscriminatedPoints1DData::Point(freqBinWidth*((double)iBin + 0.5), power, threshold, pointPowerMean, pointPowerStd, 2*power), component);
+        // KTDiscriminatedPoints1DData::Point's constructor takes a 7th argument
+        // (neighborhoodAmplitude) that these calls were missing; using the point's own power as
+        // a reasonable synthetic value, consistent with how the other fields here are populated.
+        disc1d.AddPoint(iBin, KTDiscriminatedPoints1DData::Point(freqBinWidth*((double)iBin + 0.5), power, threshold, pointPowerMean, pointPowerStd, 2*power, power), component);
         KTDEBUG(testlog, "Adding point: "<<iBin<<" "<<freqBinWidth* ((double)iBin + 0.5)<<" "<<power);
     }
     // track points
@@ -82,14 +85,14 @@ KTDiscriminatedPoints1DData createFakeData(unsigned sliceNumber, double timeBinW
     {
         double power = powerDistribution();
         unsigned iBin = trackIntercept + trackSlope*(sliceNumber - trackStart);
-        disc1d.AddPoint(iBin, KTDiscriminatedPoints1DData::Point(freqBinWidth*((double)iBin + 0.5), power, threshold, pointPowerMean,pointPowerStd, 2*power), component);
+        disc1d.AddPoint(iBin, KTDiscriminatedPoints1DData::Point(freqBinWidth*((double)iBin + 0.5), power, threshold, pointPowerMean,pointPowerStd, 2*power, power), component);
         KTDEBUG(testlog, "Adding track point: "<<iBin<<" "<<freqBinWidth* ((double)iBin + 0.5)<<" "<<power);
     }
     if (sliceNumber >= trackStart2 and sliceNumber < trackStart2 + trackLength)
         {
             double power = powerDistribution();
             unsigned iBin = trackIntercept + trackSlope*(sliceNumber - trackStart);
-            disc1d.AddPoint(iBin, KTDiscriminatedPoints1DData::Point(freqBinWidth * ((double)iBin + 0.5), power, threshold, pointPowerMean, pointPowerStd, 2*power), component);
+            disc1d.AddPoint(iBin, KTDiscriminatedPoints1DData::Point(freqBinWidth * ((double)iBin + 0.5), power, threshold, pointPowerMean, pointPowerStd, 2*power, power), component);
             KTDEBUG(testlog, "Adding track point: "<<iBin<<" "<<freqBinWidth* ((double)iBin + 0.5)<<" "<<power);
         }
     return disc1d;
@@ -285,14 +288,27 @@ int main()
     KTINFO(testlog, "Total ITC Points: "<<ITCPoints);
 
 #ifdef ROOT_FOUND
-    KTROOTTreeWriter writer;
-    writer.SetFilename("TestSequentialLineData_output.root");
-    writer.SetFileFlag("recreate");
+    // itccandidates can legitimately be empty here - the cut loop above can filter every
+    // candidate out, and the underlying clustering itself has produced zero candidates in
+    // every run so far with this test's synthetic data and parameters. The previous code
+    // unconditionally dereferenced itccandidates.begin(), which is itccandidates.end() when
+    // the set is empty - dereferencing that is undefined behavior, and manifested as a
+    // shared_ptr constructed from garbage, crashing when its reference count is incremented.
+    if (! itccandidates.empty())
+    {
+        KTROOTTreeWriter writer;
+        writer.SetFilename("TestSequentialLineData_output.root");
+        writer.SetFileFlag("recreate");
 
-    KTROOTTreeTypeWriterEventAnalysis treeTypeWriter;
-    treeTypeWriter.SetWriter(&writer);
-    treeTypeWriter.WriteSequentialLine(*itccandidates.begin());
-    KTINFO(testlog, "Processed track saved in file");
+        KTROOTTreeTypeWriterEventAnalysis treeTypeWriter;
+        treeTypeWriter.SetWriter(&writer);
+        treeTypeWriter.WriteSequentialLine(*itccandidates.begin());
+        KTINFO(testlog, "Processed track saved in file");
+    }
+    else
+    {
+        KTINFO(testlog, "No ITC candidates survived to write; skipping ROOT tree output");
+    }
 #endif
 
 

@@ -157,7 +157,7 @@ namespace Katydid
         return fWaterfallSets;
     }
 
-    void KTSpectrogramCollector::SlotFunctionPSData( Nymph::KTDataPtr data )
+    inline void KTSpectrogramCollector::SlotFunctionPSData( Nymph::KTDataPtr data )
     {
         // Standard data slot pattern:
         // Check to ensure that the required data types are present

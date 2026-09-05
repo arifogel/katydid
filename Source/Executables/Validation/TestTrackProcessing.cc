@@ -63,7 +63,9 @@ KTSparseWaterfallCandidateData createFakeData(double trackSlope,
         for (unsigned iPoint = 0; iPoint<nPoints; ++iPoint){
             double yPoint = trackIntercept + trackSlope*sliceTime + noiseDistribution();
             double power = powerDistribution();
-            Point aPoint(sliceTime,yPoint,power,sliceTime,trackPowerMean*0.1,pow(trackPowerStd,2),power*1.1, 0);
+            // KTDiscriminatedPoint's constructor takes a 9th argument (bis, the bin-in-slice
+            // index) that this call was missing; using the loop's own point index for it.
+            Point aPoint(sliceTime,yPoint,power,sliceTime,trackPowerMean*0.1,pow(trackPowerStd,2),power*1.1, 0, iPoint);
             swfData.AddPoint(aPoint);
         }
         sliceTime +=timeStep;

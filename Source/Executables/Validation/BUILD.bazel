@@ -1,0 +1,412 @@
+# Ports the "Utility tests" tier of Source/Executables/Validation/CMakeLists.txt (the programs
+# listed there as needing only KatydidUtility, not ROOT/FFTW/Monarch) to real Bazel cc_test
+# targets, so they participate in `bazel test //...` with correct per-target pass/fail tracking.
+#
+# These are small, pre-existing validation programs, not a rigorous test suite: most exercise a
+# class and log its behavior without checking the result against a known-correct value (a
+# genuine smoke test, not a regression test), and only some (TestAxisProperties, TestCutableArray,
+# TestCutIterator) check for an internal error condition and exit non-zero on failure. None of
+# that behavior is being added or changed here - this only gives Bazel's test runner visibility
+# into pass/fail signals that already exist in the program logic, in place of the original CMake
+# build's CI/test.sh, which ran several of these as a plain, unchecked shell script (no `set -e`,
+# so an earlier failure did not actually fail the CI job).
+#
+# TestAxisProperties and TestDBSCAN include ROOT headers directly, despite CMake's own "does NOT
+# require ROOT" categorization for this tier - both guard that usage with #ifdef ROOT_FOUND
+# (confirmed by inspection), the same pattern used throughout the rest of the codebase, so this
+# is safe given ROOT_FOUND is always defined in this build.
+#
+# TestDBSCAN also needs a header (KTDistanceMatrix.hh) that is header-only and, despite this
+# tier's "Utility only" categorization, actually lives in Source/EventAnalysis, not
+# Source/Utility - confirmed by inspection, not an error in this file. Depending on the full
+# katydid_event_analysis library is heavier than strictly needed just for one header, but is the
+# correct and simplest way to make it visible, and costs nothing meaningful for a test target.
+
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
+
+_UTILITY_TEST_DEPS = ["//Source/Utility:katydid_utility"]
+
+cc_test(
+    name = "ObjectSize",
+    srcs = ["ObjectSize.cc"],
+    deps = _UTILITY_TEST_DEPS,
+)
+
+cc_test(
+    name = "TestAxisProperties",
+    srcs = ["TestAxisProperties.cc"],
+    deps = _UTILITY_TEST_DEPS,
+)
+
+cc_test(
+    name = "TestComplexPolar",
+    srcs = ["TestComplexPolar.cc"],
+    deps = _UTILITY_TEST_DEPS,
+)
+
+cc_test(
+    name = "TestCutableArray",
+    srcs = ["TestCutableArray.cc"],
+    deps = _UTILITY_TEST_DEPS,
+)
+
+cc_test(
+    name = "TestCutIterator",
+    srcs = ["TestCutIterator.cc"],
+    deps = _UTILITY_TEST_DEPS,
+)
+
+cc_test(
+    name = "TestDBSCAN",
+    srcs = ["TestDBSCAN.cc"],
+    deps = _UTILITY_TEST_DEPS + ["//Source/EventAnalysis:katydid_event_analysis"],
+)
+
+cc_test(
+    name = "TestMinMaxBin",
+    srcs = ["TestMinMaxBin.cc"],
+    deps = _UTILITY_TEST_DEPS,
+)
+
+cc_test(
+    name = "TestNanoflann",
+    srcs = ["TestNanoflann.cc"],
+    deps = _UTILITY_TEST_DEPS + ["//vendor/nanoflann"],
+)
+
+cc_test(
+    name = "TestRandom",
+    srcs = ["TestRandom.cc"],
+    deps = _UTILITY_TEST_DEPS,
+)
+
+cc_test(
+    name = "TestVector",
+    srcs = ["TestVector.cc"],
+    deps = _UTILITY_TEST_DEPS,
+)
+
+# --- "Data & IO tests" tier ---------------------------------------------------------------
+#
+# TestDataDisplay is deliberately NOT ported here, as either a cc_test or a cc_binary: reading
+# its source shows it opens real ROOT GUI windows (TCanvas) and blocks twice on `cin >> resp`
+# waiting for interactive y/n keyboard input. There is no way to run this automatically in CI -
+# it would hang indefinitely (no TTY, no display server). It remains a manual-only program,
+# outside the Bazel build, the same way Source/Time, Source/Simulation, and Source/Evaluation
+# are not built at all.
+#
+# TestDPTReader is a cc_binary, not a cc_test: it requires a .dpt data file to be given as a
+# command-line argument, and - importantly - returns 0 (success) when none is given. No sample
+# .dpt file exists anywhere in this repository (checked), and it was never part of the original
+# CMake build's own CI/test.sh either. Wiring it up as a "test" with no real input would trivially
+# pass every time without checking anything, which would be actively misleading. As a cc_binary
+# it's still compile-checked by `bazel build //...`, just not claimed as a real automated test.
+#
+# TestJSONWriter, TestKDTree, TestKDTreeData, and TestSmoothing are smoke tests only (like most
+# of the Utility tier above) - none contain an assertion or comparison against a known-correct
+# value, they construct/exercise a class and log the result. TestJSONWriter and TestSmoothing
+# write scratch files (test_writer.json, TestSmoothing.root respectively) to their own working
+# directory, which Bazel's test sandbox allows without any special configuration.
+
+_DATA_IO_TEST_DEPS = [
+    "//Source/Data:katydid_data",
+    "//Source/IO:katydid_io",
+    "//Source/Utility:katydid_utility",
+]
+
+cc_binary(
+    name = "TestDPTReader",
+    srcs = ["TestDPTReader.cc"],
+    deps = _DATA_IO_TEST_DEPS,
+)
+
+cc_test(
+    name = "TestJSONWriter",
+    srcs = ["TestJSONWriter.cc"],
+    deps = _DATA_IO_TEST_DEPS,
+)
+
+cc_test(
+    name = "TestKDTree",
+    srcs = ["TestKDTree.cc"],
+    deps = _DATA_IO_TEST_DEPS + ["//vendor/nanoflann"],
+)
+
+cc_test(
+    name = "TestKDTreeData",
+    srcs = ["TestKDTreeData.cc"],
+    deps = _DATA_IO_TEST_DEPS,
+)
+
+cc_test(
+    name = "TestSmoothing",
+    srcs = ["TestSmoothing.cc"],
+    deps = _DATA_IO_TEST_DEPS,
+)
+
+# --- "executables that DO require FFTW" tier ----------------------------------------------
+#
+# Straightforward this time - every header these four use lives exactly where the original
+# CMakeLists.txt's own module categorization implies (Data/Transform/SpectrumAnalysis), unlike
+# every earlier tier, each of which had at least one header living somewhere unexpected.
+#
+# The original CMakeLists.txt declares one shared LIB_DEPENDENCIES list (including
+# KatydidSpectrumAnalysis) for this whole batch of four programs, but TestComboFFTW,
+# TestForwardFFTW, and TestReverseFFTW don't actually include anything from SpectrumAnalysis -
+# only TestWignerVille does. Each target below depends on only what it actually #includes,
+# matching every earlier tier, rather than the batch-wide CMake list.
+#
+# All four are smoke tests only, like most of the rest of this file: no assertions, they write
+# a ROOT output file and log the result. Writing to their own working directory is fine in
+# Bazel's test sandbox, same as TestJSONWriter/TestSmoothing above.
+
+cc_test(
+    name = "TestComboFFTW",
+    srcs = ["TestComboFFTW.cc"],
+    deps = ["//Source/Transform:katydid_transform"],
+)
+
+cc_test(
+    name = "TestForwardFFTW",
+    srcs = ["TestForwardFFTW.cc"],
+    deps = ["//Source/Transform:katydid_transform"],
+)
+
+cc_test(
+    name = "TestReverseFFTW",
+    srcs = ["TestReverseFFTW.cc"],
+    deps = ["//Source/Transform:katydid_transform"],
+)
+
+cc_test(
+    name = "TestWignerVille",
+    srcs = ["TestWignerVille.cc"],
+    deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis"],
+)
+
+# --- "Time, Transform, SpectrumAnalysis & EventAnalysis" tier -----------------------------
+#
+# The original CMakeLists.txt declares one shared LIB_DEPENDENCIES list (including
+# KatydidTime) for this whole batch of programs, but none of them actually need Source/Time -
+# that entire module is excluded from this build (it's Monarch-only, and Monarch defaults off).
+# The "Time" headers these programs DO need (KTSliceHeader, KTTimeSeriesReal, etc.) live under
+# Source/Data/Time, a completely different thing already covered by katydid_data. Each target
+# below depends on only what it actually #includes, same as every earlier tier.
+#
+# katydid_spectrum_analysis and katydid_event_analysis do not depend on each other (both
+# independently depend on Data/IO/Utility), so any test needing headers from both modules lists
+# both explicitly.
+#
+# Test2DDiscrim is NOT ported here: it directly constructs a KTSpline object
+# (`new KTSpline(xVals, yVals, 3)`), and that constructor's only definition is in
+# Source/Utility/KTSpline.cc, which is excluded from the build (see NOTES.md - KTSpline.cc's
+# Implement() signature doesn't match its own header). This would fail to link, not because of
+# anything in this port, but because of that pre-existing exclusion.
+#
+# All of these are smoke tests only, like most of the rest of this file, except
+# TestCorrelator, TestSpectrumDiscriminator, and TestTrackProcessing, which do check for an
+# internal error condition and exit non-zero on failure.
+
+cc_test(
+    name = "TestChannelAggregator",
+    srcs = ["TestChannelAggregator.cc"],
+    deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis"],
+)
+
+cc_test(
+    name = "TestConsensusThresholding",
+    srcs = ["TestConsensusThresholding.cc"],
+    deps = [
+        "//Source/EventAnalysis:katydid_event_analysis",
+        "//Source/SpectrumAnalysis:katydid_spectrum_analysis",
+    ],
+)
+
+cc_test(
+    name = "TestConvolution1D",
+    srcs = ["TestConvolution1D.cc"],
+    data = ["//Examples/CustomApplications:GaussianKernel.json"],
+    deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis"],
+)
+
+cc_test(
+    name = "TestCorrelator",
+    srcs = ["TestCorrelator.cc"],
+    deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis"],
+)
+
+cc_test(
+    name = "TestDataAccumulator",
+    srcs = ["TestDataAccumulator.cc"],
+    deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis"],
+)
+
+cc_test(
+    name = "TestDBSCANNoiseFiltering",
+    srcs = ["TestDBSCANNoiseFiltering.cc"],
+    deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis"],
+)
+
+cc_test(
+    name = "TestDBSCANTrackClustering",
+    srcs = ["TestDBSCANTrackClustering.cc"],
+    deps = ["//Source/EventAnalysis:katydid_event_analysis"],
+)
+
+cc_test(
+    name = "TestGainNormalization",
+    srcs = ["TestGainNormalization.cc"],
+    deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis"],
+)
+
+cc_test(
+    name = "TestGainVariationProcessor",
+    srcs = ["TestGainVariationProcessor.cc"],
+    deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis"],
+)
+
+cc_test(
+    name = "TestNTracksNPointsNUPCut",
+    srcs = ["TestNTracksNPointsNUPCut.cc"],
+    deps = ["//Source/EventAnalysis:katydid_event_analysis"],
+)
+
+cc_test(
+    name = "TestSequentialTrackFinder",
+    srcs = ["TestSequentialTrackFinder.cc"],
+    data = [
+        ":CicadaDict_pcm_local_copy",
+        ":IODict_pcm_local_copy",
+    ],
+    deps = [
+        "//Source/EventAnalysis:katydid_event_analysis",
+        "//Source/SpectrumAnalysis:katydid_spectrum_analysis",
+    ],
+)
+
+cc_test(
+    name = "TestSpectrogramCollector",
+    srcs = ["TestSpectrogramCollector.cc"],
+    deps = ["//Source/EventAnalysis:katydid_event_analysis"],
+)
+
+cc_test(
+    name = "TestSpectrogramStriper",
+    srcs = ["TestSpectrogramStriper.cc"],
+    deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis"],
+)
+
+cc_test(
+    name = "TestSpectrogramStriperSwaps",
+    srcs = ["TestSpectrogramStriperSwaps.cc"],
+    deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis"],
+)
+
+cc_test(
+    name = "TestSpectrumDiscriminator",
+    srcs = ["TestSpectrumDiscriminator.cc"],
+    deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis"],
+)
+
+cc_test(
+    name = "TestTrackProcessing",
+    srcs = ["TestTrackProcessing.cc"],
+    data = [
+        ":CicadaDict_pcm_local_copy",
+        ":IODict_pcm_local_copy",
+    ],
+    deps = ["//Source/EventAnalysis:katydid_event_analysis"],
+)
+
+# ROOT's Cling interpreter looks for a dictionary's _rdict.pcm file directly alongside the
+# consuming binary's own bazel-out bin/ directory, not via Bazel's runfiles tree - a hazard for
+# any binary that lives in a different Bazel package than the one that generated the
+# dictionary (see //Source/IO:IODict_pcm's and @cicada//:CicadaDict_pcm's own root_dictionary()
+# calls). Most code tolerates the resulting "PCM file does not exist" as a harmless warning, but
+# classes used via TClonesArray need the PCM for streamer-info lookup and crash without it:
+# KTROOTData.hh's TDiscriminatedPoint/TSparseWaterfallCandidateData (IODict) and Cicada's
+# TProcessedTrackData/TMultiTrackEventData (CicadaDict), both written here via
+# KTROOTTreeTypeWriterEventAnalysis. These genrules copy each dictionary's PCM to a plain
+# output in this package, which Bazel builds directly into this package's own bazel-out bin/
+# directory - exactly the path Cling looks in, since genrule outputs are never placed inside a
+# runfiles tree in the first place. Both are wired into every test here that could plausibly
+# write these classes, not just the ones that have already crashed on it - the failure only
+# shows up once the write path is actually exercised, which varies with the test's random data.
+genrule(
+    name = "IODict_pcm_local_copy",
+    srcs = ["//Source/IO:IODict_pcm"],
+    outs = ["IODict_gen_rdict.pcm"],
+    cmd = "cp $< $@",
+)
+
+genrule(
+    name = "CicadaDict_pcm_local_copy",
+    srcs = ["@cicada//:CicadaDict_pcm"],
+    outs = ["CicadaDict_gen_rdict.pcm"],
+    cmd = "cp $< $@",
+)
+
+cc_test(
+    name = "TestWindowFunction",
+    srcs = ["TestWindowFunction.cc"],
+    deps = ["//Source/Transform:katydid_transform"],
+)
+
+# --- ROOT-required tier -------------------------------------------------------------------
+#
+# TestROOTDictionary and TestROOTTreeWritingViaCicada both touch classes used via TClonesArray
+# (Cicada::TProcessedTrackData/TMultiTrackEventData), so both carry the CicadaDict PCM copy
+# genrule defined above, for the same reason TestTrackProcessing and TestSequentialTrackFinder
+# needed it - see that genrule's own comment for the full mechanism. TestROOTDictionary's own
+# lookup uses TClass::GetClass(name, false), which skips ROOT's autoload/autoparse fallback
+# entirely, so it likely doesn't strictly need the PCM - it's included anyway since it costs
+# nothing and keeps this consistent with every other target that references these classes.
+#
+# TestROOTDictionary needs @cicada directly rather than katydid_io: it includes CROOTData.hh
+# itself, with no Katydid-specific wrapping around Cicada's classes.
+
+cc_test(
+    name = "TestBackgroundFlattening",
+    srcs = ["TestBackgroundFlattening.cc"],
+    deps = [
+        "//Source/IO:katydid_io",
+        "//Source/SpectrumAnalysis:katydid_spectrum_analysis",
+    ],
+)
+
+cc_test(
+    name = "TestBasicROOTFileWriter",
+    srcs = ["TestBasicROOTFileWriter.cc"],
+    deps = ["//Source/IO:katydid_io"],
+)
+
+cc_test(
+    name = "TestROOTDictionary",
+    srcs = ["TestROOTDictionary.cc"],
+    data = [":CicadaDict_pcm_local_copy"],
+    # @cicada does not depend on @nymph (see its own BUILD file's top comment) - this is the
+    # only test here whose deps are just @cicada, with nothing that transitively provides
+    # Nymph's KTLogger.hh, which this test also includes directly. Every other test gets
+    # KTLogger.hh for free through one of the katydid_* libraries, which all depend on @nymph.
+    deps = [
+        "@cicada",
+        "@nymph",
+    ],
+)
+
+cc_test(
+    name = "TestROOTTreeWritingViaCicada",
+    srcs = ["TestROOTTreeWritingViaCicada.cc"],
+    data = [
+        ":CicadaDict_pcm_local_copy",
+        ":IODict_pcm_local_copy",
+    ],
+    deps = ["//Source/IO:katydid_io"],
+)
+
+cc_test(
+    name = "TestROOTWriterFileManager",
+    srcs = ["TestROOTWriterFileManager.cc"],
+    deps = ["//Source/IO:katydid_io"],
+)

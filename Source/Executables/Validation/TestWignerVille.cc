@@ -64,7 +64,7 @@ int main()
     KTAnalyticAssociator aAssociator;
     aAssociator.GetForwardFFT()->SetTransformFlag("ESTIMATE");
     aAssociator.GetForwardFFT()->SetTimeSize(wvSize);
-    aAssociator.GetForwardFFT()->InitializeForRealTDD();
+    aAssociator.GetForwardFFT()->InitializeForRealAsComplexTDD();
     aAssociator.GetReverseFFT()->SetTransformFlag("ESTIMATE");
     aAssociator.GetReverseFFT()->SetTimeSize(wvSize);
     aAssociator.GetReverseFFT()->InitializeForComplexTDD();
@@ -74,6 +74,13 @@ int main()
     wvTransform.GetFFT()->SetTimeSize(/*2 */ wvSize);
     wvTransform.GetFFT()->InitializeForComplexTDD();
     wvTransform.AddPair(KTWignerVille::UIntPair(0, 1));
+
+    // Initialize() sets up the output data containers (fOutputSHData/fOutputWVData) that
+    // TransformData() requires; without it, TransformData() fails on every call. SetWindowSize()
+    // must be called first, since Initialize() reconfigures the FFT using its own fWindowSize
+    // member rather than the size set on wvTransform.GetFFT() above.
+    wvTransform.SetWindowSize(wvSize);
+    wvTransform.Initialize(1. / ts1->GetBinWidth(), 2, wvSize);
 
     unsigned nWindows = nTimeBins / wvSize;
 
@@ -105,18 +112,23 @@ int main()
         KTTimeSeriesFFTW* aaTS1 = aAssociator.CalculateAnalyticAssociate(windowTS1);
         KTTimeSeriesFFTW* aaTS2 = aAssociator.CalculateAnalyticAssociate(windowTS2);
 
-        KTAnalyticAssociateData aaData;
-        aaData.SetNComponents(2);
-        aaData.SetTimeSeries(aaTS1, 0);
-        aaData.SetTimeSeries(aaTS2, 1);
+        // aaData is heap-allocated and intentionally never deleted. KTExtensibleStructCore's
+        // destructor deletes its chained extended-struct components, so a stack-allocated
+        // aaData would delete the KTWignerVilleData object referenced by allOutput[iWindow] and
+        // spectra(iWindow) below as soon as this scope exits. Those components are deleted
+        // explicitly, by pointer, in the cleanup loop further down.
+        KTAnalyticAssociateData* aaData = new KTAnalyticAssociateData();
+        aaData->SetNComponents(2);
+        aaData->SetTimeSeries(aaTS1, 0);
+        aaData->SetTimeSeries(aaTS2, 1);
         //aaTSData->SetTimeSeries(windowTS1, 0);
         //aaTSData->SetTimeSeries(windowTS2, 1);
 
-        if (! wvTransform.TransformData(aaData, header))
+        if (! wvTransform.TransformData(*aaData, header))
         {
             KTERROR(testlog, "Something went wrong while computing the Wigner-Ville transform");
         }
-        KTWignerVilleData& output = aaData.Of< KTWignerVilleData >();
+        KTWignerVilleData& output = aaData->Of< KTWignerVilleData >();
 
         allOutput[iWindow] = &output;
         spectra(iWindow) = output.GetSpectrumFFTW(0);
@@ -128,20 +140,42 @@ int main()
     }
 
 #ifdef ROOT_FOUND
+    // The Wigner-Ville transform correlates across time slices, so the first window (an empty
+    // circular buffer being filled for the first time) does not produce an output spectrum,
+    // even though TransformData() reports success for that call. spectra(0) is therefore not
+    // guaranteed to be valid; use the first non-null entry instead, and skip null entries when
+    // filling the histogram.
     unsigned nBinsX = spectra.size();
-    unsigned nBinsY = spectra(0)->size();
-    TH2D* histOut = new TH2D("wv", "Wigner-Ville", nBinsX, spectra.GetRangeMin(), spectra.GetRangeMax(), nBinsY, spectra(0)->GetRangeMin(), spectra(0)->GetRangeMax());
-    double value;
-    for (unsigned iX=0; iX<nBinsX; iX++)
+    unsigned firstValid = nBinsX;
+    for (unsigned iX = 0; iX < nBinsX; ++iX)
     {
-        KTFrequencySpectrumFFTW* spectrum = spectra(iX);
-        for (unsigned iY=0; iY<nBinsY; iY++)
+        if (spectra(iX) != NULL)
         {
-            value = sqrt((*spectrum)(iY)[0] * (*spectrum)(iY)[0] + (*spectrum)(iY)[1] * (*spectrum)(iY)[1]);
-            histOut->SetBinContent(iX+1, iY+1, value);
+            firstValid = iX;
+            break;
         }
     }
-    histOut->Write();
+    if (firstValid == nBinsX)
+    {
+        KTERROR(testlog, "No window produced a Wigner-Ville spectrum; skipping histogram output");
+    }
+    else
+    {
+        unsigned nBinsY = spectra(firstValid)->size();
+        TH2D* histOut = new TH2D("wv", "Wigner-Ville", nBinsX, spectra.GetRangeMin(), spectra.GetRangeMax(), nBinsY, spectra(firstValid)->GetRangeMin(), spectra(firstValid)->GetRangeMax());
+        double value;
+        for (unsigned iX=0; iX<nBinsX; iX++)
+        {
+            KTFrequencySpectrumFFTW* spectrum = spectra(iX);
+            if (spectrum == NULL) continue;
+            for (unsigned iY=0; iY<nBinsY; iY++)
+            {
+                value = sqrt((*spectrum)(iY)[0] * (*spectrum)(iY)[0] + (*spectrum)(iY)[1] * (*spectrum)(iY)[1]);
+                histOut->SetBinContent(iX+1, iY+1, value);
+            }
+        }
+        histOut->Write();
+    }
 #endif
 
     for (unsigned iWindow=0; iWindow < nWindows; iWindow++)

@@ -73,4 +73,14 @@ cc_library(
         "@system_libs//:boost",
         "@yaml_cpp",
     ],
+    # REGISTER_PARAM_INPUT_CODEC/REGISTER_PARAM_OUTPUT_CODEC (in param_json.cc, param_yaml.cc)
+    # self-register with Scarab's codec factory via a static global registrar object, whose
+    # constructor only runs if the linker actually includes that object file. Without
+    # alwayslink, a consumer that never directly references a symbol from param_json.o/
+    # param_yaml.o - which is by design, since the whole point of the factory pattern is
+    # runtime dispatch by string name, not a compile-time reference - gets those object files
+    # silently dropped by the linker, and the registrar's constructor never runs. That
+    # produces "Did not find factory for <json>" (or <yaml>) at runtime, from code that never
+    # visibly depends on the codec at all.
+    alwayslink = True,
 )
