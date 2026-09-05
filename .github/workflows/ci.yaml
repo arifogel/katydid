@@ -92,10 +92,29 @@ jobs:
           repository-cache: true
           disk-cache: true
 
-      - name: Verify MODULE.bazel.lock is up to date, build, and test everything
-        run: bazel build //... && bazel test //...
+      - name: Verify MODULE.bazel.lock is up to date and build everything
+        run: bazel build //...
 
-  # AlmaLinux 9 is tested as its own job, inside the official almalinux:9 container image,
+      # Every cc_test binary here links ROOT's shared libraries transitively (even a target
+      # with no ROOT-specific code of its own, via katydid_utility). rootcling's own shared
+      # library dependencies are already checked above on the AlmaLinux job, but that only
+      # covers what's needed to *generate* a dictionary at build time - it says nothing about
+      # the separate set of ROOT shared libraries (libCore.so, libRIO.so, etc.) that actually
+      # get linked into every test binary and are needed at *test* runtime. A missing one here
+      # fails every single test uniformly with a bare "Exit 127", regardless of what that test
+      # actually depends on, which is easy to mistake for a real bug in the test itself.
+      - name: Check a built test binary for missing shared libraries (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          MISSING=$(ldd bazel-bin/Source/Executables/Validation/TestVector 2>&1 | grep "not found" || true)
+          if [ -n "$MISSING" ]; then
+            echo "Missing shared library dependencies for TestVector:"
+            echo "$MISSING"
+            exit 1
+          fi
+
+      - name: Test everything
+        run: bazel test //...
   # rather than as a third value in the matrix above: GitHub Actions has a known issue
   # (https://github.com/actions/runner/issues/265) where using an empty `container:` value to
   # mean "run natively, no container" for some matrix combinations can fail workflow validation
@@ -203,10 +222,22 @@ jobs:
           repository-cache: true
           disk-cache: true
 
-      - name: Verify MODULE.bazel.lock is up to date, build, and test everything
-        run: bazel build //... && bazel test //...
+      - name: Verify MODULE.bazel.lock is up to date and build everything
+        run: bazel build //...
 
-  lint-and-format:
+      # See the equivalent step in the Ubuntu/macOS job above for why this checks a test
+      # binary specifically, separately from the rootcling check further up.
+      - name: Check a built test binary for missing shared libraries
+        run: |
+          MISSING=$(ldd bazel-bin/Source/Executables/Validation/TestVector 2>&1 | grep "not found" || true)
+          if [ -n "$MISSING" ]; then
+            echo "Missing shared library dependencies for TestVector:"
+            echo "$MISSING"
+            exit 1
+          fi
+
+      - name: Test everything
+        run: bazel test //...
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
