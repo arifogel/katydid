@@ -72,12 +72,12 @@ _root_dictionary_gen = rule(
         # The cc_library(s) whose transitive include paths/headers rootcling needs to see -
         # normally just the owning module's own cc_library plus its direct deps.
         "deps": attr.label_list(providers = [CcInfo], mandatory = True),
-        # allow_single_file (not executable=True): @homebrew//:rootcling is a plain source
+        # allow_single_file (not executable=True): @system_libs//:rootcling is a plain source
         # file (symlinked in via exports_files()), not a build rule with a FilesToRunProvider
         # - executable=True requires the latter and fails with "is misplaced here" otherwise.
         # ctx.actions.run() accepts a File directly for `executable`, so this works fine.
         "_rootcling": attr.label(
-            default = "@homebrew//:rootcling",
+            default = "@system_libs//:rootcling",
             allow_single_file = True,
             cfg = "exec",
         ),

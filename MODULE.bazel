@@ -22,5 +22,5 @@ use_repo(non_bazel_deps, "cicada", "nymph", "rapidjson", "scarab", "yaml_cpp")
 # for how each is found on macOS, Ubuntu, and AlmaLinux/RHEL-family Linux, and BUILDING.md for
 # what needs to be installed on each platform before building.
 
-homebrew_deps = use_extension("//tools:system_deps.bzl", "homebrew_deps")
-use_repo(homebrew_deps, "homebrew")
+system_deps = use_extension("//tools:system_deps.bzl", "system_deps")
+use_repo(system_deps, "system_libs")

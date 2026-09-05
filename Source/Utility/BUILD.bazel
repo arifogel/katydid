@@ -24,11 +24,11 @@ cc_library(
     ]),
     includes = ["."],
     deps = [
-        "@homebrew//:boost",
-        "@homebrew//:fftw",
-        "@homebrew//:root",
         "@nymph",
         "@scarab",
+        "@system_libs//:boost",
+        "@system_libs//:fftw",
+        "@system_libs//:root",
     ],
 )
 
@@ -63,10 +63,10 @@ cc_library(
     defines = ["USE_CPP11"],
     includes = ["."],
     deps = [
-        "@homebrew//:boost",
-        "@homebrew//:fftw",
-        "@homebrew//:root",
         "@nymph",
         "@scarab",
+        "@system_libs//:boost",
+        "@system_libs//:fftw",
+        "@system_libs//:root",
     ],
 )

@@ -27,8 +27,7 @@ and with C/C++ build and link mechanics generally.
   git commits, each paired with a hand-written `BUILD.bazel` file under `third_party/`, since
   none of them have native Bazel support upstream.
 - `tools/system_deps.bzl` — locates ROOT, Boost, FFTW, and MatIO on the host machine and exposes
-  them as `cc_library` targets under the repository name `@homebrew` (see below for why that
-  name is retained on Linux too).
+  them as `cc_library` targets under the repository name `@system_libs`.
 - `tools/root_dictionary.bzl` — a Bazel rule wrapping `rootcling`, replacing CMake's
   `ROOT_GENERATE_DICTIONARY()` macro.
 - `Source/*/BUILD.bazel` — one per active Katydid module, translated from the corresponding
@@ -40,7 +39,7 @@ and with C/C++ build and link mechanics generally.
 
 ## How ROOT, Boost, FFTW, and MatIO are located
 
-`tools/system_deps.bzl` implements a single repository rule, exposed as `@homebrew`, that
+`tools/system_deps.bzl` implements a single repository rule, exposed as `@system_libs`, that
 branches on the host platform:
 
 - **ROOT** is located identically on every platform: by requiring `root-config` to already be
@@ -49,7 +48,7 @@ branches on the host platform:
   ROOT distribution ships one. The rule queries `root-config --incdir`, `--libdir`, and
   `--libs`, and adds `-lGui -lSpectrum -lTMVA` on top of the base libraries, matching Katydid's
   `find_package(ROOT 6.00 COMPONENTS Gui Spectrum TMVA)` in the original CMake build. `rootcling`
-  is located via `root-config --bindir` and exposed as `@homebrew//:rootcling`.
+  is located via `root-config --bindir` and exposed as `@system_libs//:rootcling`.
 - **Boost, FFTW, and MatIO** are located differently depending on the package manager:
   - On **macOS**, via Homebrew (`brew --prefix <formula>`), since Homebrew deliberately installs
     outside the compiler's default search paths.
@@ -65,12 +64,10 @@ branches on the host platform:
     certain caching mechanisms used in CI do not reliably register these wrapper packages even
     though the underlying files are present and working. Checking for the actual header
     sidesteps this entirely.
-- The repository name `@homebrew` is retained even though it also covers `apt`/`dnf` now,
-  to avoid touching every `BUILD.bazel` file that references it for a purely cosmetic rename.
 
 `FFTW_FOUND` and `ROOT_FOUND` — preprocessor defines Katydid's own source checks with `#ifdef`
-— are set as `defines` directly on the `@homebrew//:fftw` and `@homebrew//:root` targets, so
-they propagate automatically to every target that depends on them, matching what
+— are set as `defines` directly on the `@system_libs//:fftw` and `@system_libs//:root` targets,
+so they propagate automatically to every target that depends on them, matching what
 `add_definitions(-DFFTW_FOUND)` did project-wide in the CMake build.
 
 `boost_system` is deliberately not linked: `Boost.System` has been header-only since Boost
