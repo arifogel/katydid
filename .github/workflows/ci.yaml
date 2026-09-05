@@ -168,6 +168,31 @@ jobs:
       - name: Add ROOT to PATH
         run: echo "/opt/root/bin" >> "$GITHUB_PATH"
 
+      # bazel-contrib/setup-bazel's automatic bazelisk installation didn't produce a working
+      # `bazel` on PATH inside this minimal container image (exact cause unconfirmed - possibly
+      # a missing tool its installer expects, possibly something else container-specific). Rather
+      # than debug that action's internals blind, install bazelisk explicitly and directly -
+      # this is the standard, widely-used pattern for exactly this situation (see e.g. Envoy's
+      # and IREE's own build docs, which do the identical wget-and-chmod).
+      - name: Install Bazelisk directly (works regardless of what setup-bazel's installer needs)
+        run: |
+          wget -q -O /usr/local/bin/bazel \
+            https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-amd64
+          chmod +x /usr/local/bin/bazel
+
+      # bazel-contrib/setup-bazel's own bazelisk-cache option *should* cover this, but its
+      # install logic already misbehaved once in this exact container (see the step above) -
+      # not assuming its caching logic is any more trustworthy here without separate
+      # confirmation. This is the actual expensive thing worth caching (a full Bazel release
+      # binary, 50-80MB+) - bazelisk itself is tiny and not worth caching on its own.
+      # Directory per bazelisk's own convention (Go's os.UserCacheDir(): $XDG_CACHE_HOME/bazelisk,
+      # else $HOME/.cache/bazelisk - root's HOME here, since container jobs run as root).
+      - name: Cache Bazelisk's downloaded Bazel binary
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: /root/.cache/bazelisk
+          key: bazelisk-cache-almalinux9-${{ hashFiles('.bazelversion') }}
+
       - name: Set up Bazel & Caching
         uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # 0.19.0
         with:
