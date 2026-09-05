@@ -42,7 +42,7 @@ def _non_bazel_deps_impl(_module_ctx):
     git_repository(
         name = "rapidjson",
         remote = "https://github.com/miloyip/rapidjson.git",
-        commit = "24b5e7a8b27f42fa16b96fc70aade9106cf7102f",
+        commit = "5de06bfa37495b529dc00139f1b138a526fff27a",
         build_file = "//third_party/rapidjson:BUILD.rapidjson.bazel",
     )
 
