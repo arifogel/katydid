@@ -1,5 +1,5 @@
-# Drop this file at vendor/RapidXML/BUILD.bazel (after the External -> vendor rename).
-# Header-only.
+# BUILD file for the vendored copy of RapidXML (a header-only XML parsing library), used by
+# Katydid's IO module to read digitizer configuration files.
 
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 

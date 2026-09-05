@@ -1,25 +1,15 @@
-# Drop this file at Source/IO/BUILD.bazel in the actual katydid checkout.
+# Builds Katydid's IO module: readers and writers connecting Katydid to on-disk formats (ROOT
+# files, ASCII, JSON) and interactive ROOT display windows, plus the ROOT dictionary needed to
+# use a couple of these classes interactively from the ROOT prompt.
 #
-# Mirrors Source/IO/CMakeLists.txt's IO_HEADERFILES/IO_SOURCEFILES exactly (not globbed).
-# HDF5Writer/* and ImageWriter/* excluded: Katydid_USE_HDF5's whole block is commented out at
-# the top level (HDF5_FOUND never true in this project's actual config) and Magick++/GraphicsMagick
-# is likewise never enabled (Katydid_USE_MAGICKPP off by default) - matches the real build, not
-# a simplification. KTSpec1Reader.cc/.hh (which needs Monarch's M3*.hh headers) is correctly
-# excluded too - it was never in IO_SOURCEFILES to begin with, independent of Katydid_USE_MONARCH.
+# Excluded from this build, matching Katydid's default configuration: HDF5-based writers and
+# GraphicsMagick-based image writers (both optional features, off by default), and the Monarch
+# egg-file reader (Katydid's raw-data reading library, also off by default).
 #
-# Unlike Transform/EventAnalysis (dictionary logic fully commented out in this branch), IO's
-# ROOT_GENERATE_DICTIONARY call is real and active - this is the third and last dictionary
-# module (after Utility and Cicada).
-#
-# NOT YET BUILT/TESTED. Verified by #include inspection: needs @cicada//:cicada (only
-# Conversions/KT2ROOT.cc touches it, for CClassifierResultsData.hh etc.) and vendor/RapidXML
-# (only KTDPTReader.cc touches it) in addition to what Utility+Data already provide.
-#
-# Include paths: the original top-level CMakeLists.txt adds each IO subdirectory as its own
-# top-level include_directories() entry (not a subdir-prefixed style like Data/Cicada) - code
-# elsewhere does `#include "KTBasicROOTFileWriter.hh"` etc. with no subdirectory prefix. Mirrored
-# exactly below rather than guessed, to match how consumers (Transform, EventAnalysis,
-# SpectrumAnalysis) will actually reference these headers.
+# Each writer subdirectory is listed individually in `includes` below because Katydid's code
+# refers to these headers without a subdirectory prefix (e.g. `#include "KTBasicROOTFileWriter.hh"`
+# rather than `#include "BasicROOTFileWriter/KTBasicROOTFileWriter.hh"`), so each subdirectory
+# needs to be directly on the compiler's search path.
 
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("//tools:root_dictionary.bzl", "root_dictionary")
@@ -54,9 +44,9 @@ _IO_HDRS = glob([
     "TerminalWriter/*.hh",
 ])
 
-# Headers-only target so root_dictionary() below sees the real transitive include graph
-# (Utility/Data/Nymph/Scarab/Boost/ROOT/Cicada), without depending on the full katydid_io
-# library, which would be circular (katydid_io's srcs include the dictionary this generates).
+# Exposes this module's headers, and everything reachable through its dependencies, without
+# depending on the full katydid_io library below - which would be circular, since that
+# library's sources include the dictionary file generated from this target.
 cc_library(
     name = "katydid_io_headers",
     hdrs = _IO_HDRS,
@@ -127,6 +117,8 @@ cc_library(
         ":IODict_cxx",
     ],
     hdrs = _IO_HDRS,
+    # ROOT's class loader looks for the generated .pcm file next to the compiled library or
+    # executable at runtime, not just at compile time, so it needs to be a runtime dependency.
     data = [":IODict_pcm"],
     includes = _IO_INCLUDES,
     deps = [

@@ -1,17 +1,8 @@
-# Drop this file at Source/Executables/Main/BUILD.bazel in the actual katydid checkout.
+# Builds the Katydid and Truncate command-line programs. Both link against every Katydid
+# module, matching how they are built in the CMake/Docker workflow.
 #
-# Mirrors Source/Executables/Main/CMakeLists.txt's pbuilder_executables(programs all_libs) -
-# both programs link against every module's library, matching the original (not a Bazel-driven
-# simplification: `all_libs` there is a CMake GLOBAL PROPERTY that accumulates literally every
-# pbuilder_library() call across the whole project, and both Katydid and Truncate link the same
-# full set regardless of how little either actually uses).
-#
-# EggScanner.cc and RSAMatToEgg.cc are NOT built here - both gated on Katydid_USE_MONARCH /
-# Monarch_BUILD_MONARCH3 in the original CMakeLists.txt (commented out, matching Monarch being
-# excluded from this whole port per NOTES.md).
-#
-# NOT YET BUILT/TESTED. This is the actual finish line for "does Katydid run" - these are the
-# targets CLion's Bazel plugin will expose as debuggable (lldb) run configurations.
+# EggScanner and RSAMatToEgg are not built here: both require Monarch (Katydid's raw egg-file
+# reading library), which is off by Katydid's default configuration.
 
 load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 

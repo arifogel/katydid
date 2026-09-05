@@ -1,13 +1,5 @@
-# Drop this file at Source/Transform/BUILD.bazel in the actual katydid checkout.
-#
-# Mirrors Source/Transform/CMakeLists.txt's TRANSFORM_HEADERFILES/SOURCEFILES exactly.
-# TRANSFORM_DICT_HEADERFILES is empty and the whole ROOT_GENERATE_DICTIONARY call is commented
-# out in the real CMakeLists.txt - Transform does NOT need root_dictionary() in this branch,
-# despite living right next to Utility/IO/Cicada which do. Confirmed by inspection, not assumed.
-#
-# NOT YET BUILT/TESTED - and not testable at all until Source/IO exists, since Transform
-# genuinely depends on it (KATYDID_LIBS includes KatydidIO; KTWindowFunction.cc includes an
-# IO writer header directly).
+# Builds Katydid's Transform module: window functions and forward/reverse FFTs for converting
+# time series data into frequency-domain spectra.
 
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 
@@ -19,16 +11,15 @@ cc_library(
         "KTBlackmanHarrisWindow.cc",
         "KTConvertToPower.cc",
         "KTFFT.cc",
+        "KTForwardFFTW.cc",
+        "KTFractionalFFT.cc",
         "KTHammingWindow.cc",
         "KTHannWindow.cc",
         "KTRectangularWindow.cc",
-        "KTSincWindow.cc",
-        "KTWindower.cc",
-        "KTWindowFunction.cc",
-        # FFTW_FOUND block - always true here (@homebrew//:fftw always provides real FFTW)
-        "KTForwardFFTW.cc",
-        "KTFractionalFFT.cc",
         "KTReverseFFTW.cc",
+        "KTSincWindow.cc",
+        "KTWindowFunction.cc",
+        "KTWindower.cc",
     ],
     hdrs = glob(["*.hh"]),
     includes = ["."],

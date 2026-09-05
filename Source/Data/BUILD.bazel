@@ -1,17 +1,13 @@
-# Drop this file at Source/Data/BUILD.bazel in the actual katydid checkout.
+# Builds Katydid's Data module: the plain data-container classes (spectra, time series, tracks,
+# events, and related types) that Katydid's processors read and write, as distinct from the
+# processors that operate on them.
 #
-# Mirrors Source/Data/CMakeLists.txt's DATA_HEADERFILES/DATA_SOURCEFILES exactly (not
-# globbed). Skipped from the original list: the commented-out Evaluation/* entries (already
-# commented out in the source CMakeLists.txt itself), and the `NOT FFTW_FOUND` /
-# `Katydid_ENABLE_TUTORIAL` conditional blocks - we always have real FFTW (@homebrew//:fftw
-# defines FFTW_FOUND, see tools/system_deps.bzl), and Katydid_ENABLE_TUTORIAL is off by default.
-#
-# NOT YET BUILT/TESTED. Confirmed via #include inspection (not just CMakeLists) that this
-# module needs ROOT (TH1.h/TH2.h - used by data classes that story histograms) and nanoflann
-# (KTKDTree.hh) in addition to what Utility already provides. `deps` only needs Utility
-# directly, not Nymph/Scarab/Boost/FFTW/ROOT separately - `defines` and `includes` from a
-# cc_library's deps propagate transitively in Bazel, so depending on Utility (which already
-# depends on all of those) is sufficient for both compilation and linking.
+# The "." entry in `includes` lets consumers outside this package use paths like
+# `#include "SpectrumAnalysis/KTAmplitudeDistribution.hh"`; the per-subdirectory entries are
+# needed because some files in this module include their own siblings with angle brackets
+# (e.g. `#include <KTLongTrackData.hh>`) rather than quotes, and angle-bracket includes are not
+# automatically resolved relative to the including file's own directory the way quoted includes
+# are.
 
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 
@@ -88,11 +84,6 @@ cc_library(
         "Time/*.hh",
         "Transform/*.hh",
     ]),
-    # "." so `#include "SpectrumAnalysis/KTAmplitudeDistribution.hh"`-style paths (used by
-    # consumers outside this package, e.g. future Source/SpectrumAnalysis) resolve; the
-    # per-subdir entries so the same-directory `#include <KTLongTrackData.hh>`-style angle-
-    # bracket includes within EventAnalysis/*.cc resolve (angle brackets don't get the
-    # including-file's-own-directory fallback that quote-includes do).
     includes = [
         ".",
         "EventAnalysis",
