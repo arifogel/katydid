@@ -2,11 +2,6 @@
 # (physical arrays, axis handling, random number generation, and the ROOT-integrated
 # application/GUI loop), plus the ROOT dictionary for the one class here (KTRootGuiLoop) that
 # needs to be usable interactively from the ROOT prompt.
-#
-# KTSpline.cc is excluded from this build: its header (KTSpline.hh) and source file
-# (KTSpline.cc) disagree on the signature of the Implement() method, a pre-existing bug in
-# Katydid's source unrelated to the Bazel build. It will need to be fixed in the source before
-# this file can be re-added.
 
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("//tools:root_dictionary.bzl", "root_dictionary")
@@ -42,7 +37,6 @@ root_dictionary(
 cc_library(
     name = "katydid_utility",
     srcs = [
-        "complexpolar/specialization.cc",
         "KTAxisProperties.cc",
         "KTCountHistogram.cc",
         "KTECDF.cc",
@@ -50,7 +44,8 @@ cc_library(
         "KTRandom.cc",
         "KTRootGuiLoop.cc",
         "KTSmooth.cc",
-        # "KTSpline.cc",  # excluded - see note above
+        "KTSpline.cc",
+        "complexpolar/specialization.cc",
         ":UtilityDict_cxx",
     ],
     hdrs = glob([

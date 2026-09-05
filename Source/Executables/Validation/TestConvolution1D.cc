@@ -29,8 +29,9 @@ int main()
 	unsigned nKernelBins = 1000;
 	double blurWidth = 200.0e3;
 
-	// You'll need to change this to your own path
-	std::string kernelPath = "/Users/ezayas/Katydid/Examples/CustomApplications/GaussianKernel.json";
+	// Path is relative to the runfiles root Bazel sets as the working directory for cc_test
+	// targets; the file itself is provided via this target's `data` dependency in BUILD.bazel.
+	std::string kernelPath = "Examples/CustomApplications/GaussianKernel.json";
 
 	KTPowerSpectrum* powerSpect = new KTPowerSpectrum( nBins, rangeMin, rangeMax );
 	KTFrequencySpectrumFFTW* fftwSpect = new KTFrequencySpectrumFFTW( nBins, rangeMin, rangeMax );

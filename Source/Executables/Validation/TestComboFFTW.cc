@@ -92,6 +92,8 @@ int main()
     tsHistNew->SetDirectory(file);
     tsHist->Write();
     tsHistNew->Write();
+    file->Close();
+    delete file;
 #endif
 
     delete timeSeries;

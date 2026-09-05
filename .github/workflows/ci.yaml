@@ -92,8 +92,8 @@ jobs:
           repository-cache: true
           disk-cache: true
 
-      - name: Verify MODULE.bazel.lock is up to date and build everything
-        run: bazel build //...
+      - name: Verify MODULE.bazel.lock is up to date, build, and test everything
+        run: bazel build //... && bazel test //...
 
   # AlmaLinux 9 is tested as its own job, inside the official almalinux:9 container image,
   # rather than as a third value in the matrix above: GitHub Actions has a known issue
@@ -203,8 +203,8 @@ jobs:
           repository-cache: true
           disk-cache: true
 
-      - name: Verify MODULE.bazel.lock is up to date and build everything
-        run: bazel build //...
+      - name: Verify MODULE.bazel.lock is up to date, build, and test everything
+        run: bazel build //... && bazel test //...
 
   lint-and-format:
     runs-on: ubuntu-latest

@@ -16,7 +16,7 @@
 namespace Katydid
 {
 
-    std::string Demangle(const char* name)
+    inline std::string Demangle(const char* name)
     {
         char* realname;
         int status;
@@ -30,7 +30,7 @@ namespace Katydid
         return strRealname;
     }
 
-    std::string DemangledName(const std::type_info& type)
+    inline std::string DemangledName(const std::type_info& type)
     {
         return Demangle(type.name());
     }

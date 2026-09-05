@@ -17,14 +17,50 @@ _ALL_KATYDID_LIBS = [
     "//Source/Utility:katydid_utility",
 ]
 
+# ROOT's Cling interpreter looks for a dictionary's _rdict.pcm file directly alongside the
+# consuming binary's own bazel-out bin/ directory, not via Bazel's runfiles tree. katydid_io
+# and @cicada each already declare `data = [":<name>_pcm"]` on their own cc_library, but that
+# only places the PCM in the runfiles tree of whatever consumes them - it does not solve the
+# same-bazel-out-directory requirement, since a `cc_library`'s `data` doesn't relocate anything;
+# it only propagates to consumers' runfiles. Katydid and Truncate both link katydid_io (which
+# itself depends on @cicada), so both are exposed: if a config file run through Katydid ever
+# exercises the ROOT-tree-writing path for classes used via TClonesArray - KTROOTData.hh's
+# TDiscriminatedPoint/TSparseWaterfallCandidateData (IODict), or Cicada's
+# TProcessedTrackData/TMultiTrackEventData (CicadaDict) - Cling falls back to re-parsing the
+# dictionary's embedded payload at runtime and crashes when it can't find the PCM. This is the
+# same crash Source/Executables/Validation:TestTrackProcessing and
+# Source/Executables/Validation:TestSequentialTrackFinder hit and were fixed for, using the same
+# technique here: copy each dictionary's PCM into this package's own bazel-out bin/ directory,
+# which is exactly where Cling looks for a binary built here.
+genrule(
+    name = "IODict_pcm_local_copy",
+    srcs = ["//Source/IO:IODict_pcm"],
+    outs = ["IODict_gen_rdict.pcm"],
+    cmd = "cp $< $@",
+)
+
+genrule(
+    name = "CicadaDict_pcm_local_copy",
+    srcs = ["@cicada//:CicadaDict_pcm"],
+    outs = ["CicadaDict_gen_rdict.pcm"],
+    cmd = "cp $< $@",
+)
+
+_PCM_DATA = [
+    ":CicadaDict_pcm_local_copy",
+    ":IODict_pcm_local_copy",
+]
+
 cc_binary(
     name = "Katydid",
     srcs = ["Katydid.cc"],
+    data = _PCM_DATA,
     deps = _ALL_KATYDID_LIBS,
 )
 
 cc_binary(
     name = "Truncate",
     srcs = ["Truncate.cc"],
+    data = _PCM_DATA,
     deps = _ALL_KATYDID_LIBS,
 )

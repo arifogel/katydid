@@ -1,0 +1,78 @@
+--- a/library/logger/logger.cc	2026-09-05 06:11:31.121460175 +0000
++++ b/library/logger/logger.cc	2026-09-05 06:11:52.683407616 +0000
+@@ -45,7 +45,36 @@
+ 
+     struct logger::Private
+     {
+-            static std::mutex sMutex;
++            // A lazily-constructed, deliberately-leaked function-local static pointer, matching
++            // AllLoggers() immediately below - not a plain static std::mutex, and not a
++            // class-level static pointer with an eager out-of-line initializer either. Both of
++            // those are unsafe here, in two different ways:
++            //   - A plain std::mutex is safe to *construct* (its default constructor is
++            //     constexpr, so it needs no runtime "dynamic initialization" at all), but it IS
++            //     destroyed via normal static destruction at program exit, in an order relative
++            //     to other static objects that the C++ standard does not guarantee. Any logging
++            //     call that fires during static destruction elsewhere in the program (e.g. from
++            //     another static object's own destructor) can then lock an already-destroyed
++            //     mutex and crash on exit ("mutex lock failed: Invalid argument" on libc++).
++            //   - A class-level `static std::mutex* sMutex = new std::mutex();` avoids that
++            //     destruction hazard (nothing ever deletes it), but its initializer is itself
++            //     "dynamic initialization", and the relative order in which dynamic
++            //     initializers across *different* translation units run is *also* unspecified.
++            //     If another translation unit's own static initializer (for example, one of
++            //     this project's self-registering factory registrar objects) calls into logging
++            //     before this pointer has been assigned, it dereferences a null pointer and
++            //     segfaults at startup - a real regression discovered the hard way, not a
++            //     hypothetical concern.
++            // A function-local static sidesteps both hazards at once: construction is lazy and
++            // thread-safe (only happens the first time this function is actually called, from
++            // whichever translation unit calls it first - no cross-TU ordering dependency), and
++            // being a leaked pointer, it is never destroyed. See
++            // third_party/scarab/logger-leak-mutex-at-exit.patch for where this is applied from.
++            static std::mutex& GetMutex()
++            {
++                static std::mutex* s = new std::mutex();
++                return *s;
++            }
+ 
+             typedef std::set< logger* > LoggerSet;
+             static LoggerSet* AllLoggers()
+@@ -109,7 +138,7 @@
+ 
+             void logCout(ELevel level, const string& message, const Location& loc)
+             {
+-                logger::Private::sMutex.lock();
++                logger::Private::GetMutex().lock();
+                 logger::Private::getTimeAbsoluteStr();
+                 if (fColored)
+                 {
+@@ -133,12 +162,12 @@
+                     (*fOut) << "(" << loc.fLineNumber  << "): ";
+                     (*fOut) << message << endl;
+                 }
+-                logger::Private::sMutex.unlock();
++                logger::Private::GetMutex().unlock();
+             }
+ 
+             void logCerr(ELevel level, const string& message, const Location& loc)
+             {
+-                logger::Private::sMutex.lock();
++                logger::Private::GetMutex().lock();
+                 logger::Private::getTimeAbsoluteStr();
+                 if (fColored)
+                 {
+@@ -162,12 +191,10 @@
+                     (*fErr) << "(" << loc.fLineNumber  << "): ";
+                     (*fErr) << message << endl;
+                 }
+-                logger::Private::sMutex.unlock();
++                logger::Private::GetMutex().unlock();
+             }
+     };
+ 
+-    mutex logger::Private::sMutex;
+-
+     char logger::Private::sDateTimeFormat[16];
+ 	time_t logger::Private::sRawTime;
+ 	tm* logger::Private::sProcessedTime;
