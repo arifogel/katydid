@@ -65,7 +65,7 @@ def _non_bazel_deps_impl(_module_ctx):
     git_repository(
         name = "cicada",
         remote = "https://github.com/Helium6CRES/cicada.git",
-        commit = "329b058736771038c150933bc275448ca5f24245",
+        commit = "3957406c1f7b0b50425628cf219ca2e2ec3aa828",
         build_file = "//third_party/cicada:BUILD.cicada.bazel",
     )
 
