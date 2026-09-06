@@ -9,7 +9,7 @@
 # Cicada does not depend on Nymph - only on Scarab (for logging and reflection utilities) and
 # ROOT.
 
-load("@//tools:root_dictionary.bzl", "root_dictionary")
+load("@katydid//tools:root_dictionary.bzl", "root_dictionary")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 
 package(default_visibility = ["//visibility:public"])
