@@ -37,3 +37,4 @@ install_manifest.txt
 /katydid-build-deps*
 /node_modules
 /.ijwb
+/.clwb
