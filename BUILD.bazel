@@ -1,0 +1,12 @@
+# Exposes files that live at the repo root, needed by the release archive
+# (see //Source/Executables/Main:katydid_release), which otherwise has no BUILD file to
+# reference them through.
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["LICENSE"])
+
+filegroup(
+    name = "third_party_licenses",
+    srcs = glob(["third_party_licenses/*.txt"]),
+)

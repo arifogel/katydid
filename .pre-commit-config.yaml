@@ -1,5 +1,10 @@
 # See https://pre-commit.com for more information
 # See https://pre-commit.com/hooks.html for more hooks
+
+# These are verbatim license texts, not our own files -- reformatting or "fixing"
+# whitespace in them would alter legally significant text that must be reproduced as-is.
+exclude: ^third_party_licenses/
+
 repos:
   - repo: https://github.com/keith/pre-commit-buildifier
     rev: ec25c1dca1a4a74c0efaa48052b4ea99a9ac19d7 # frozen: 8.5.1.3
