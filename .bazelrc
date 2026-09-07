@@ -9,6 +9,15 @@
 build --cxxopt=-std=c++17
 build --host_cxxopt=-std=c++17
 
+# Nymph/Scarab's logger (used for every KTLOGGER/LOGGER call site) floors its verbosity
+# threshold at compile time based on NDEBUG and STANDARD (see KTLogger.cc / logger.cc,
+# both under Nymph): NDEBUG alone (i.e. plain `-c opt`) floors at eProg, suppressing Info
+# and Debug; NDEBUG + STANDARD floors at eInfo instead, suppressing only Debug/Trace.
+# This define is inert unless NDEBUG is also defined, so it has no effect under
+# -c dbg/fastbuild (where the whole floor is skipped and everything shows) -- it only
+# changes behavior under -c opt, where it keeps Info-level messages visible.
+build --copt=-DSTANDARD
+
 # Keeps `bazel build ...`'s console output and CLion's Bazel plugin in agreement about what
 # "everything" means.
 build --curses=yes

@@ -345,7 +345,7 @@ namespace Katydid
         }
 
         const int nTracksInAcq = clusterable.size();
-        KTWARN(tclog, "nTracksInAcq: " << nTracksInAcq);
+        KTDEBUG(tclog, "nTracksInAcq: " << nTracksInAcq);
 
         // If one track in acq, treat all tracks in an acquisition as one single event
         if(nTracksInAcq <= 1)
@@ -438,9 +438,9 @@ namespace Katydid
                     optimalTracks[i][j]->SetBandNumber(fBandLabels[eventLabel][j]);
                     optimalTracks[i][j]->SetEventType(fEventTopologies[eventLabel]);
                     optimalTracks[i][j]->SetAxialFreq(axial_freq);
-                    KTWARN(tclog, "Band "<<j<<" labelled with "<<fBandLabels[eventLabel][j]);
+                    KTDEBUG(tclog, "Band "<<j<<" labelled with "<<fBandLabels[eventLabel][j]);
                 }
-                KTWARN(tclog, "Event labelled with topology "<<fEventTopologies[eventLabel]);
+                KTINFO(tclog, "Event labelled with topology "<<fEventTopologies[eventLabel]);
             }
 
             //return optimalTracks;
