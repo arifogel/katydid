@@ -28,4 +28,11 @@ cc_library(
         "//Source/IO:katydid_io",
         "//Source/Utility:katydid_utility",
     ],
+    # KT_REGISTER_PROCESSOR/READER/WRITER/EGGREADER register into Katydid's
+    # runtime factories purely via static-initializer side effects -- no
+    # other code calls these translation units by symbol. Without
+    # alwayslink, the linker drops them as dead code and every processor
+    # defined here (window functions and transform processors) silently fails to
+    # register at runtime.
+    alwayslink = 1,
 )
