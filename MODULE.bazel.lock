@@ -193,7 +193,7 @@
   "moduleExtensions": {
     "//tools:non_bazel_deps.bzl%non_bazel_deps": {
       "general": {
-        "bzlTransitiveDigest": "nPU7X/8vcOAVpzM1QrM/I2J8x7DtUexhGxSZ4vx0EK8=",
+        "bzlTransitiveDigest": "AkRNtOx+CcW4RN63Jjhpkcd3z7S9sZrsIHUw6Alys5E=",
         "usagesDigest": "JmphGTaV6uYIkt0OqF5xvMo6SkI5JADUiCcHwux0/Ik=",
         "recordedInputs": [
           "REPO_MAPPING:,bazel_tools bazel_tools"
@@ -218,7 +218,7 @@
             "repoRuleId": "@@bazel_tools//tools/build_defs/repo:git.bzl%git_repository",
             "attributes": {
               "remote": "https://github.com/arifogel/nymph.git",
-              "commit": "8c1a182124708fc02663728c470a323d8cfca74f",
+              "commit": "baf6434c78c605d59460653ebf42c0c420289658",
               "build_file": "@@//third_party/nymph:BUILD.nymph.bazel"
             }
           },
