@@ -44,7 +44,7 @@ def _non_bazel_deps_impl(_module_ctx):
     git_repository(
         name = "nymph",
         remote = "https://github.com/arifogel/nymph.git",
-        commit = "8c1a182124708fc02663728c470a323d8cfca74f",
+        commit = "baf6434c78c605d59460653ebf42c0c420289658",
         build_file = "//third_party/nymph:BUILD.nymph.bazel",
     )
 
