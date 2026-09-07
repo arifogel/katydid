@@ -174,7 +174,7 @@ namespace Katydid
             newTracks.push_back(newLine);
         }
 
-        if(!newTracks.empty() ) { KTWARN(stflog, "Starting "<< newTracks.size() << " new tracks") }
+        if(!newTracks.empty() ) { KTDEBUG(stflog, "Starting "<< newTracks.size() << " new tracks") }
 
         return newTracks;
     }
@@ -389,7 +389,7 @@ namespace Katydid
 
     void KTLongTrackFinder::HandleFinishedTrack(KTLongTrackData& track) {
         if (track.GetPoints().size() >= fMinPoints and track.GetBulkSlope() >= fMinSlope) {
-            KTWARN(stflog, "Found line candidate");
+            KTINFO(stflog, "Found line candidate");
             EmitPreCandidate(track);
         }
     }
