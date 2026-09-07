@@ -28,7 +28,7 @@ def _non_bazel_deps_impl(_module_ctx):
     git_repository(
         name = "scarab",
         remote = "https://github.com/project8/scarab.git",
-        commit = "ef2af248c5db7c92c84952a57759ba0f145f6cd4",
+        commit = "8a387c7daa8b587b4a64cd47891c42b2202e2809",
         build_file = "//third_party/scarab:BUILD.scarab.bazel",
         # Fixes two real static-destruction-order bugs in Scarab's own singleton/factory/logger
         # machinery, both discovered via the same symptom: a program that completes successfully
