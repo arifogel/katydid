@@ -1,0 +1,31 @@
+NOTICE: DO NOT REDISTRIBUTE THE COMPILED BINARIES IN THIS ARCHIVE
+
+This archive contains compiled ("built") versions of the Katydid and Truncate
+programs.
+
+Building this software from source yourself is fully permitted. Katydid's
+source code is publicly available, and its license explicitly allows this.
+
+However, to the best of our knowledge, distributing the COMPILED BINARIES in
+this archive likely violates the license of a library Katydid links against:
+
+  - Katydid links against FFTW (http://fftw.org), which is licensed under
+    the GNU General Public License (GPL), version 2 or later.
+  - The GPL requires that a compiled program combined with GPL-licensed code
+    also be distributed under GPL-compatible terms.
+  - Katydid's own license (see LICENSE in this archive) is not GPL-compatible:
+    it adds conditions -- for example, a requirement to acknowledge Katydid
+    in resulting scientific publications -- that the GPL does not permit for
+    a combined work.
+
+For this reason, we believe redistributing these compiled binaries would
+violate FFTW's license terms.
+
+IMPORTANT: This notice was written by the Katydid development team and has
+NOT been reviewed by a lawyer. It reflects our own good-faith understanding,
+not a legal determination. If you need a definitive answer, consult a
+lawyer or your institution's legal/technology-transfer office before
+redistributing anything in this archive.
+
+Full license texts for Katydid and every third-party component it links
+against are included in the third_party_licenses/ directory of this archive.

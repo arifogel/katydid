@@ -14,6 +14,10 @@ load("@rules_cc//cc:cc_library.bzl", "cc_library")
 
 package(default_visibility = ["//visibility:public"])
 
+# Referenced directly by label from //Source/Executables/Main, to copy this header alongside
+# the Katydid/Truncate binaries for Cling's runtime autoloader (see the comment there).
+exports_files(["Library/_CROOTData.hh"])
+
 cc_library(
     name = "cicada_headers",
     hdrs = glob(["Library/*.hh"]) + [

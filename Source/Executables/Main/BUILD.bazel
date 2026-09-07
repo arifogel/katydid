@@ -5,6 +5,8 @@
 # reading library), which is off by Katydid's default configuration.
 
 load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_pkg//pkg:mappings.bzl", "pkg_attributes", "pkg_files")
+load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -46,21 +48,115 @@ genrule(
     cmd = "cp $< $@",
 )
 
+# CicadaDict's .rootmap records its dictionary headers by bare basename (see
+# tools/root_dictionary.bzl), and Cling's runtime autoloader looks them up by that same
+# basename, in this same directory, when it first encounters one of these types (observed
+# for Cicada::TProcessedTrackData/TMultiTrackEventData specifically). Exposing the header via
+# @cicada's own `data` isn't enough - like the PCM above, it needs to physically sit next to
+# the binary in this package's own bazel-out bin/ directory, not just be reachable via
+# runfiles.
+genrule(
+    name = "CicadaDict_header_local_copy",
+    srcs = ["@cicada//:Library/_CROOTData.hh"],
+    outs = ["_CROOTData.hh"],
+    cmd = "cp $< $@",
+)
+
 _PCM_DATA = [
     ":CicadaDict_pcm_local_copy",
+    ":CicadaDict_header_local_copy",
     ":IODict_pcm_local_copy",
 ]
 
 cc_binary(
     name = "Katydid",
-    srcs = ["Katydid.cc"],
+    srcs = [
+        "Katydid.cc",
+        # Bazel-only; not in CMakeLists.txt, see the file's own comment for why.
+        "BazelRootIncludePath.cc",
+    ],
     data = _PCM_DATA,
     deps = _ALL_KATYDID_LIBS,
 )
 
 cc_binary(
     name = "Truncate",
-    srcs = ["Truncate.cc"],
+    srcs = [
+        "Truncate.cc",
+        # Bazel-only; not in CMakeLists.txt, see the file's own comment for why.
+        "BazelRootIncludePath.cc",
+    ],
     data = _PCM_DATA,
     deps = _ALL_KATYDID_LIBS,
+)
+
+# Flat release archive: Katydid/Truncate plus every file Cling's runtime dictionary/
+# autoloading machinery needs sitting alongside them (see the genrules and
+# BazelRootIncludePath.cc above for why each of these is here). Extracting this archive
+# anywhere and running ./Katydid from that directory reproduces exactly the layout those
+# mechanisms expect, with no separate runfiles tree required.
+#
+# Does NOT bundle ROOT/Boost/FFTW/etc: those are dynamically linked at fixed absolute paths
+# (e.g. /opt/homebrew/opt/root/lib/root/libCore.so) and are assumed to already be present,
+# in compatible versions, on any machine this archive is extracted on -- packaging shared
+# library dependencies themselves is a separate, materially larger undertaking this doesn't
+# attempt.
+pkg_files(
+    name = "katydid_release_binaries",
+    srcs = [
+        ":Katydid",
+        ":Truncate",
+    ],
+    attributes = pkg_attributes(mode = "0755"),
+    # strip_prefix defaults to strip_prefix.files_only(), flattening everything to the
+    # archive root -- exactly what we want, since every file here already lives in this
+    # same package (Source/Executables/Main) and none of that structure needs preserving.
+)
+
+pkg_files(
+    name = "katydid_release_data",
+    srcs = [
+        ":IODict_pcm_local_copy",
+        ":CicadaDict_pcm_local_copy",
+        ":CicadaDict_header_local_copy",
+    ],
+    # default mode (0644) is correct for these -- data files, not executables.
+)
+
+# NOTICE.txt lives here, in this package, rather than at the repo root: its warning is
+# specifically about the compiled binaries in the RELEASE ARCHIVE, not about this source
+# repository (which is fine to share, per the notice's own first paragraph) -- keeping it
+# next to the packaging code that actually bundles it avoids it being mistaken for a
+# blanket statement about the whole repo if someone just browses the source tree.
+#
+# In the archive itself, both NOTICE.txt and Katydid's own LICENSE sit at the top level,
+# next to the binaries -- maximally visible to anyone who opens the archive. See
+# NOTICE.txt for the full explanation: to the best of our knowledge (NOT a legal
+# determination), distributing the compiled binaries in this archive likely violates
+# FFTW's GPL license, since Katydid's own license isn't GPL-compatible.
+pkg_files(
+    name = "katydid_release_notices",
+    srcs = [
+        "//:LICENSE",
+        "NOTICE.txt",
+    ],
+)
+
+# Every third-party license this binary is actually subject to (see NOTICE.txt), collected
+# under a clearly-named subdirectory rather than flattened alongside everything else.
+pkg_files(
+    name = "katydid_release_third_party_licenses",
+    srcs = ["//:third_party_licenses"],
+    prefix = "third_party_licenses",
+)
+
+pkg_tar(
+    name = "katydid_release",
+    srcs = [
+        ":katydid_release_binaries",
+        ":katydid_release_data",
+        ":katydid_release_notices",
+        ":katydid_release_third_party_licenses",
+    ],
+    extension = "tar.gz",
 )
