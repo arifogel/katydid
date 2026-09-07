@@ -116,9 +116,9 @@ pkg_files(
 pkg_files(
     name = "katydid_release_data",
     srcs = [
-        ":IODict_pcm_local_copy",
-        ":CicadaDict_pcm_local_copy",
         ":CicadaDict_header_local_copy",
+        ":CicadaDict_pcm_local_copy",
+        ":IODict_pcm_local_copy",
     ],
     # default mode (0644) is correct for these -- data files, not executables.
 )
@@ -137,8 +137,8 @@ pkg_files(
 pkg_files(
     name = "katydid_release_notices",
     srcs = [
-        "//:LICENSE",
         "NOTICE.txt",
+        "//:LICENSE",
     ],
 )
 
