@@ -15,12 +15,24 @@ env:
 
 jobs:
   build-and-test:
-    name: Bazel Build (${{ matrix.os }})
+    name: Bazel Build (${{ matrix.os }}, ${{ matrix.compilation_mode }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-24.04, macos-14]
+        compilation_mode: [fastbuild]
+        include:
+          # dbg and opt get special-cased handling in the Bazel build (see .bazelrc's
+          # STANDARD define and KTLogger's own NDEBUG/STANDARD-gated verbosity floor) that
+          # fastbuild alone never exercises - dbg is also specifically the mode CLion's
+          # Bazel plugin uses when debugging, and opt is what actual production runs use.
+          # One OS is enough to catch a regression in either; this logic is not
+          # platform-specific, so it isn't worth tripling the full OS matrix for it.
+          - os: ubuntu-24.04
+            compilation_mode: dbg
+          - os: ubuntu-24.04
+            compilation_mode: opt
 
     steps:
       - name: Checkout repository
@@ -123,9 +135,16 @@ jobs:
           bazelisk-cache: true
           repository-cache: true
           disk-cache: true
+          # Without this, all three ubuntu-24.04 variants (fastbuild/dbg/opt) compute an
+          # identical disk-cache key (setup-bazel's own cache key is scoped by platform/arch,
+          # not by anything specific to this workflow's matrix), and race to save to the same
+          # slot - not a correctness risk, since Bazel's disk cache is content-addressed
+          # internally, but only one of the three would actually persist between CI runs,
+          # non-deterministically. This gives each compilation mode its own cache namespace.
+          cache-version: ${{ matrix.compilation_mode }}
 
       - name: Verify MODULE.bazel.lock is up to date and build everything
-        run: bazel build //...
+        run: bazel build -c ${{ matrix.compilation_mode }} //...
 
       # Every cc_test binary here links ROOT's shared libraries transitively (even a target
       # with no ROOT-specific code of its own, via katydid_utility). rootcling's own shared
@@ -146,7 +165,7 @@ jobs:
           fi
 
       - name: Test everything
-        run: bazel test //...
+        run: bazel test -c ${{ matrix.compilation_mode }} //...
   # rather than as a third value in the matrix above: GitHub Actions has a known issue
   # (https://github.com/actions/runner/issues/265) where using an empty `container:` value to
   # mean "run natively, no container" for some matrix combinations can fail workflow validation
