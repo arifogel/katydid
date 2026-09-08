@@ -58,7 +58,7 @@ def _non_bazel_deps_impl(_module_ctx):
     git_repository(
         name = "yaml_cpp",
         remote = "https://github.com/jbeder/yaml-cpp.git",
-        commit = "3757b2023b71d183a341677feee693c71c2e0766",
+        commit = "8eb618e889c003457d73f7c54777603835677ff4",
         build_file = "//third_party/yaml_cpp:BUILD.yaml_cpp.bazel",
     )
 
