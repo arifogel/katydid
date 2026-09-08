@@ -198,7 +198,7 @@
   "moduleExtensions": {
     "//tools:non_bazel_deps.bzl%non_bazel_deps": {
       "general": {
-        "bzlTransitiveDigest": "nPU7X/8vcOAVpzM1QrM/I2J8x7DtUexhGxSZ4vx0EK8=",
+        "bzlTransitiveDigest": "hqb3QE0iUsnNc4A85nK0Qdk8Ra3F1V6XqCIe4/ieYxI=",
         "usagesDigest": "JmphGTaV6uYIkt0OqF5xvMo6SkI5JADUiCcHwux0/Ik=",
         "recordedInputs": [
           "REPO_MAPPING:,bazel_tools bazel_tools"
@@ -239,7 +239,7 @@
             "repoRuleId": "@@bazel_tools//tools/build_defs/repo:git.bzl%git_repository",
             "attributes": {
               "remote": "https://github.com/jbeder/yaml-cpp.git",
-              "commit": "3757b2023b71d183a341677feee693c71c2e0766",
+              "commit": "8eb618e889c003457d73f7c54777603835677ff4",
               "build_file": "@@//third_party/yaml_cpp:BUILD.yaml_cpp.bazel"
             }
           },
