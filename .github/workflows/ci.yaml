@@ -52,16 +52,14 @@ jobs:
       # built test binary" step below, which exists specifically to catch this class of
       # problem with a clear error message instead.
       #
-      # This used to use a third-party action (awalsh128/cache-apt-pkgs-action) to cache these
-      # packages across runs, which computes its own cache key internally from a normalized
-      # version of the package list. In practice this produced a stale cache hit after
-      # libblas3 was added to the list below - the action's own docs state that "the default
-      # branch cache is available to other branches", a real GitHub Actions cache fallback
-      # mechanism, and the action has several open upstream issues describing exactly this
-      # class of problem (e.g. awalsh128/cache-apt-pkgs-action#138, #56). Caching just the
-      # downloaded .deb files ourselves, keyed directly on a hash of this file, avoids
-      # depending on a third party's internal cache-key computation entirely: this key is
-      # correct by construction, since it changes if and only if this file - which is the only
+      # Caches just the downloaded .deb files, keyed directly on a hash of this file, rather
+      # than a third-party action (e.g. awalsh128/cache-apt-pkgs-action) that computes its own
+      # cache key internally from the package list: such an action's own key computation is
+      # opaque and can go stale silently -- GitHub Actions' own cache fallback mechanism ("the
+      # default branch cache is available to other branches") can then serve an outdated cache
+      # across branches with no error, a documented, repeatedly-reported problem for that
+      # specific action (e.g. awalsh128/cache-apt-pkgs-action#138, #56). This key is correct by
+      # construction instead, since it changes if and only if this file - which is the only
       # place the package list lives - changes. `apt-get install` itself is fast and safe to
       # run unconditionally even on a cache hit, since apt already skips re-downloading
       # packages it finds in its local archive cache and skips reinstalling packages already
