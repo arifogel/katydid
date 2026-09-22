@@ -278,6 +278,13 @@ jobs:
           bazelisk-cache: true
           repository-cache: true
           disk-cache: true
+          # setup-bazel saves each cache type only once, ever, per exact key (its own
+          # upstream issue #171), and its post step runs on !cancelled(), not success()
+          # (its own PR #128) -- so a job that fails early, before doing much real work,
+          # can still permanently lock in a near-empty cache under that key, with no later,
+          # successful run able to overwrite it. cache-version below gives this job a key
+          # of its own to recover from that.
+          cache-version: almalinux9
 
       - name: Verify MODULE.bazel.lock is up to date and build everything
         run: bazel build //...
