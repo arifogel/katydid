@@ -28,19 +28,27 @@ jobs:
       # Regenerating MODULE.bazel.lock requires evaluating every module extension declared in
       # MODULE.bazel, including tools/system_deps.bzl's - which requires Boost, FFTW, MatIO,
       # and ROOT to actually be present on this runner, the same as the main CI workflow's
-      # Ubuntu job. See ci.yaml for the reasoning behind this specific set of packages.
-      - name: Install Boost/FFTW/MatIO/TBB
-        uses: awalsh128/cache-apt-pkgs-action@553a35bb8ebd9fcabcb1c9451aa4c98e1b4ca8a9 # v1.6.3
+      # Ubuntu job. See ci.yaml for the reasoning behind this specific set of packages and
+      # cache strategy.
+      - name: Cache downloaded .deb files
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
-          packages: >-
-            libboost-filesystem-dev
-            libboost-thread-dev
-            libboost-date-time-dev
-            libboost-program-options-dev
-            libfftw3-dev
-            libmatio-dev
+          path: /var/cache/apt/archives
+          key: apt-archives-${{ hashFiles('.github/workflows/lockfile-sync.yaml') }}
+
+      - name: Install Boost/FFTW/MatIO
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libboost-filesystem-dev \
+            libboost-thread-dev \
+            libboost-date-time-dev \
+            libboost-program-options-dev \
+            libfftw3-dev \
+            libmatio-dev \
             libtbb12
-          version: 1.0
+          sudo rm -f /var/cache/apt/archives/lock
+          sudo rm -rf /var/cache/apt/archives/partial
 
       - name: Cache ROOT
         id: cache-root-linux
