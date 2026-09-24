@@ -152,6 +152,14 @@ def _system_libs_repo_impl(repository_ctx):
     build_file_parts = ['load("@rules_cc//cc:cc_library.bzl", "cc_library")']
     build_file_parts.append('package(default_visibility = ["//visibility:public"])')
 
+    # A cc_library with linkopts but no srcs has its linkopts silently dropped by
+    # cc_shared_library (confirmed: bazelbuild/bazel#21884/#27247 -- a real, still-open upstream
+    # bug, not something specific to this repo; bazel's own attempted fix for it, #24017, was
+    # itself reverted for breaking other builds). Every cc_library below (root/boost/fftw/matio)
+    # is exactly this shape, so each gets this same empty, otherwise-inert source file as its
+    # own srcs -- the issue thread's own confirmed workaround.
+    repository_ctx.file("_empty.cc", "")
+
     # --- ROOT: OS-agnostic. Uses root-config, ROOT's own official query tool, rather than
     # guessing an install layout (which differs between Homebrew's Cellar, a root.cern tarball
     # extracted to /opt/root, LCG, conda...). Every ROOT install ships root-config for exactly
@@ -185,6 +193,7 @@ def _system_libs_repo_impl(repository_ctx):
     build_file_parts.append("""
 cc_library(
     name = "root",
+    srcs = ["_empty.cc"],
     hdrs = glob(["root/include/**"], allow_empty = True),
     includes = ["root/include"],
     # Propagates to every transitive dependent, same reasoning as FFTW_FOUND below - Katydid's
@@ -235,6 +244,7 @@ exports_files(["rootcling"])
             build_file_parts.append("""
 cc_library(
     name = "{formula}",
+    srcs = ["_empty.cc"],
     hdrs = glob(["{formula}/include/**"], allow_empty = True),
     includes = ["{formula}/include"],
     defines = {defines},
@@ -264,6 +274,7 @@ cc_library(
             build_file_parts.append("""
 cc_library(
     name = "{formula}",
+    srcs = ["_empty.cc"],
     defines = {defines},
     linkopts = {linkopts},
 )
