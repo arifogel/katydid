@@ -7,6 +7,7 @@
 load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 load("@rules_pkg//pkg:mappings.bzl", "pkg_attributes", "pkg_files")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -88,6 +89,18 @@ cc_binary(
     ],
     data = _PCM_DATA,
     deps = _ALL_KATYDID_LIBS,
+)
+
+# Catches two errors, both traced to the same root cause: IODict/CicadaDict are compiled
+# into katydid_io/@cicada as plain cc_library sources rather than a genuine shared library,
+# so TCling::RegisterModule ends up trying to dlopen() Katydid's own main executable --
+# never a properly supported dlopen() target. See check_katydid_stderr_test.sh's own header
+# for the full explanation, including why the two platforms fail differently.
+sh_test(
+    name = "katydid_stderr_test",
+    srcs = ["check_katydid_stderr_test.sh"],
+    args = ["$(location :Katydid)"],
+    data = [":Katydid"],
 )
 
 # Flat release archive: Katydid/Truncate plus every file Cling's runtime dictionary/
