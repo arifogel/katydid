@@ -5,6 +5,7 @@
 # reading library), which is off by Katydid's default configuration.
 
 load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
 load("@rules_pkg//pkg:mappings.bzl", "pkg_attributes", "pkg_files")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
@@ -20,11 +21,33 @@ _ALL_KATYDID_LIBS = [
     "//Source/Utility:katydid_utility",
 ]
 
+# Every real (has its own compiled object code, not just headers) library
+# reachable from _ALL_KATYDID_LIBS above, listed directly: cc_shared_library
+# only treats *direct* deps as exported, so anything only reached
+# transitively here would still collide with a consumer's own static
+# linking of the same library, reproducing the exact ODR error this whole
+# shared library exists to avoid. @system_libs//:boost/fftw/root are
+# omitted deliberately -- they wrap system libraries via linkopts alone (no
+# srcs of their own), so there's no object code for them to collide over;
+# //vendor/nanoflann and //vendor/RapidXML are header-only for the same
+# reason, but are listed anyway since including a header-only library here
+# is harmless, unlike omitting a real one.
+cc_shared_library(
+    name = "katydid_libs_shared",
+    deps = _ALL_KATYDID_LIBS + [
+        "//vendor/RapidXML:rapidxml",
+        "//vendor/nanoflann",
+        "@cicada",
+        "@nymph",
+        "@scarab",
+    ],
+)
+
 # Every target below that links any of katydid_io/katydid_transform/
 # katydid_spectrum_analysis/katydid_event_analysis/@cicada (directly or
-# transitively) needs this: see //Source/IO:root_dict_shared's own comment
+# transitively) needs this: see :katydid_libs_shared's own comment
 # for what it is and why it's a dynamic_deps, not a plain deps.
-_ROOT_DICT_DYNAMIC_DEPS = ["//Source/IO:root_dict_shared"]
+_ROOT_DICT_DYNAMIC_DEPS = [":katydid_libs_shared"]
 
 # ROOT's Cling interpreter looks for a dictionary's _rdict.pcm file directly alongside the
 # consuming binary's own bazel-out bin/ directory, not via Bazel's runfiles tree. katydid_io

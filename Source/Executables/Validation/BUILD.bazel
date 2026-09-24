@@ -29,9 +29,10 @@ _UTILITY_TEST_DEPS = ["//Source/Utility:katydid_utility"]
 
 # Every target below that links any of katydid_io/katydid_transform/
 # katydid_spectrum_analysis/katydid_event_analysis/@cicada (directly or
-# transitively) needs this: see //Source/IO:root_dict_shared's own comment
-# for what it is and why it's a dynamic_deps, not a plain deps.
-_ROOT_DICT_DYNAMIC_DEPS = ["//Source/IO:root_dict_shared"]
+# transitively) needs this: see
+# //Source/Executables/Main:katydid_libs_shared's own comment for what it
+# is and why it's a dynamic_deps, not a plain deps.
+_ROOT_DICT_DYNAMIC_DEPS = ["//Source/Executables/Main:katydid_libs_shared"]
 
 cc_test(
     name = "ObjectSize",
