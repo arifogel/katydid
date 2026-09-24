@@ -54,7 +54,6 @@ cc_library(
         "Library/CMTEWithClassifierResultsData.cc",
         "Library/CProcessedMPTData.cc",
         "Library/CROOTData.cc",
-        ":CicadaDict_cxx",
     ],
     hdrs = glob(["Library/*.hh"]) + ["Library/_CROOTData.cc"],
     data = [":CicadaDict_pcm"],

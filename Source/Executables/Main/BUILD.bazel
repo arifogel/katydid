@@ -5,7 +5,7 @@
 # reading library), which is off by Katydid's default configuration.
 
 load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
-load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
+load("@rules_cc//cc:cc_import.bzl", "cc_import")
 load("@rules_pkg//pkg:mappings.bzl", "pkg_attributes", "pkg_files")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
@@ -21,40 +21,52 @@ _ALL_KATYDID_LIBS = [
     "//Source/Utility:katydid_utility",
 ]
 
-# Every real (has its own compiled object code, not just headers) library
-# reachable from _ALL_KATYDID_LIBS above, listed directly: cc_shared_library
-# only treats *direct* deps as exported, so anything only reached
-# transitively here would still collide with a consumer's own static
-# linking of the same library, reproducing the exact ODR error this whole
-# shared library exists to avoid.
+# IODict/CicadaDict's own compiled dictionary code, kept out of katydid_io/cicada's own static
+# srcs deliberately: TCling::RegisterModule (ROOT's own function, inside libCore.so) already
+# calls dlopen() itself, unconditionally, on whatever file it resolves as containing a
+# dictionary's compiled code, as part of finishing registration -- no hook of ours involved.
+# Today that resolves to Katydid/Truncate's own main executable, since that's genuinely where
+# this code is linked -- and a PIE main executable was never a properly supported dlopen()
+# target (glibc >= 2.29 refuses it outright; other toolchains that don't flag the binary PIE
+# leave registration silently incomplete instead). Moving this code into a real, separate .so
+# makes that same, already-existing dlopen() call resolve to a genuine shared library instead,
+# with no new code needed anywhere.
 #
-# @system_libs//:boost/fftw/root and the two vendor libs carry no srcs of
-# their own (boost/fftw/root wrap system libraries via linkopts alone; the
-# vendor libs are header-only), so none of them can collide over object
-# code the way the libraries above can -- but are still listed directly:
-# their linkopts need to be unambiguously part of this shared library's
-# own link command, which turned out to require this when they were only
-# reachable transitively (confirmed directly against a real "undefined
-# reference" link failure, not assumed).
-cc_shared_library(
-    name = "katydid_libs_shared",
-    deps = _ALL_KATYDID_LIBS + [
-        "//vendor/RapidXML:rapidxml",
-        "//vendor/nanoflann",
-        "@cicada",
-        "@nymph",
-        "@scarab",
-        "@system_libs//:boost",
-        "@system_libs//:fftw",
-        "@system_libs//:root",
+# A plain cc_binary(linkshared = True), not cc_shared_library: the latter's own ODR-checking
+# and direct-vs-transitive exports bookkeeping turned out to have three separate, real problems
+# for this specific use -- an analysis-time error for any library also statically linked
+# elsewhere, a still-open upstream bug dropping linkopts from srcs-less deps
+# (bazelbuild/bazel#21884/#27247), and a still-open upstream limitation where a consumer's own
+# direct references to a dependency's inline/header-embedded symbols go unresolved if that
+# dependency is only reachable via dynamic_deps (bazelbuild/bazel#21819) -- none of which apply
+# to this much older, simpler mechanism, which just compiles srcs and links deps into a .so the
+# same way it would build a normal executable.
+cc_binary(
+    name = "libroot_dict_shared.so",
+    srcs = [
+        "//Source/IO:IODict_cxx",
+        "@cicada//:CicadaDict_cxx",
     ],
+    linkshared = True,
+    deps = [
+        "//Source/IO:katydid_io_headers",
+        "@cicada//:cicada_headers",
+    ],
+)
+
+# Wraps the .so above as a normal, plain deps entry: ensures Katydid/Truncate/etc. link against
+# it as a genuine runtime dependency (a real DT_NEEDED entry, with bazel's own standard rpath
+# handling), so the OS's own dynamic loader loads it at process start and its own static
+# initializer -- the one that calls TCling::RegisterModule -- actually runs.
+cc_import(
+    name = "root_dict_import",
+    shared_library = ":libroot_dict_shared.so",
 )
 
 # Every target below that links any of katydid_io/katydid_transform/
 # katydid_spectrum_analysis/katydid_event_analysis/@cicada (directly or
-# transitively) needs this: see :katydid_libs_shared's own comment
-# for what it is and why it's a dynamic_deps, not a plain deps.
-_ROOT_DICT_DYNAMIC_DEPS = [":katydid_libs_shared"]
+# transitively) needs this too, for the dictionary to be registered.
+_ROOT_DICT_DEPS = [":root_dict_import"]
 
 # ROOT's Cling interpreter looks for a dictionary's _rdict.pcm file directly alongside the
 # consuming binary's own bazel-out bin/ directory, not via Bazel's runfiles tree. katydid_io
@@ -113,16 +125,7 @@ cc_binary(
         "BazelRootIncludePath.cc",
     ],
     data = _PCM_DATA,
-    dynamic_deps = _ROOT_DICT_DYNAMIC_DEPS,
-    # @system_libs//:root listed directly, not just reached transitively through
-    # _ALL_KATYDID_LIBS: Katydid.cc itself embeds a call to TVersionCheck::TVersionCheck (via a
-    # static global ROOT's own Rtypes.h declares in every translation unit that includes it,
-    # not something resolved through any of the katydid_* libraries' own compiled code) directly
-    # into its own compiled object. dynamic_deps only makes a shared library's own *direct*
-    # deps visible to a consumer's link command; a dep only reached transitively (root, via
-    # katydid_utility) isn't -- a real, documented cc_shared_library/dynamic_deps limitation
-    # (bazelbuild/bazel#21819), not something specific to this repo.
-    deps = _ALL_KATYDID_LIBS + ["@system_libs//:root"],
+    deps = _ALL_KATYDID_LIBS + _ROOT_DICT_DEPS,
 )
 
 cc_binary(
@@ -133,16 +136,15 @@ cc_binary(
         "BazelRootIncludePath.cc",
     ],
     data = _PCM_DATA,
-    dynamic_deps = _ROOT_DICT_DYNAMIC_DEPS,
-    # See Katydid's own identical deps line above for why.
-    deps = _ALL_KATYDID_LIBS + ["@system_libs//:root"],
+    deps = _ALL_KATYDID_LIBS + _ROOT_DICT_DEPS,
 )
 
-# Catches two errors, both traced to the same root cause: IODict/CicadaDict are compiled
-# into katydid_io/@cicada as plain cc_library sources rather than a genuine shared library,
-# so TCling::RegisterModule ends up trying to dlopen() Katydid's own main executable --
-# never a properly supported dlopen() target. See check_katydid_stderr_test.sh's own header
-# for the full explanation, including why the two platforms fail differently.
+# Regression test for a bug traced to IODict/CicadaDict once being compiled into katydid_io/
+# @cicada as plain cc_library sources rather than a genuine shared library: TCling::RegisterModule
+# ended up trying to dlopen() Katydid's own main executable -- never a properly supported
+# dlopen() target. Fixed by :libroot_dict_shared.so/:root_dict_import above. See
+# check_katydid_stderr_test.sh's own header for the full explanation, including why the two
+# platforms failed differently.
 sh_test(
     name = "katydid_stderr_test",
     srcs = ["check_katydid_stderr_test.sh"],

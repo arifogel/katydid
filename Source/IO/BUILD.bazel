@@ -114,7 +114,6 @@ cc_library(
         "TerminalWriter/KTTerminalTypeWriterEventAnalysis.cc",
         "TerminalWriter/KTTerminalTypeWriterTime.cc",
         "TerminalWriter/KTTerminalWriter.cc",
-        ":IODict_cxx",
     ],
     hdrs = _IO_HDRS,
     # ROOT's class loader looks for the generated .pcm file next to the compiled library or
