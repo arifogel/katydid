@@ -33,6 +33,15 @@ _UTILITY_TEST_DEPS = ["//Source/Utility:katydid_utility"]
 # //Source/Executables/Main:root_dict_import's own comment for what it is.
 _ROOT_DICT_DEPS = ["//Source/Executables/Main:root_dict_import"]
 
+# Every target below that links _ROOT_DICT_DEPS needs this too: loading
+# root_dict_import's own .so always triggers Cling's dictionary registration/autoload
+# machinery, regardless of whether the test itself exercises any ROOT-tree-writing path
+# (confirmed directly: TestJSONWriter, not itself a ROOT-tree test, still hit this) -- unlike
+# the PCM copies below, which only crash the narrower set of tests that actually write
+# TClonesArray-streamed classes, this is non-fatal stderr noise for every one. See
+# CicadaDict_header_local_copy's own comment for the underlying mechanism.
+_ROOT_DICT_DATA = [":CicadaDict_header_local_copy"]
+
 cc_test(
     name = "ObjectSize",
     srcs = ["ObjectSize.cc"],
@@ -66,6 +75,7 @@ cc_test(
 cc_test(
     name = "TestDBSCAN",
     srcs = ["TestDBSCAN.cc"],
+    data = _ROOT_DICT_DATA,
     deps = _UTILITY_TEST_DEPS + ["//Source/EventAnalysis:katydid_event_analysis"] + _ROOT_DICT_DEPS,
 )
 
@@ -124,30 +134,35 @@ _DATA_IO_TEST_DEPS = [
 cc_binary(
     name = "TestDPTReader",
     srcs = ["TestDPTReader.cc"],
+    data = _ROOT_DICT_DATA,
     deps = _DATA_IO_TEST_DEPS + _ROOT_DICT_DEPS,
 )
 
 cc_test(
     name = "TestJSONWriter",
     srcs = ["TestJSONWriter.cc"],
+    data = _ROOT_DICT_DATA,
     deps = _DATA_IO_TEST_DEPS + _ROOT_DICT_DEPS,
 )
 
 cc_test(
     name = "TestKDTree",
     srcs = ["TestKDTree.cc"],
+    data = _ROOT_DICT_DATA,
     deps = _DATA_IO_TEST_DEPS + ["//vendor/nanoflann"] + _ROOT_DICT_DEPS,
 )
 
 cc_test(
     name = "TestKDTreeData",
     srcs = ["TestKDTreeData.cc"],
+    data = _ROOT_DICT_DATA,
     deps = _DATA_IO_TEST_DEPS + _ROOT_DICT_DEPS,
 )
 
 cc_test(
     name = "TestSmoothing",
     srcs = ["TestSmoothing.cc"],
+    data = _ROOT_DICT_DATA,
     deps = _DATA_IO_TEST_DEPS + _ROOT_DICT_DEPS,
 )
 
@@ -170,24 +185,28 @@ cc_test(
 cc_test(
     name = "TestComboFFTW",
     srcs = ["TestComboFFTW.cc"],
+    data = _ROOT_DICT_DATA,
     deps = ["//Source/Transform:katydid_transform"] + _ROOT_DICT_DEPS,
 )
 
 cc_test(
     name = "TestForwardFFTW",
     srcs = ["TestForwardFFTW.cc"],
+    data = _ROOT_DICT_DATA,
     deps = ["//Source/Transform:katydid_transform"] + _ROOT_DICT_DEPS,
 )
 
 cc_test(
     name = "TestReverseFFTW",
     srcs = ["TestReverseFFTW.cc"],
+    data = _ROOT_DICT_DATA,
     deps = ["//Source/Transform:katydid_transform"] + _ROOT_DICT_DEPS,
 )
 
 cc_test(
     name = "TestWignerVille",
     srcs = ["TestWignerVille.cc"],
+    data = _ROOT_DICT_DATA,
     deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis"] + _ROOT_DICT_DEPS,
 )
 
@@ -217,12 +236,14 @@ cc_test(
 cc_test(
     name = "TestChannelAggregator",
     srcs = ["TestChannelAggregator.cc"],
+    data = _ROOT_DICT_DATA,
     deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis"] + _ROOT_DICT_DEPS,
 )
 
 cc_test(
     name = "TestConsensusThresholding",
     srcs = ["TestConsensusThresholding.cc"],
+    data = _ROOT_DICT_DATA,
     deps = [
         "//Source/EventAnalysis:katydid_event_analysis",
         "//Source/SpectrumAnalysis:katydid_spectrum_analysis",
@@ -232,49 +253,56 @@ cc_test(
 cc_test(
     name = "TestConvolution1D",
     srcs = ["TestConvolution1D.cc"],
-    data = ["//Examples/CustomApplications:GaussianKernel.json"],
+    data = ["//Examples/CustomApplications:GaussianKernel.json"] + _ROOT_DICT_DATA,
     deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis"] + _ROOT_DICT_DEPS,
 )
 
 cc_test(
     name = "TestCorrelator",
     srcs = ["TestCorrelator.cc"],
+    data = _ROOT_DICT_DATA,
     deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis"] + _ROOT_DICT_DEPS,
 )
 
 cc_test(
     name = "TestDataAccumulator",
     srcs = ["TestDataAccumulator.cc"],
+    data = _ROOT_DICT_DATA,
     deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis"] + _ROOT_DICT_DEPS,
 )
 
 cc_test(
     name = "TestDBSCANNoiseFiltering",
     srcs = ["TestDBSCANNoiseFiltering.cc"],
+    data = _ROOT_DICT_DATA,
     deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis"] + _ROOT_DICT_DEPS,
 )
 
 cc_test(
     name = "TestDBSCANTrackClustering",
     srcs = ["TestDBSCANTrackClustering.cc"],
+    data = _ROOT_DICT_DATA,
     deps = ["//Source/EventAnalysis:katydid_event_analysis"] + _ROOT_DICT_DEPS,
 )
 
 cc_test(
     name = "TestGainNormalization",
     srcs = ["TestGainNormalization.cc"],
+    data = _ROOT_DICT_DATA,
     deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis"] + _ROOT_DICT_DEPS,
 )
 
 cc_test(
     name = "TestGainVariationProcessor",
     srcs = ["TestGainVariationProcessor.cc"],
+    data = _ROOT_DICT_DATA,
     deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis"] + _ROOT_DICT_DEPS,
 )
 
 cc_test(
     name = "TestNTracksNPointsNUPCut",
     srcs = ["TestNTracksNPointsNUPCut.cc"],
+    data = _ROOT_DICT_DATA,
     deps = ["//Source/EventAnalysis:katydid_event_analysis"] + _ROOT_DICT_DEPS,
 )
 
@@ -284,7 +312,7 @@ cc_test(
     data = [
         ":CicadaDict_pcm_local_copy",
         ":IODict_pcm_local_copy",
-    ],
+    ] + _ROOT_DICT_DATA,
     deps = [
         "//Source/EventAnalysis:katydid_event_analysis",
         "//Source/SpectrumAnalysis:katydid_spectrum_analysis",
@@ -294,24 +322,28 @@ cc_test(
 cc_test(
     name = "TestSpectrogramCollector",
     srcs = ["TestSpectrogramCollector.cc"],
+    data = _ROOT_DICT_DATA,
     deps = ["//Source/EventAnalysis:katydid_event_analysis"] + _ROOT_DICT_DEPS,
 )
 
 cc_test(
     name = "TestSpectrogramStriper",
     srcs = ["TestSpectrogramStriper.cc"],
+    data = _ROOT_DICT_DATA,
     deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis"] + _ROOT_DICT_DEPS,
 )
 
 cc_test(
     name = "TestSpectrogramStriperSwaps",
     srcs = ["TestSpectrogramStriperSwaps.cc"],
+    data = _ROOT_DICT_DATA,
     deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis"] + _ROOT_DICT_DEPS,
 )
 
 cc_test(
     name = "TestSpectrumDiscriminator",
     srcs = ["TestSpectrumDiscriminator.cc"],
+    data = _ROOT_DICT_DATA,
     deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis"] + _ROOT_DICT_DEPS,
 )
 
@@ -321,7 +353,7 @@ cc_test(
     data = [
         ":CicadaDict_pcm_local_copy",
         ":IODict_pcm_local_copy",
-    ],
+    ] + _ROOT_DICT_DATA,
     deps = ["//Source/EventAnalysis:katydid_event_analysis"] + _ROOT_DICT_DEPS,
 )
 
@@ -353,9 +385,26 @@ genrule(
     cmd = "cp $< $@",
 )
 
+# CicadaDict's .rootmap records its dictionary headers by bare basename (see
+# tools/root_dictionary.bzl), and Cling's runtime autoloader looks them up by that same
+# basename, in this same directory, when it first encounters one of these types. Exposing the
+# header via @cicada's own `data` isn't enough - like the PCM copies above, it needs to
+# physically sit next to the binary in this package's own bazel-out bin/ directory, not just be
+# reachable via runfiles. Without this, autoloading fails with "Missing FileEntry for
+# _CROOTData.hh" -- confirmed non-fatal (unlike the PCM-missing crash above), but affects every
+# test here that links _ROOT_DICT_DEPS (see that constant's own comment), not just the ones
+# that write TClonesArray-streamed classes.
+genrule(
+    name = "CicadaDict_header_local_copy",
+    srcs = ["@cicada//:Library/_CROOTData.hh"],
+    outs = ["_CROOTData.hh"],
+    cmd = "cp $< $@",
+)
+
 cc_test(
     name = "TestWindowFunction",
     srcs = ["TestWindowFunction.cc"],
+    data = _ROOT_DICT_DATA,
     deps = ["//Source/Transform:katydid_transform"] + _ROOT_DICT_DEPS,
 )
 
@@ -375,6 +424,7 @@ cc_test(
 cc_test(
     name = "TestBackgroundFlattening",
     srcs = ["TestBackgroundFlattening.cc"],
+    data = _ROOT_DICT_DATA,
     deps = [
         "//Source/IO:katydid_io",
         "//Source/SpectrumAnalysis:katydid_spectrum_analysis",
@@ -384,13 +434,14 @@ cc_test(
 cc_test(
     name = "TestBasicROOTFileWriter",
     srcs = ["TestBasicROOTFileWriter.cc"],
+    data = _ROOT_DICT_DATA,
     deps = ["//Source/IO:katydid_io"] + _ROOT_DICT_DEPS,
 )
 
 cc_test(
     name = "TestROOTDictionary",
     srcs = ["TestROOTDictionary.cc"],
-    data = [":CicadaDict_pcm_local_copy"],
+    data = [":CicadaDict_pcm_local_copy"] + _ROOT_DICT_DATA,
     # @cicada does not depend on @nymph (see its own BUILD file's top comment) - this is the
     # only test here whose deps are just @cicada, with nothing that transitively provides
     # Nymph's KTLogger.hh, which this test also includes directly. Every other test gets
@@ -407,12 +458,13 @@ cc_test(
     data = [
         ":CicadaDict_pcm_local_copy",
         ":IODict_pcm_local_copy",
-    ],
+    ] + _ROOT_DICT_DATA,
     deps = ["//Source/IO:katydid_io"] + _ROOT_DICT_DEPS,
 )
 
 cc_test(
     name = "TestROOTWriterFileManager",
     srcs = ["TestROOTWriterFileManager.cc"],
+    data = _ROOT_DICT_DATA,
     deps = ["//Source/IO:katydid_io"] + _ROOT_DICT_DEPS,
 )

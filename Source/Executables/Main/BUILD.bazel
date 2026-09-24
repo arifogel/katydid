@@ -51,19 +51,30 @@ cc_binary(
         "BazelRootIncludePath.cc",
     ],
     linkshared = True,
-    # The real katydid_io/@cicada, not just their own headers-only katydid_io_headers/
-    # cicada_headers variants: the dictionary needs the real, compiled implementation of every
-    # class it registers to resolve their typeinfo/vtable symbols at this .so's own link time
-    # (confirmed directly: TestROOTDictionary, which links @cicada alone, not katydid_io,
-    # failed at runtime with "undefined symbol: typeinfo for Katydid::TMultiBandEventData"
-    # without this). Real trade-off worth being explicit about: katydid_io's own compiled code
-    # is consequently linked into both this .so and directly into Katydid/Truncate (which also
-    # link katydid_io, via _ALL_KATYDID_LIBS) -- two separate copies of the same code in one
-    # running process. Not known to be unsafe (no confirmed global/mutable state within
-    # katydid_io itself, unlike katydid_utility/scarab's own factory registries), but not
-    # verified safe either.
+    # //Source/IO:katydid_io_root_types, not the real, full katydid_io: the dictionary needs
+    # the real, compiled implementation of the specific classes it registers (KTROOTData.cc/
+    # KTDisplayWindow.cc, split out into that narrower target for exactly this) to resolve
+    # their typeinfo/vtable symbols at this .so's own link time (confirmed directly:
+    # TestROOTDictionary, which links @cicada alone, not katydid_io, failed at runtime with
+    # "undefined symbol: typeinfo for Katydid::TMultiBandEventData" without this) -- but
+    # linking the real, full katydid_io instead, which was tried first, hit a second, real
+    # problem: its own writer/reader/processor classes' KT_REGISTER_* static-initializer
+    # registration ran a second time in the same process, once for their own copy already
+    # statically linked into Katydid/Truncate/every Validation test, and again for the
+    # separate copy that pulled into this .so -- confirmed directly against real output
+    # ("Already have factory registered for <json>", <yaml>, <basic-ascii-writer>, and every
+    # other katydid_io writer/processor/reader). katydid_io_root_types carries no such
+    # registration side effects (confirmed directly, not assumed: grepped for KT_REGISTER_* in
+    # each of its three source files first), so this avoids that problem entirely rather than
+    # trading it for a narrower one.
+    #
+    # @cicada, not split the same way: cicada is a data-format library, not a processing-
+    # pipeline component, and no Cicada-specific double-registration appeared in the actual
+    # observed output above -- reasonable evidence it doesn't have the same problem, though
+    # this repo doesn't carry Cicada's own source to grep directly the way katydid_io's could
+    # be checked, so this is inference from behavior, not a source-level check.
     deps = [
-        "//Source/IO:katydid_io",
+        "//Source/IO:katydid_io_root_types",
         "@cicada",
     ],
 )
