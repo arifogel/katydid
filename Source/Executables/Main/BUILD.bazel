@@ -26,12 +26,16 @@ _ALL_KATYDID_LIBS = [
 # only treats *direct* deps as exported, so anything only reached
 # transitively here would still collide with a consumer's own static
 # linking of the same library, reproducing the exact ODR error this whole
-# shared library exists to avoid. @system_libs//:boost/fftw/root are
-# omitted deliberately -- they wrap system libraries via linkopts alone (no
-# srcs of their own), so there's no object code for them to collide over;
-# //vendor/nanoflann and //vendor/RapidXML are header-only for the same
-# reason, but are listed anyway since including a header-only library here
-# is harmless, unlike omitting a real one.
+# shared library exists to avoid.
+#
+# @system_libs//:boost/fftw/root and the two vendor libs carry no srcs of
+# their own (boost/fftw/root wrap system libraries via linkopts alone; the
+# vendor libs are header-only), so none of them can collide over object
+# code the way the libraries above can -- but are still listed directly:
+# their linkopts need to be unambiguously part of this shared library's
+# own link command, which turned out to require this when they were only
+# reachable transitively (confirmed directly against a real "undefined
+# reference" link failure, not assumed).
 cc_shared_library(
     name = "katydid_libs_shared",
     deps = _ALL_KATYDID_LIBS + [
@@ -40,6 +44,9 @@ cc_shared_library(
         "@cicada",
         "@nymph",
         "@scarab",
+        "@system_libs//:boost",
+        "@system_libs//:fftw",
+        "@system_libs//:root",
     ],
 )
 
