@@ -114,7 +114,15 @@ cc_binary(
     ],
     data = _PCM_DATA,
     dynamic_deps = _ROOT_DICT_DYNAMIC_DEPS,
-    deps = _ALL_KATYDID_LIBS,
+    # @system_libs//:root listed directly, not just reached transitively through
+    # _ALL_KATYDID_LIBS: Katydid.cc itself embeds a call to TVersionCheck::TVersionCheck (via a
+    # static global ROOT's own Rtypes.h declares in every translation unit that includes it,
+    # not something resolved through any of the katydid_* libraries' own compiled code) directly
+    # into its own compiled object. dynamic_deps only makes a shared library's own *direct*
+    # deps visible to a consumer's link command; a dep only reached transitively (root, via
+    # katydid_utility) isn't -- a real, documented cc_shared_library/dynamic_deps limitation
+    # (bazelbuild/bazel#21819), not something specific to this repo.
+    deps = _ALL_KATYDID_LIBS + ["@system_libs//:root"],
 )
 
 cc_binary(
@@ -126,7 +134,8 @@ cc_binary(
     ],
     data = _PCM_DATA,
     dynamic_deps = _ROOT_DICT_DYNAMIC_DEPS,
-    deps = _ALL_KATYDID_LIBS,
+    # See Katydid's own identical deps line above for why.
+    deps = _ALL_KATYDID_LIBS + ["@system_libs//:root"],
 )
 
 # Catches two errors, both traced to the same root cause: IODict/CicadaDict are compiled
