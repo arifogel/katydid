@@ -27,6 +27,12 @@ load("@rules_cc//cc:cc_test.bzl", "cc_test")
 
 _UTILITY_TEST_DEPS = ["//Source/Utility:katydid_utility"]
 
+# Every target below that links any of katydid_io/katydid_transform/
+# katydid_spectrum_analysis/katydid_event_analysis/@cicada (directly or
+# transitively) needs this: see //Source/IO:root_dict_shared's own comment
+# for what it is and why it's a dynamic_deps, not a plain deps.
+_ROOT_DICT_DYNAMIC_DEPS = ["//Source/IO:root_dict_shared"]
+
 cc_test(
     name = "ObjectSize",
     srcs = ["ObjectSize.cc"],
@@ -60,6 +66,7 @@ cc_test(
 cc_test(
     name = "TestDBSCAN",
     srcs = ["TestDBSCAN.cc"],
+    dynamic_deps = _ROOT_DICT_DYNAMIC_DEPS,
     deps = _UTILITY_TEST_DEPS + ["//Source/EventAnalysis:katydid_event_analysis"],
 )
 
@@ -118,30 +125,35 @@ _DATA_IO_TEST_DEPS = [
 cc_binary(
     name = "TestDPTReader",
     srcs = ["TestDPTReader.cc"],
+    dynamic_deps = _ROOT_DICT_DYNAMIC_DEPS,
     deps = _DATA_IO_TEST_DEPS,
 )
 
 cc_test(
     name = "TestJSONWriter",
     srcs = ["TestJSONWriter.cc"],
+    dynamic_deps = _ROOT_DICT_DYNAMIC_DEPS,
     deps = _DATA_IO_TEST_DEPS,
 )
 
 cc_test(
     name = "TestKDTree",
     srcs = ["TestKDTree.cc"],
+    dynamic_deps = _ROOT_DICT_DYNAMIC_DEPS,
     deps = _DATA_IO_TEST_DEPS + ["//vendor/nanoflann"],
 )
 
 cc_test(
     name = "TestKDTreeData",
     srcs = ["TestKDTreeData.cc"],
+    dynamic_deps = _ROOT_DICT_DYNAMIC_DEPS,
     deps = _DATA_IO_TEST_DEPS,
 )
 
 cc_test(
     name = "TestSmoothing",
     srcs = ["TestSmoothing.cc"],
+    dynamic_deps = _ROOT_DICT_DYNAMIC_DEPS,
     deps = _DATA_IO_TEST_DEPS,
 )
 
@@ -164,24 +176,28 @@ cc_test(
 cc_test(
     name = "TestComboFFTW",
     srcs = ["TestComboFFTW.cc"],
+    dynamic_deps = _ROOT_DICT_DYNAMIC_DEPS,
     deps = ["//Source/Transform:katydid_transform"],
 )
 
 cc_test(
     name = "TestForwardFFTW",
     srcs = ["TestForwardFFTW.cc"],
+    dynamic_deps = _ROOT_DICT_DYNAMIC_DEPS,
     deps = ["//Source/Transform:katydid_transform"],
 )
 
 cc_test(
     name = "TestReverseFFTW",
     srcs = ["TestReverseFFTW.cc"],
+    dynamic_deps = _ROOT_DICT_DYNAMIC_DEPS,
     deps = ["//Source/Transform:katydid_transform"],
 )
 
 cc_test(
     name = "TestWignerVille",
     srcs = ["TestWignerVille.cc"],
+    dynamic_deps = _ROOT_DICT_DYNAMIC_DEPS,
     deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis"],
 )
 
@@ -211,12 +227,14 @@ cc_test(
 cc_test(
     name = "TestChannelAggregator",
     srcs = ["TestChannelAggregator.cc"],
+    dynamic_deps = _ROOT_DICT_DYNAMIC_DEPS,
     deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis"],
 )
 
 cc_test(
     name = "TestConsensusThresholding",
     srcs = ["TestConsensusThresholding.cc"],
+    dynamic_deps = _ROOT_DICT_DYNAMIC_DEPS,
     deps = [
         "//Source/EventAnalysis:katydid_event_analysis",
         "//Source/SpectrumAnalysis:katydid_spectrum_analysis",
@@ -227,48 +245,56 @@ cc_test(
     name = "TestConvolution1D",
     srcs = ["TestConvolution1D.cc"],
     data = ["//Examples/CustomApplications:GaussianKernel.json"],
+    dynamic_deps = _ROOT_DICT_DYNAMIC_DEPS,
     deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis"],
 )
 
 cc_test(
     name = "TestCorrelator",
     srcs = ["TestCorrelator.cc"],
+    dynamic_deps = _ROOT_DICT_DYNAMIC_DEPS,
     deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis"],
 )
 
 cc_test(
     name = "TestDataAccumulator",
     srcs = ["TestDataAccumulator.cc"],
+    dynamic_deps = _ROOT_DICT_DYNAMIC_DEPS,
     deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis"],
 )
 
 cc_test(
     name = "TestDBSCANNoiseFiltering",
     srcs = ["TestDBSCANNoiseFiltering.cc"],
+    dynamic_deps = _ROOT_DICT_DYNAMIC_DEPS,
     deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis"],
 )
 
 cc_test(
     name = "TestDBSCANTrackClustering",
     srcs = ["TestDBSCANTrackClustering.cc"],
+    dynamic_deps = _ROOT_DICT_DYNAMIC_DEPS,
     deps = ["//Source/EventAnalysis:katydid_event_analysis"],
 )
 
 cc_test(
     name = "TestGainNormalization",
     srcs = ["TestGainNormalization.cc"],
+    dynamic_deps = _ROOT_DICT_DYNAMIC_DEPS,
     deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis"],
 )
 
 cc_test(
     name = "TestGainVariationProcessor",
     srcs = ["TestGainVariationProcessor.cc"],
+    dynamic_deps = _ROOT_DICT_DYNAMIC_DEPS,
     deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis"],
 )
 
 cc_test(
     name = "TestNTracksNPointsNUPCut",
     srcs = ["TestNTracksNPointsNUPCut.cc"],
+    dynamic_deps = _ROOT_DICT_DYNAMIC_DEPS,
     deps = ["//Source/EventAnalysis:katydid_event_analysis"],
 )
 
@@ -279,6 +305,7 @@ cc_test(
         ":CicadaDict_pcm_local_copy",
         ":IODict_pcm_local_copy",
     ],
+    dynamic_deps = _ROOT_DICT_DYNAMIC_DEPS,
     deps = [
         "//Source/EventAnalysis:katydid_event_analysis",
         "//Source/SpectrumAnalysis:katydid_spectrum_analysis",
@@ -288,24 +315,28 @@ cc_test(
 cc_test(
     name = "TestSpectrogramCollector",
     srcs = ["TestSpectrogramCollector.cc"],
+    dynamic_deps = _ROOT_DICT_DYNAMIC_DEPS,
     deps = ["//Source/EventAnalysis:katydid_event_analysis"],
 )
 
 cc_test(
     name = "TestSpectrogramStriper",
     srcs = ["TestSpectrogramStriper.cc"],
+    dynamic_deps = _ROOT_DICT_DYNAMIC_DEPS,
     deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis"],
 )
 
 cc_test(
     name = "TestSpectrogramStriperSwaps",
     srcs = ["TestSpectrogramStriperSwaps.cc"],
+    dynamic_deps = _ROOT_DICT_DYNAMIC_DEPS,
     deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis"],
 )
 
 cc_test(
     name = "TestSpectrumDiscriminator",
     srcs = ["TestSpectrumDiscriminator.cc"],
+    dynamic_deps = _ROOT_DICT_DYNAMIC_DEPS,
     deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis"],
 )
 
@@ -316,6 +347,7 @@ cc_test(
         ":CicadaDict_pcm_local_copy",
         ":IODict_pcm_local_copy",
     ],
+    dynamic_deps = _ROOT_DICT_DYNAMIC_DEPS,
     deps = ["//Source/EventAnalysis:katydid_event_analysis"],
 )
 
@@ -350,6 +382,7 @@ genrule(
 cc_test(
     name = "TestWindowFunction",
     srcs = ["TestWindowFunction.cc"],
+    dynamic_deps = _ROOT_DICT_DYNAMIC_DEPS,
     deps = ["//Source/Transform:katydid_transform"],
 )
 
@@ -369,6 +402,7 @@ cc_test(
 cc_test(
     name = "TestBackgroundFlattening",
     srcs = ["TestBackgroundFlattening.cc"],
+    dynamic_deps = _ROOT_DICT_DYNAMIC_DEPS,
     deps = [
         "//Source/IO:katydid_io",
         "//Source/SpectrumAnalysis:katydid_spectrum_analysis",
@@ -378,6 +412,7 @@ cc_test(
 cc_test(
     name = "TestBasicROOTFileWriter",
     srcs = ["TestBasicROOTFileWriter.cc"],
+    dynamic_deps = _ROOT_DICT_DYNAMIC_DEPS,
     deps = ["//Source/IO:katydid_io"],
 )
 
@@ -389,6 +424,7 @@ cc_test(
     # only test here whose deps are just @cicada, with nothing that transitively provides
     # Nymph's KTLogger.hh, which this test also includes directly. Every other test gets
     # KTLogger.hh for free through one of the katydid_* libraries, which all depend on @nymph.
+    dynamic_deps = _ROOT_DICT_DYNAMIC_DEPS,
     deps = [
         "@cicada",
         "@nymph",
@@ -402,11 +438,13 @@ cc_test(
         ":CicadaDict_pcm_local_copy",
         ":IODict_pcm_local_copy",
     ],
+    dynamic_deps = _ROOT_DICT_DYNAMIC_DEPS,
     deps = ["//Source/IO:katydid_io"],
 )
 
 cc_test(
     name = "TestROOTWriterFileManager",
     srcs = ["TestROOTWriterFileManager.cc"],
+    dynamic_deps = _ROOT_DICT_DYNAMIC_DEPS,
     deps = ["//Source/IO:katydid_io"],
 )

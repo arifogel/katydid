@@ -12,6 +12,7 @@
 # needs to be directly on the compiler's search path.
 
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
 load("//tools:root_dictionary.bzl", "root_dictionary")
 
 package(default_visibility = ["//visibility:public"])
@@ -114,7 +115,6 @@ cc_library(
         "TerminalWriter/KTTerminalTypeWriterEventAnalysis.cc",
         "TerminalWriter/KTTerminalTypeWriterTime.cc",
         "TerminalWriter/KTTerminalWriter.cc",
-        ":IODict_cxx",
     ],
     hdrs = _IO_HDRS,
     # ROOT's class loader looks for the generated .pcm file next to the compiled library or
@@ -135,4 +135,36 @@ cc_library(
     # basic-root-writer, root-tree-writer, and others) silently fails to
     # register at runtime.
     alwayslink = 1,
+)
+
+# IODict/CicadaDict's own compiled dictionary code, kept out of katydid_io's
+# static srcs deliberately: TCling::RegisterModule needs to dlopen() the
+# object containing a dictionary, and a PIE main executable was never a
+# properly supported dlopen() target (glibc >= 2.29 refuses it outright;
+# other toolchains that don't flag the binary PIE appear to leave
+# registration silently incomplete instead). Built as a real
+# cc_shared_library below instead, so TCling dlopen()s a genuine shared
+# library.
+cc_library(
+    name = "IODict_lib",
+    srcs = [":IODict_cxx"],
+    deps = [":katydid_io_headers"],
+    # Same reasoning as katydid_io's own alwayslink above: nothing calls
+    # into this translation unit by symbol, only via its own static
+    # initializer.
+    alwayslink = 1,
+)
+
+# Combines IODict_lib (above) and @cicada's own CicadaDict_lib into one
+# shared library, rather than two separate cc_shared_library targets: both
+# would otherwise statically link overlapping transitive deps (@cicada,
+# @system_libs//:root, ...), which cc_shared_library's own ODR-checking
+# machinery flags as an error unless explicitly reconciled. One shared
+# library sidesteps that entirely.
+cc_shared_library(
+    name = "root_dict_shared",
+    deps = [
+        ":IODict_lib",
+        "@cicada//:CicadaDict_lib",
+    ],
 )

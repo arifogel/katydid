@@ -20,6 +20,12 @@ _ALL_KATYDID_LIBS = [
     "//Source/Utility:katydid_utility",
 ]
 
+# Every target below that links any of katydid_io/katydid_transform/
+# katydid_spectrum_analysis/katydid_event_analysis/@cicada (directly or
+# transitively) needs this: see //Source/IO:root_dict_shared's own comment
+# for what it is and why it's a dynamic_deps, not a plain deps.
+_ROOT_DICT_DYNAMIC_DEPS = ["//Source/IO:root_dict_shared"]
+
 # ROOT's Cling interpreter looks for a dictionary's _rdict.pcm file directly alongside the
 # consuming binary's own bazel-out bin/ directory, not via Bazel's runfiles tree. katydid_io
 # and @cicada each already declare `data = [":<name>_pcm"]` on their own cc_library, but that
@@ -77,6 +83,7 @@ cc_binary(
         "BazelRootIncludePath.cc",
     ],
     data = _PCM_DATA,
+    dynamic_deps = _ROOT_DICT_DYNAMIC_DEPS,
     deps = _ALL_KATYDID_LIBS,
 )
 
@@ -88,6 +95,7 @@ cc_binary(
         "BazelRootIncludePath.cc",
     ],
     data = _PCM_DATA,
+    dynamic_deps = _ROOT_DICT_DYNAMIC_DEPS,
     deps = _ALL_KATYDID_LIBS,
 )
 

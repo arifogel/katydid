@@ -54,7 +54,6 @@ cc_library(
         "Library/CMTEWithClassifierResultsData.cc",
         "Library/CProcessedMPTData.cc",
         "Library/CROOTData.cc",
-        ":CicadaDict_cxx",
     ],
     hdrs = glob(["Library/*.hh"]) + ["Library/_CROOTData.cc"],
     data = [":CicadaDict_pcm"],
@@ -64,4 +63,15 @@ cc_library(
         "@scarab",
         "@system_libs//:root",
     ],
+)
+
+# See //Source/IO:IODict_lib's own comment for why this dictionary code is
+# kept out of the "cicada" cc_library above's static srcs, and built as its
+# own cc_library here instead -- combined with IODict_lib into one
+# cc_shared_library at //Source/IO:root_dict_shared.
+cc_library(
+    name = "CicadaDict_lib",
+    srcs = [":CicadaDict_cxx"],
+    deps = [":cicada_headers"],
+    alwayslink = 1,
 )
