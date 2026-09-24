@@ -46,11 +46,25 @@ cc_binary(
     srcs = [
         "//Source/IO:IODict_cxx",
         "@cicada//:CicadaDict_cxx",
+        # Bazel-only; not in CMakeLists.txt. See the file's own header comment for why this
+        # needs to be compiled directly into this .so specifically, not Katydid/Truncate.
+        "BazelRootIncludePath.cc",
     ],
     linkshared = True,
+    # The real katydid_io/@cicada, not just their own headers-only katydid_io_headers/
+    # cicada_headers variants: the dictionary needs the real, compiled implementation of every
+    # class it registers to resolve their typeinfo/vtable symbols at this .so's own link time
+    # (confirmed directly: TestROOTDictionary, which links @cicada alone, not katydid_io,
+    # failed at runtime with "undefined symbol: typeinfo for Katydid::TMultiBandEventData"
+    # without this). Real trade-off worth being explicit about: katydid_io's own compiled code
+    # is consequently linked into both this .so and directly into Katydid/Truncate (which also
+    # link katydid_io, via _ALL_KATYDID_LIBS) -- two separate copies of the same code in one
+    # running process. Not known to be unsafe (no confirmed global/mutable state within
+    # katydid_io itself, unlike katydid_utility/scarab's own factory registries), but not
+    # verified safe either.
     deps = [
-        "//Source/IO:katydid_io_headers",
-        "@cicada//:cicada_headers",
+        "//Source/IO:katydid_io",
+        "@cicada",
     ],
 )
 
@@ -119,22 +133,14 @@ _PCM_DATA = [
 
 cc_binary(
     name = "Katydid",
-    srcs = [
-        "Katydid.cc",
-        # Bazel-only; not in CMakeLists.txt, see the file's own comment for why.
-        "BazelRootIncludePath.cc",
-    ],
+    srcs = ["Katydid.cc"],
     data = _PCM_DATA,
     deps = _ALL_KATYDID_LIBS + _ROOT_DICT_DEPS,
 )
 
 cc_binary(
     name = "Truncate",
-    srcs = [
-        "Truncate.cc",
-        # Bazel-only; not in CMakeLists.txt, see the file's own comment for why.
-        "BazelRootIncludePath.cc",
-    ],
+    srcs = ["Truncate.cc"],
     data = _PCM_DATA,
     deps = _ALL_KATYDID_LIBS + _ROOT_DICT_DEPS,
 )
