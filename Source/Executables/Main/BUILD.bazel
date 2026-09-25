@@ -117,19 +117,6 @@ genrule(
     cmd = "cp $< $@",
 )
 
-# CicadaDict's .rootmap records its dictionary headers by bare basename (see
-# tools/root_dictionary.bzl), and Cling's runtime autoloader looks them up by that same
-# basename, in this same directory, when it first encounters one of these types (observed
-# for Cicada::TProcessedTrackData/TMultiTrackEventData specifically). Exposing the header via
-# @cicada's own `data` isn't enough on its own - like the PCM above, it needs to physically
-# sit next to whatever binary is actually running.
-genrule(
-    name = "CicadaDict_header_local_copy",
-    srcs = ["@cicada//:Library/_CROOTData.hh"],
-    outs = ["_CROOTData.hh"],
-    cmd = "cp $< $@",
-)
-
 cc_binary(
     name = "Katydid_bin",
     srcs = ["Katydid.cc"],

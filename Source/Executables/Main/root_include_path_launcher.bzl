@@ -7,7 +7,6 @@ load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 # right above the genrules that produce these, for why.
 _PCM_DATA = [
     ":CicadaDict_pcm_local_copy",
-    ":CicadaDict_header_local_copy",
     ":IODict_pcm_local_copy",
 ]
 
@@ -57,7 +56,7 @@ def root_include_path_launcher(name, real_bin_label):
         name = genrule_name,
         srcs = [
             real_bin_label,
-            ":CicadaDict_header_local_copy",
+            "@cicada//:Library/_CROOTData.hh",
         ],
         outs = [name + "_launcher_gen.sh"],
         # Every $ meant to stay literal (for this script's own logic to interpret at its own
@@ -71,7 +70,7 @@ def root_include_path_launcher(name, real_bin_label):
         cmd = """cat > $@ << 'LAUNCHER_EOF'
 #!/usr/bin/env bash
 REAL_BIN="$$(rlocation "$(rlocationpath """ + real_bin_label + """)")"
-CROOT_DATA_HH="$$(rlocation "$(rlocationpath :CicadaDict_header_local_copy)")"
+CROOT_DATA_HH="$$(rlocation "$(rlocationpath @cicada//:Library/_CROOTData.hh)")"
 CROOT_DATA_DIR="$$(dirname "$${CROOT_DATA_HH}")"
 
 # Appends to, rather than replaces, any pre-existing ROOT_INCLUDE_PATH (e.g. one set
@@ -91,10 +90,21 @@ chmod +x $@
     # _PCM_DATA is needed here too, so these files are part of this target's own runfiles at
     # all: ROOT's Cling interpreter looks for them sitting directly alongside whatever binary
     # is actually running -- see _PCM_DATA's own comment above.
+    #
+    # @cicada//:Library/_CROOTData.hh, not a locally-copied version: Cling's autoload
+    # mechanism used to require this file sitting directly alongside the running binary
+    # (which is why a local copy existed in the first place -- see BUILD.bazel's own, fuller
+    # comment right above the genrules that still produce local copies of the PCM files),
+    # but ROOT_INCLUDE_PATH (set above) is a general, supplemental search path, not tied to
+    # any specific directory -- confirmed directly, empirically. The original file, wherever
+    # it actually lives in the runfiles tree, works the same as a local copy would.
     sh_binary(
         name = name,
         srcs = [":" + genrule_name],
-        data = [real_bin_label] + _PCM_DATA,
+        data = [
+            real_bin_label,
+            "@cicada//:Library/_CROOTData.hh",
+        ] + _PCM_DATA,
         use_bash_launcher = True,
         deps = ["@rules_shell//shell/runfiles"],
     )
