@@ -23,13 +23,19 @@ def root_include_path_launcher(name, real_bin_label):
     matter how early.
 
     real_bin_label's own path is baked directly into the generated script's own content, via
-    a genrule using Bazel's own $(location ...) expansion at build time -- not a checked-in
-    script with the path hardcoded by hand: a rename or move of real_bin_label is a
-    build-time break here, not a silent, unnoticed one. Not passed via this sh_binary's own
-    args attribute either (an earlier attempt): confirmed directly, args never gets baked
-    into the underlying file at all, only applied by Bazel's own bazel run/test invocation
-    machinery, so it's absent whenever the file is invoked directly as a subprocess, which is
-    exactly how this is actually used (the packaged release archive, katydid_stderr_test).
+    a genrule using Bazel's own $(rlocationpath ...) expansion at build time -- not a
+    checked-in script with the path hardcoded by hand: a rename or move of real_bin_label is
+    a build-time break here, not a silent, unnoticed one. $(rlocationpath ...), not
+    $(location ...): the former already includes the repository-qualified prefix rlocation
+    itself expects (e.g. "_main/Source/Executables/Main/Katydid_bin"), so the generated
+    script can call rlocation on it directly, with no separate runfiles_current_repository
+    call or manual path concatenation needed -- Bazel's own docs describe this as the
+    preferred way to find a data dependency's own runtime path in the first place, not just a
+    shortcut. Not passed via this sh_binary's own args attribute either (an earlier attempt):
+    confirmed directly, args never gets baked into the underlying file at all, only applied
+    by Bazel's own bazel run/test invocation machinery, so it's absent whenever the file is
+    invoked directly as a subprocess, which is exactly how this is actually used (the
+    packaged release archive, katydid_stderr_test).
 
     use_bash_launcher = True initializes the runfiles library automatically, rather than this
     generated script copying in the library's own init snippet by hand (an earlier attempt):
@@ -64,13 +70,8 @@ def root_include_path_launcher(name, real_bin_label):
         # follows as a separate Make variable), not assumed.
         cmd = """cat > $@ << 'LAUNCHER_EOF'
 #!/usr/bin/env bash
-ROOT="$$(runfiles_current_repository)"
-if [[ -z "$${ROOT}" ]]; then
-  ROOT="_main"
-fi
-
-REAL_BIN="$$(rlocation "$${ROOT}/$(location %s)")"
-CROOT_DATA_HH="$$(rlocation "$${ROOT}/$(location :CicadaDict_header_local_copy)")"
+REAL_BIN="$$(rlocation "$(rlocationpath %s)")"
+CROOT_DATA_HH="$$(rlocation "$(rlocationpath :CicadaDict_header_local_copy)")"
 CROOT_DATA_DIR="$$(dirname "$${CROOT_DATA_HH}")"
 
 # Appends to, rather than replaces, any pre-existing ROOT_INCLUDE_PATH (e.g. one set
