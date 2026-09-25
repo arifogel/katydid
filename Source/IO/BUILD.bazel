@@ -69,19 +69,13 @@ root_dictionary(
     deps = [":katydid_io_headers"],
 )
 
-# KT2ROOT.cc/KTROOTData.cc/KTDisplayWindow.cc split out from katydid_io below, deliberately:
-# these are the only three files providing symbols //Source/Executables/Main:
-# libroot_dict_shared.so's own dictionary code needs the real, compiled implementation of
-# (confirmed directly: TestROOTDictionary failed with "undefined symbol: typeinfo for
-# Katydid::TMultiBandEventData" -- defined in KTROOTData.cc -- when that .so linked only
-# katydid_io_headers above). Verified directly (grepped, not assumed) that none of these three
-# files contain any KT_REGISTER_* call, so pulling them out into their own cc_library, without
-# alwayslink, and having that .so link only this narrower target rather than the real
-# katydid_io below, avoids a second problem a first attempt at this fix actually hit: every
-# factory-registering writer/reader/processor in the rest of katydid_io re-running its own
-# static-initializer registration a second time in the same process (confirmed directly:
-# "Already have factory registered for <json>", <yaml>, <basic-ascii-writer>, and every other
-# katydid_io writer/processor/reader, once that .so linked the real, full katydid_io).
+# KT2ROOT.cc/KTROOTData.cc/KTDisplayWindow.cc: the only files in this module providing the
+# real, compiled implementation //Source/Executables/Main:libroot_dict_shared.so needs to
+# resolve the dictionary's own typeinfo/vtable symbols (e.g. Katydid::TMultiBandEventData,
+# defined in KTROOTData.cc). None of the three register anything via KT_REGISTER_*, so,
+# unlike the rest of katydid_io below, this library needs no alwayslink and carries no
+# factory-registration side effects that would run twice if linked into both a binary and
+# that .so in the same process.
 cc_library(
     name = "katydid_io_root_types",
     srcs = [
@@ -151,8 +145,9 @@ cc_library(
         "//Source/Data:katydid_data",
         "//Source/Utility:katydid_utility",
         "//vendor/RapidXML:rapidxml",
-        # KTDataDisplay.cc (below) directly uses KTDisplayWindow (now split out above); other
-        # files here call into KT2ROOT's own conversion functions the same way.
+        # KTDataDisplay.cc (below) directly uses KTDisplayWindow, defined in
+        # katydid_io_root_types above; other files here similarly call into KT2ROOT's own
+        # conversion functions there.
         ":katydid_io_root_types",
         "@cicada",
     ],

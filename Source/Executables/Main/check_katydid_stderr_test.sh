@@ -15,12 +15,12 @@
 #
 # The second, unrelated to the first: Cling's runtime autoloader needs ROOT_INCLUDE_PATH set
 # to find _CROOTData.hh when it first encounters certain Cicada types -- but only if it's
-# already present in the environment *before* Katydid's own process is created. Confirmed
-# directly, via strace, that ROOT_INCLUDE_PATH set from any code running inside the process
-# itself -- however early, including from an explicitly-prioritized shared-library
-# constructor guaranteed by the ELF spec to run before any of Katydid's own code -- never
-# reaches this lookup at all. Fixed by root_include_path_wrapper.sh, which sets it
-# externally, before Katydid_bin's own process exists.
+# already present in the environment *before* Katydid's own process is created. A value set
+# from any code running inside the process itself -- however early, including from an
+# explicitly-prioritized shared-library constructor guaranteed by the ELF spec to run before
+# any of Katydid's own code -- never reaches this lookup at all. Fixed by
+# root_include_path_wrapper.sh, which sets it externally, before Katydid_bin's own process
+# exists.
 #
 # --help is used because it's the earliest point at which Katydid's own
 # ROOT/Cling initialization -- and therefore either failure, if present --

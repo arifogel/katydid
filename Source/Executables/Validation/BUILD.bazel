@@ -35,11 +35,11 @@ _ROOT_DICT_DEPS = ["//Source/Executables/Main:root_dict_import"]
 
 # Every target below that links _ROOT_DICT_DEPS needs this too: loading
 # root_dict_import's own .so always triggers Cling's dictionary registration/autoload
-# machinery, regardless of whether the test itself exercises any ROOT-tree-writing path
-# (confirmed directly: TestJSONWriter, not itself a ROOT-tree test, still hit this) -- unlike
-# the PCM copies below, which only crash the narrower set of tests that actually write
-# TClonesArray-streamed classes, this is non-fatal stderr noise for every one. See
-# CicadaDict_header_local_copy's own comment for the underlying mechanism.
+# machinery, regardless of whether the test itself exercises any ROOT-tree-writing path --
+# e.g. TestJSONWriter, not itself a ROOT-tree test, needs it too. Unlike the PCM copies
+# below, which only crash the narrower set of tests that actually write TClonesArray-streamed
+# classes, this is non-fatal stderr noise for every one. See CicadaDict_header_local_copy's
+# own comment for the underlying mechanism.
 _ROOT_DICT_DATA = [":CicadaDict_header_local_copy"]
 
 cc_test(
@@ -391,9 +391,9 @@ genrule(
 # header via @cicada's own `data` isn't enough - like the PCM copies above, it needs to
 # physically sit next to the binary in this package's own bazel-out bin/ directory, not just be
 # reachable via runfiles. Without this, autoloading fails with "Missing FileEntry for
-# _CROOTData.hh" -- confirmed non-fatal (unlike the PCM-missing crash above), but affects every
-# test here that links _ROOT_DICT_DEPS (see that constant's own comment), not just the ones
-# that write TClonesArray-streamed classes.
+# _CROOTData.hh" -- non-fatal (unlike the PCM-missing crash above), but affects every test
+# here that links _ROOT_DICT_DEPS (see that constant's own comment), not just the ones that
+# write TClonesArray-streamed classes.
 genrule(
     name = "CicadaDict_header_local_copy",
     srcs = ["@cicada//:Library/_CROOTData.hh"],
