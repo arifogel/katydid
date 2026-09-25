@@ -144,15 +144,21 @@ cc_binary(
     name = "Katydid_bin",
     srcs = ["Katydid.cc"],
     # Additional to, not replacing, Bazel's own default RPATH (which points into its own
-    # _solib_k8-style directory structure, present in the build tree but not a packaged
+    # _solib_*-style directory structure, present in the build tree but not a packaged
     # release archive): this makes the dynamic linker also check the directory this binary
     # itself sits in, so libroot_dict_shared.so -- a genuine runtime shared-library
     # dependency, via root_dict_import above -- resolves in a flat, extracted release archive
     # too, where that .so is packaged directly alongside this binary (see
-    # katydid_release_binaries below). $$ORIGIN (doubled $) escapes Bazel's own make-variable
-    # substitution so the literal string "$ORIGIN" -- the linker's own runtime token for "the
-    # directory containing this binary" -- reaches the linker unchanged.
-    linkopts = ["-Wl,-rpath,$$ORIGIN"],
+    # katydid_release_binaries below). The runtime token for "the directory containing this
+    # binary" differs by object format: $ORIGIN for ELF (Linux), @loader_path for Mach-O
+    # (macOS) -- confirmed directly, not assumed: a plain $ORIGIN rpath on macOS was tried,
+    # verbatim, unexpanded, by dyld ("tried: '$ORIGIN/libroot_dict_shared.so' (no such
+    # file)"), and failed for exactly that reason. $$ORIGIN (doubled $) escapes Bazel's own
+    # make-variable substitution so the literal string reaches the linker unchanged.
+    linkopts = select({
+        "@platforms//os:macos": ["-Wl,-rpath,@loader_path"],
+        "//conditions:default": ["-Wl,-rpath,$$ORIGIN"],
+    }),
     deps = _ALL_KATYDID_LIBS + _ROOT_DICT_DEPS,
 )
 
@@ -160,7 +166,10 @@ cc_binary(
     name = "Truncate_bin",
     srcs = ["Truncate.cc"],
     # See Katydid_bin's own identical linkopts line above for why.
-    linkopts = ["-Wl,-rpath,$$ORIGIN"],
+    linkopts = select({
+        "@platforms//os:macos": ["-Wl,-rpath,@loader_path"],
+        "//conditions:default": ["-Wl,-rpath,$$ORIGIN"],
+    }),
     deps = _ALL_KATYDID_LIBS + _ROOT_DICT_DEPS,
 )
 
@@ -215,7 +224,7 @@ sh_test(
 # these is here). Extracting this archive anywhere and running ./Katydid from that directory
 # reproduces exactly the layout those mechanisms expect, with no separate runfiles tree
 # required -- including for libroot_dict_shared.so itself, findable via Katydid_bin/
-# Truncate_bin's own additional, explicit $ORIGIN-relative RPATH (see their own linkopts
+# Truncate_bin's own additional, explicit, platform-conditional RPATH (see their own linkopts
 # above), since Bazel's own default RPATH here points into its own build-tree-only directory
 # structure.
 #
