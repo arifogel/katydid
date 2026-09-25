@@ -51,29 +51,6 @@ pkg_files(
 # //Source/Executables/Main:root_include_path_launcher.bzl, which locates everything it
 # needs through that same layout, not a flat, hand-assumed one).
 #
-# excludes the two *_launcher_gen.sh genrule outputs: sh_binary's own rule implementation
-# puts both the named launcher stub and its own srcs file (that genrule output) into
-# DefaultInfo.files, so packaging :Katydid/:Truncate directly would duplicate each one at
-# this archive's own top level, alongside the real, working copy inside .runfiles/ that
-# include_runfiles already captures -- confirmed directly, both by reading
-# rules_shell's own sh_executable.bzl (direct_files = [src, symlink]/[src] + [entrypoint])
-# and by extracting a built archive and finding both files there. Confirmed harmless but
-# genuinely unnecessary: the generated launcher's own content resolves the real binary via
-# rlocation (a runfiles-tree lookup, with no notion of a sibling file at all), so the
-# top-level copy of the genrule output serves no purpose there.
-pkg_files(
-    name = "katydid_release_binaries",
-    srcs = [
-        "//Source/Executables/Main:Katydid",
-        "//Source/Executables/Main:Truncate",
-    ],
-    excludes = [
-        "//Source/Executables/Main:Katydid_launcher_gen.sh",
-        "//Source/Executables/Main:Truncate_launcher_gen.sh",
-    ],
-    include_runfiles = True,
-)
-
 # Does NOT bundle ROOT/Boost/FFTW/etc: those are dynamically linked at fixed absolute paths
 # (e.g. /opt/homebrew/opt/root/lib/root/libCore.so) and are assumed to already be present,
 # in compatible versions, on any machine this archive is extracted on -- packaging shared
@@ -82,9 +59,11 @@ pkg_files(
 pkg_tar(
     name = "katydid_release",
     srcs = [
-        ":katydid_release_binaries",
         ":katydid_release_notices",
         ":katydid_release_third_party_licenses",
+        "//Source/Executables/Main:Katydid",
+        "//Source/Executables/Main:Truncate",
     ],
     extension = "tar.gz",
+    include_runfiles = True,
 )
