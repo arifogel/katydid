@@ -10,30 +10,13 @@
 # ROOT/Cling's autoload machinery never sees a value set later, from inside the process, no
 # matter how early.
 #
-# Uses Bazel's own runfiles library (via a deps = ["@rules_shell//shell/runfiles"] dependency
-# in BUILD.bazel) to locate both the real binary and _CROOTData.hh: the release archive
-# preserves Katydid/Truncate's own actual runfiles layout (via pkg_tar's own
-# include_runfiles, see //BUILD.bazel) rather than flattening everything, so the same lookup
-# mechanism Bazel itself uses within the build tree works unmodified once packaged too.
-#
-# Initialized manually below, with the library's own, official, verbatim init snippet, rather
-# than via sh_binary's own use_bash_launcher attribute: that attribute's own generated
-# launcher looks for the runfiles library at this same bazel_tools-rooted path too, but
-# doesn't itself add the dependency that makes the library available there in the first
-# place -- confirmed directly, it produced "ERROR: cannot find bazel_tools/tools/bash/
-# runfiles/runfiles.bash" until this file's own explicit deps line (in BUILD.bazel) was
-# added.
-# --- begin runfiles.bash initialization v3 ---
-# Copy-pasted from the Bazel Bash runfiles library v3.
-set -uo pipefail; set +e; f=bazel_tools/tools/bash/runfiles/runfiles.bash
-# shellcheck disable=SC1090
-source "${RUNFILES_DIR:-/dev/null}/$f" 2>/dev/null || \
-  source "$(grep -sm1 "^$f " "${RUNFILES_MANIFEST_FILE:-/dev/null}" | cut -f2- -d' ')" 2>/dev/null || \
-  source "$0.runfiles/$f" 2>/dev/null || \
-  source "$(grep -sm1 "^$f " "$0.runfiles_manifest" | cut -f2- -d' ')" 2>/dev/null || \
-  source "$(grep -sm1 "^$f " "$0.exe.runfiles_manifest" | cut -f2- -d' ')" 2>/dev/null || \
-  { echo>&2 "ERROR: cannot find $f"; exit 1; }; f=; set -e
-# --- end runfiles.bash initialization v3 ---
+# Uses Bazel's own runfiles library (rules_shell, initialized via use_bash_launcher = True
+# plus a deps = ["@rules_shell//shell/runfiles"] dependency -- see BUILD.bazel for why both
+# are needed) to locate both the real binary and _CROOTData.hh: the release archive preserves
+# Katydid/Truncate's own actual runfiles layout (via pkg_tar's own include_runfiles, see
+# //BUILD.bazel) rather than flattening everything, so the same lookup mechanism Bazel itself
+# uses within the build tree works unmodified once packaged too.
+set -euo pipefail
 
 SCRIPT_NAME="$(basename "$0")"
 

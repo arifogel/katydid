@@ -153,11 +153,14 @@ cc_binary(
 # why. One shared script for both: it determines which real binary to exec from its own
 # invoked name, so "Katydid"/"Truncate" each just need their own sh_binary using it.
 #
-# deps on the runfiles library, not use_bash_launcher = True: the latter's own generated
-# launcher looks for that library at the same path this target's own deps line makes it
-# available at, but doesn't add the dependency itself -- confirmed directly, it failed with
-# "ERROR: cannot find bazel_tools/tools/bash/runfiles/runfiles.bash" without this. See
-# root_include_path_wrapper.sh's own header comment for the same explanation.
+# use_bash_launcher = True initializes the runfiles library for this script; deps on the
+# library itself is also needed, since use_bash_launcher's own generated launcher looks for
+# it but doesn't add the dependency that makes it available -- confirmed directly, this
+# failed with "ERROR: cannot find bazel_tools/tools/bash/runfiles/runfiles.bash" without the
+# deps line. Both together is the fix: an earlier attempt dropped use_bash_launcher entirely
+# in favor of a hand-written init snippet, on the unverified assumption that its own launcher
+# would still fail even with the dependency present; nothing actually confirmed that, so it
+# wasn't a real reason to prefer hand-written init over Bazel's own generated launcher.
 #
 # _PCM_DATA (not just the real binary) is needed here too, so these files are part of this
 # target's own runfiles at all: ROOT's Cling interpreter looks for them sitting directly
@@ -166,6 +169,7 @@ sh_binary(
     name = "Katydid",
     srcs = ["root_include_path_wrapper.sh"],
     data = [":Katydid_bin"] + _PCM_DATA,
+    use_bash_launcher = True,
     deps = ["@rules_shell//shell/runfiles"],
 )
 
@@ -173,6 +177,7 @@ sh_binary(
     name = "Truncate",
     srcs = ["root_include_path_wrapper.sh"],
     data = [":Truncate_bin"] + _PCM_DATA,
+    use_bash_launcher = True,
     deps = ["@rules_shell//shell/runfiles"],
 )
 
