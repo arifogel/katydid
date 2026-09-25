@@ -8,6 +8,7 @@ load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 load("@rules_cc//cc:cc_import.bzl", "cc_import")
 load("@rules_pkg//pkg:mappings.bzl", "pkg_attributes", "pkg_files")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 package(default_visibility = ["//visibility:public"])
@@ -46,9 +47,6 @@ cc_binary(
     srcs = [
         "//Source/IO:IODict_cxx",
         "@cicada//:CicadaDict_cxx",
-        # Bazel-only; not in CMakeLists.txt. See the file's own header comment for why this
-        # needs to be compiled directly into this .so specifically, not Katydid/Truncate.
-        "BazelRootIncludePath.cc",
     ],
     linkshared = True,
     # //Source/IO:katydid_io_root_types, not the real, full katydid_io: the dictionary needs
@@ -143,25 +141,51 @@ _PCM_DATA = [
 ]
 
 cc_binary(
-    name = "Katydid",
+    name = "Katydid_bin",
     srcs = ["Katydid.cc"],
-    data = _PCM_DATA,
     deps = _ALL_KATYDID_LIBS + _ROOT_DICT_DEPS,
 )
 
 cc_binary(
-    name = "Truncate",
+    name = "Truncate_bin",
     srcs = ["Truncate.cc"],
-    data = _PCM_DATA,
     deps = _ALL_KATYDID_LIBS + _ROOT_DICT_DEPS,
 )
 
-# Regression test for a bug traced to IODict/CicadaDict once being compiled into katydid_io/
-# @cicada as plain cc_library sources rather than a genuine shared library: TCling::RegisterModule
-# ended up trying to dlopen() Katydid's own main executable -- never a properly supported
-# dlopen() target. Fixed by :libroot_dict_shared.so/:root_dict_import above. See
-# check_katydid_stderr_test.sh's own header for the full explanation, including why the two
-# platforms failed differently.
+# Wraps Katydid_bin/Truncate_bin: sets ROOT_INCLUDE_PATH *before* the real binary's own
+# process starts, then execs it -- see root_include_path_wrapper.sh's own header comment for
+# why this has to happen externally, from a wrapper, rather than from any code running inside
+# the process itself (confirmed directly, via strace, that nothing set from inside the
+# process -- however early -- ever reaches ROOT/Cling's actual autoload lookup). One shared
+# script for both: it determines which real binary to exec from its own invoked name, so
+# "Katydid"/"Truncate" each just need their own sh_binary using it.
+#
+# _PCM_DATA (not just the real binary) is still needed here, for the exact same reason it was
+# needed directly on Katydid/Truncate before this wrapper existed: ROOT's Cling interpreter
+# looks for these files sitting directly alongside whatever binary is actually running, not
+# via Bazel's runfiles tree by itself -- see _PCM_DATA's own comment above.
+sh_binary(
+    name = "Katydid",
+    srcs = ["root_include_path_wrapper.sh"],
+    data = [":Katydid_bin"] + _PCM_DATA,
+)
+
+sh_binary(
+    name = "Truncate",
+    srcs = ["root_include_path_wrapper.sh"],
+    data = [":Truncate_bin"] + _PCM_DATA,
+)
+
+# Regression test for two bugs, both since fixed. TCling::RegisterModule once ended up
+# trying to dlopen() Katydid's own main executable -- never a properly supported dlopen()
+# target, since IODict/CicadaDict's own compiled code was compiled into katydid_io/@cicada as
+# plain cc_library sources rather than a genuine shared library; fixed by
+# :libroot_dict_shared.so/:root_dict_import above. Separately, ROOT_INCLUDE_PATH needs to be
+# set in the environment *before* Katydid's own process is created for ROOT/Cling's autoload
+# machinery to see it at all -- fixed by :root_include_path_wrapper.sh above; see that file's
+# own header comment for how this was diagnosed. See check_katydid_stderr_test.sh's own
+# header for the full explanation of both original symptoms, including why the first one
+# failed differently on the two platforms.
 sh_test(
     name = "katydid_stderr_test",
     srcs = ["check_katydid_stderr_test.sh"],
@@ -169,9 +193,10 @@ sh_test(
     data = [":Katydid"],
 )
 
-# Flat release archive: Katydid/Truncate plus every file Cling's runtime dictionary/
+# Flat release archive: Katydid/Truncate (the wrapper scripts) plus Katydid_bin/Truncate_bin
+# (the real binaries each wrapper execs) plus every file Cling's runtime dictionary/
 # autoloading machinery needs sitting alongside them (see the genrules and
-# BazelRootIncludePath.cc above for why each of these is here). Extracting this archive
+# root_include_path_wrapper.sh above for why each of these is here). Extracting this archive
 # anywhere and running ./Katydid from that directory reproduces exactly the layout those
 # mechanisms expect, with no separate runfiles tree required.
 #
@@ -184,7 +209,9 @@ pkg_files(
     name = "katydid_release_binaries",
     srcs = [
         ":Katydid",
+        ":Katydid_bin",
         ":Truncate",
+        ":Truncate_bin",
     ],
     attributes = pkg_attributes(mode = "0755"),
     # strip_prefix defaults to strip_prefix.files_only(), flattening everything to the
