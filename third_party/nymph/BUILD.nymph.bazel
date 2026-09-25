@@ -1,3 +1,5 @@
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_cc//cc:cc_import.bzl", "cc_import")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 
 # BUILD file for @nymph (github.com/project8/nymph), the processing-framework library that
@@ -8,8 +10,33 @@ load("@rules_cc//cc:cc_library.bzl", "cc_library")
 
 package(default_visibility = ["//visibility:public"])
 
+# Exposes headers separately from the compiled library, same pattern used elsewhere in this
+# repo for a shared-library module (e.g. //Source/Utility:katydid_utility_headers).
 cc_library(
-    name = "nymph",
+    name = "nymph_headers",
+    hdrs = glob([
+        "Library/Utility/*.hh",
+        "Library/Data/*.hh",
+        "Library/Processor/*.hh",
+        "Library/IO/*.hh",
+        "Library/Application/*.hh",
+    ]),
+    includes = [
+        "Library/Application",
+        "Library/Data",
+        "Library/IO",
+        "Library/Processor",
+        "Library/Utility",
+    ],
+    deps = [
+        "@scarab",
+        "@system_libs//:boost",
+    ],
+)
+
+# A real, standalone .so, matching the CMake build's own libNymph_Katydid.so.
+cc_binary(
+    name = "libnymph.so",
     srcs = [
         "Library/Application/KTApplication.cc",
         "Library/Application/KTCommandLineHandler.cc",
@@ -40,23 +67,27 @@ cc_library(
         "Library/Utility/KTLogger.cc",
         "Library/Utility/KTTime.cc",
     ],
-    hdrs = glob([
-        "Library/Utility/*.hh",
-        "Library/Data/*.hh",
-        "Library/Processor/*.hh",
-        "Library/IO/*.hh",
-        "Library/Application/*.hh",
-    ]),
     defines = ["USE_CPP11"],
-    includes = [
-        "Library/Application",
-        "Library/Data",
-        "Library/IO",
-        "Library/Processor",
-        "Library/Utility",
-    ],
+    linkshared = True,
     deps = [
+        ":nymph_headers",
         "@scarab",
         "@system_libs//:boost",
+    ],
+)
+
+# Wraps the .so above so consumers link against it as a genuine runtime dependency. Keeps the
+# name nymph: every existing consumer's own deps entry needs no change.
+#
+# deps on @scarab directly: libnymph.so genuinely needs libscarab.so at runtime, but cc_import
+# doesn't see through the .so it wraps to discover that on its own -- a consumer of :nymph
+# that doesn't also depend on @scarab directly needs this told explicitly, the same issue
+# fixed for root_dict_import/katydid_utility.
+cc_import(
+    name = "nymph",
+    shared_library = ":libnymph.so",
+    deps = [
+        ":nymph_headers",
+        "@scarab",
     ],
 )

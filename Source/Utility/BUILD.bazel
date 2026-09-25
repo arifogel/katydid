@@ -74,8 +74,17 @@ cc_binary(
 # DT_NEEDED entry), the same way //Source/Executables/Main:root_dict_import wraps
 # libroot_dict_shared.so. Keeps the name katydid_utility: every existing consumer's own deps
 # entry needs no change.
+#
+# deps also lists @nymph/@scarab directly, not just headers: libKatydidUtility.so genuinely
+# needs libnymph.so/libscarab.so at runtime, but cc_import doesn't see through the .so it
+# wraps to discover that on its own -- a consumer of :katydid_utility that doesn't also
+# depend on @nymph/@scarab directly needs this told explicitly.
 cc_import(
     name = "katydid_utility",
     shared_library = ":libKatydidUtility.so",
-    deps = [":katydid_utility_headers"],
+    deps = [
+        ":katydid_utility_headers",
+        "@nymph",
+        "@scarab",
+    ],
 )

@@ -1,3 +1,5 @@
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_cc//cc:cc_import.bzl", "cc_import")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 
 # BUILD file for @scarab (github.com/project8/scarab), the common utility library shared by
@@ -26,8 +28,40 @@ genrule(
     """,
 )
 
+# Exposes headers separately from the compiled library, same pattern used elsewhere in this
+# repo for a shared-library module (e.g. //Source/Utility:katydid_utility_headers) - lets the
+# cc_import below propagate headers without depending on the compiled .so it also wraps.
 cc_library(
-    name = "scarab",
+    name = "scarab_headers",
+    hdrs = glob([
+        "library/utility/*.hh",
+        "library/logger/*.hh",
+        "library/param/*.hh",
+        "library/param/codec/json/*.hh",
+        "library/param/codec/yaml/*.hh",
+        "library/authentication/*.hh",
+    ]),
+    includes = [
+        "library/authentication",
+        "library/logger",
+        "library/param",
+        "library/param/codec/json",
+        "library/param/codec/yaml",
+        "library/utility",
+    ],
+    deps = [
+        "@rapidjson",
+        "@system_libs//:boost",
+        "@yaml_cpp",
+    ],
+)
+
+# A real, standalone .so, matching the CMake build's own libScarab_Nymph_Katydid.so: the CMake
+# build never statically links this module into anything, so REGISTER_PARAM_INPUT_CODEC/
+# REGISTER_PARAM_OUTPUT_CODEC's own static registrar constructors (in param_json.cc,
+# param_yaml.cc) run exactly once, when this one .so loads.
+cc_binary(
+    name = "libscarab.so",
     srcs = [
         "library/authentication/authentication.cc",
         "library/logger/logger.cc",
@@ -47,40 +81,24 @@ cc_library(
         "library/utility/typename.cc",
         ":scarab_version_cc",
     ],
-    hdrs = glob([
-        "library/utility/*.hh",
-        "library/logger/*.hh",
-        "library/param/*.hh",
-        "library/param/codec/json/*.hh",
-        "library/param/codec/yaml/*.hh",
-        "library/authentication/*.hh",
-    ]),
     defines = [
         "RAPIDJSON_FILE_BUFFER_SIZE=65536",
         "USE_CODEC_JSON",
         "USE_CPP11",
     ],
-    includes = [
-        "library/authentication",
-        "library/logger",
-        "library/param",
-        "library/param/codec/json",
-        "library/param/codec/yaml",
-        "library/utility",
-    ],
+    linkshared = True,
     deps = [
+        ":scarab_headers",
         "@rapidjson",
         "@system_libs//:boost",
         "@yaml_cpp",
     ],
-    # REGISTER_PARAM_INPUT_CODEC/REGISTER_PARAM_OUTPUT_CODEC (in param_json.cc, param_yaml.cc)
-    # self-register with Scarab's codec factory via a static global registrar object, whose
-    # constructor only runs if the linker actually includes that object file. Without
-    # alwayslink, a consumer that never directly references a symbol from param_json.o/
-    # param_yaml.o - which is by design, since the whole point of the factory pattern is
-    # runtime dispatch by string name, not a compile-time reference - gets those object files
-    # silently dropped by the linker, and the registrar's constructor never runs. That
-    # produces "Did not find factory for <json>" (or <yaml>) at runtime, from code that never
-    # visibly depends on the codec at all.
-    alwayslink = True,
+)
+
+# Wraps the .so above so consumers link against it as a genuine runtime dependency. Keeps the
+# name scarab: every existing consumer's own deps entry needs no change.
+cc_import(
+    name = "scarab",
+    shared_library = ":libscarab.so",
+    deps = [":scarab_headers"],
 )
