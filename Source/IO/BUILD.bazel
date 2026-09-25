@@ -69,13 +69,10 @@ root_dictionary(
     deps = [":katydid_io_headers"],
 )
 
-# KT2ROOT.cc/KTROOTData.cc/KTDisplayWindow.cc: the only files in this module providing the
-# real, compiled implementation //Source/Executables/Main:libroot_dict_shared.so needs to
-# resolve the dictionary's own typeinfo/vtable symbols (e.g. Katydid::TMultiBandEventData,
-# defined in KTROOTData.cc). None of the three register anything via KT_REGISTER_*, so,
-# unlike the rest of katydid_io below, this library needs no alwayslink and carries no
-# factory-registration side effects that would run twice if linked into both a binary and
-# that .so in the same process.
+# The only files providing the compiled symbols //Source/Executables/Main:libroot_dict_shared.so
+# needs to resolve the dictionary's own typeinfo/vtable (e.g. Katydid::TMultiBandEventData,
+# in KTROOTData.cc). None register via KT_REGISTER_*, so no alwayslink and no
+# factory-registration side effects if linked into both a binary and that .so.
 cc_library(
     name = "katydid_io_root_types",
     srcs = [
@@ -145,9 +142,8 @@ cc_library(
         "//Source/Data:katydid_data",
         "//Source/Utility:katydid_utility",
         "//vendor/RapidXML:rapidxml",
-        # KTDataDisplay.cc (below) directly uses KTDisplayWindow, defined in
-        # katydid_io_root_types above; other files here similarly call into KT2ROOT's own
-        # conversion functions there.
+        # KTDataDisplay.cc and others here call into KTDisplayWindow/KT2ROOT, defined in
+        # katydid_io_root_types above.
         ":katydid_io_root_types",
         "@cicada",
     ],

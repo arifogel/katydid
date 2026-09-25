@@ -152,13 +152,10 @@ def _system_libs_repo_impl(repository_ctx):
     build_file_parts = ['load("@rules_cc//cc:cc_library.bzl", "cc_library")']
     build_file_parts.append('package(default_visibility = ["//visibility:public"])')
 
-    # A cc_library with linkopts but no srcs has its linkopts silently dropped by
-    # cc_shared_library -- documented in bazelbuild/bazel#21884/#27247, a still-open upstream
-    # bug, not something specific to this repo; bazel's own attempted fix for it, #24017, was
-    # itself reverted for breaking other builds, so this workaround can't be assumed to become
-    # unnecessary soon. Every cc_library below (root/boost/fftw/matio) is exactly this shape,
-    # so each gets this same empty, otherwise-inert source file as its own srcs -- the
-    # workaround documented in that issue thread.
+    # cc_shared_library silently drops linkopts from a cc_library with no srcs
+    # (bazelbuild/bazel#21884/#27247, a still-open upstream bug; the attempted fix, #24017,
+    # was itself reverted). Every cc_library below (root/boost/fftw/matio) has linkopts and no
+    # srcs, so each gets this empty, inert source file as its own srcs.
     repository_ctx.file("_empty.cc", "")
 
     # --- ROOT: OS-agnostic. Uses root-config, ROOT's own official query tool, rather than

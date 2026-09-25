@@ -27,19 +27,15 @@ load("@rules_cc//cc:cc_test.bzl", "cc_test")
 
 _UTILITY_TEST_DEPS = ["//Source/Utility:katydid_utility"]
 
-# Every target below that links any of katydid_io/katydid_transform/
-# katydid_spectrum_analysis/katydid_event_analysis/@cicada (directly or
-# transitively) needs this too, for the dictionary to be registered: see
-# //Source/Executables/Main:root_dict_import's own comment for what it is.
+# Needed by every target below that links katydid_io/katydid_transform/
+# katydid_spectrum_analysis/katydid_event_analysis/@cicada, for dictionary registration. See
+# //Source/Executables/Main:root_dict_import's comment.
 _ROOT_DICT_DEPS = ["//Source/Executables/Main:root_dict_import"]
 
-# Every target below that links _ROOT_DICT_DEPS needs this too: loading
-# root_dict_import's own .so always triggers Cling's dictionary registration/autoload
-# machinery, regardless of whether the test itself exercises any ROOT-tree-writing path --
-# e.g. TestJSONWriter, not itself a ROOT-tree test, needs it too. Unlike the PCM copies
-# below, which only crash the narrower set of tests that actually write TClonesArray-streamed
-# classes, this is non-fatal stderr noise for every one. See CicadaDict_header_local_copy's
-# own comment for the underlying mechanism.
+# Needed by every target above that uses _ROOT_DICT_DEPS: loading root_dict_import's .so
+# triggers Cling's dictionary registration/autoload machinery regardless of whether the test
+# writes a ROOT tree. Non-fatal stderr noise otherwise. See CicadaDict_header_local_copy's
+# comment.
 _ROOT_DICT_DATA = [":CicadaDict_header_local_copy"]
 
 cc_test(
@@ -385,15 +381,11 @@ genrule(
     cmd = "cp $< $@",
 )
 
-# CicadaDict's .rootmap records its dictionary headers by bare basename (see
-# tools/root_dictionary.bzl), and Cling's runtime autoloader looks them up by that same
-# basename, in this same directory, when it first encounters one of these types. Exposing the
-# header via @cicada's own `data` isn't enough - like the PCM copies above, it needs to
-# physically sit next to the binary in this package's own bazel-out bin/ directory, not just be
-# reachable via runfiles. Without this, autoloading fails with "Missing FileEntry for
-# _CROOTData.hh" -- non-fatal (unlike the PCM-missing crash above), but affects every test
-# here that links _ROOT_DICT_DEPS (see that constant's own comment), not just the ones that
-# write TClonesArray-streamed classes.
+# Cling's runtime autoloader looks up dictionary headers by bare basename (see
+# tools/root_dictionary.bzl) in the directory next to the running binary. @cicada's own
+# `data` isn't enough; this needs to physically sit in this package's own bazel-out bin/
+# directory. Without it, autoloading fails with "Missing FileEntry for _CROOTData.hh" --
+# non-fatal, but affects every test that links _ROOT_DICT_DEPS.
 genrule(
     name = "CicadaDict_header_local_copy",
     srcs = ["@cicada//:Library/_CROOTData.hh"],

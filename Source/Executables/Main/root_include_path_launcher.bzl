@@ -2,9 +2,8 @@
 
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 
-# Copied into a genrule's own runfiles/data below, so Cling finds them sitting directly
-# alongside whatever binary is actually running -- see BUILD.bazel's own, fuller comment
-# right above the genrules that produce these, for why.
+# Copied into the genrule's own runfiles/data below, so Cling finds them directly alongside
+# the running binary. See BUILD.bazel's comment above the producing genrules.
 _PCM_DATA = [
     ":CicadaDict_pcm_local_copy",
     ":IODict_pcm_local_copy",
@@ -13,39 +12,21 @@ _PCM_DATA = [
 def root_include_path_launcher(name, real_bin_label):
     """Sets ROOT_INCLUDE_PATH before real_bin_label's own process starts, then execs it.
 
-    This has to happen externally, from a wrapper, rather than from any code running inside
-    the process: libCore.so is itself a dependency of libroot_dict_shared.so, and per the ELF
-    spec's own ordering guarantee, a shared object's dependencies' constructors always run
-    before its own -- so libCore.so's own constructor always runs before any code of ours,
-    regardless of constructor priority, and it reads and caches ROOT_INCLUDE_PATH that early.
-    ROOT/Cling's autoload machinery never sees a value set later, from inside the process, no
-    matter how early.
+    libCore.so is a dependency of libroot_dict_shared.so; per the ELF spec, a shared
+    object's dependencies' constructors run before its own. So libCore.so's constructor
+    always runs before any code of ours and reads/caches ROOT_INCLUDE_PATH then. A value set
+    from inside the process, however early, is never seen. It must be set externally, before
+    the process starts.
 
-    real_bin_label's own path is baked directly into the generated script's own content, via
-    a genrule using Bazel's own $(rlocationpath ...) expansion at build time -- not a
-    checked-in script with the path hardcoded by hand: a rename or move of real_bin_label is
-    a build-time break here, not a silent, unnoticed one. $(rlocationpath ...), not
-    $(location ...): the former already includes the repository-qualified prefix rlocation
-    itself expects (e.g. "_main/Source/Executables/Main/Katydid_bin"), so the generated
-    script can call rlocation on it directly, with no separate runfiles_current_repository
-    call or manual path concatenation needed -- Bazel's own docs describe this as the
-    preferred way to find a data dependency's own runtime path in the first place, not just a
-    shortcut. Not passed via this sh_binary's own args attribute either (an earlier attempt):
-    confirmed directly, args never gets baked into the underlying file at all, only applied
-    by Bazel's own bazel run/test invocation machinery, so it's absent whenever the file is
-    invoked directly as a subprocess, which is exactly how this is actually used (the
-    packaged release archive, katydid_stderr_test).
+    real_bin_label's path is baked into the generated script via Bazel's $(rlocationpath ...)
+    expansion at build time: a rename or move of real_bin_label is a build-time break, not a
+    silent one. $(rlocationpath ...), not $(location ...): the former already includes the
+    repository-qualified prefix rlocation expects, so the script calls rlocation on it
+    directly with no extra path work.
 
-    use_bash_launcher = True initializes the runfiles library automatically, rather than this
-    generated script copying in the library's own init snippet by hand (an earlier attempt):
-    that hand-copied version was itself only needed because use_bash_launcher's own generated
-    launcher execs the underlying script via its resolved runfiles path, resetting $0 --
-    which broke a still-earlier design that inferred the real binary from $0. Nothing here
-    reads $0 for anything anymore, so that concern no longer applies, and Bazel's own
-    initialization can be used directly. deps on the runfiles library is still needed
-    alongside it: confirmed directly, use_bash_launcher's own generated launcher looks for
-    the library but doesn't add the dependency that makes it available -- without deps, this
-    fails outright with "ERROR: cannot find bazel_tools/tools/bash/runfiles/runfiles.bash".
+    use_bash_launcher = True initializes the runfiles library. deps on the runfiles library
+    itself is also required: use_bash_launcher's generated launcher looks for the library at
+    a path this deps entry provides, but does not add the dependency itself.
 
     Args:
         name: name of the generated sh_binary.
@@ -59,22 +40,18 @@ def root_include_path_launcher(name, real_bin_label):
             "@cicada//:Library/_CROOTData.hh",
         ],
         outs = [name + "_launcher_gen.sh"],
-        # Every $ meant to stay literal (for this script's own logic to interpret at its own
-        # runtime, not Bazel at genrule build time) is doubled ($$) below, per Bazel's own
-        # genrule cmd escaping rules -- including the final "$@" (this script's own
-        # argument-forwarding), which needs to survive as a literal, doubled $$@ without
-        # colliding with genrule's own, unrelated bare $@ token for its single output file.
-        # Checked directly against Bazel's own documented genrule cmd expansion behavior (a
-        # single, left-to-right pass: $$ escaping takes precedence over interpreting what
-        # follows as a separate Make variable), not assumed.
+        # $ meant to stay literal at the script's own runtime (not Bazel's genrule build
+        # time) is doubled ($$) per Bazel's genrule cmd escaping rules, including the final
+        # "$@" (arg forwarding): $$@ survives as a literal $@ rather than colliding with
+        # genrule's own bare $@ token for its output file, since Bazel's $$ escaping is a
+        # single left-to-right pass that takes precedence over interpreting what follows.
         cmd = """cat > $@ << 'LAUNCHER_EOF'
 #!/usr/bin/env bash
 REAL_BIN="$$(rlocation "$(rlocationpath """ + real_bin_label + """)")"
 CROOT_DATA_HH="$$(rlocation "$(rlocationpath @cicada//:Library/_CROOTData.hh)")"
 CROOT_DATA_DIR="$$(dirname "$${CROOT_DATA_HH}")"
 
-# Appends to, rather than replaces, any pre-existing ROOT_INCLUDE_PATH (e.g. one set
-# manually for interactive/debug use), so both take effect.
+# Append to any pre-existing ROOT_INCLUDE_PATH rather than replacing it.
 if [[ -n "$${ROOT_INCLUDE_PATH:-}" ]]; then
   export ROOT_INCLUDE_PATH="$${ROOT_INCLUDE_PATH}:$${CROOT_DATA_DIR}"
 else
@@ -87,17 +64,11 @@ chmod +x $@
 """,
     )
 
-    # _PCM_DATA is needed here too, so these files are part of this target's own runfiles at
-    # all: ROOT's Cling interpreter looks for them sitting directly alongside whatever binary
-    # is actually running -- see _PCM_DATA's own comment above.
+    # _PCM_DATA is needed here so these files are part of this target's own runfiles: Cling
+    # looks for them directly alongside the running binary.
     #
-    # @cicada//:Library/_CROOTData.hh, not a locally-copied version: Cling's autoload
-    # mechanism used to require this file sitting directly alongside the running binary
-    # (which is why a local copy existed in the first place -- see BUILD.bazel's own, fuller
-    # comment right above the genrules that still produce local copies of the PCM files),
-    # but ROOT_INCLUDE_PATH (set above) is a general, supplemental search path, not tied to
-    # any specific directory -- confirmed directly, empirically. The original file, wherever
-    # it actually lives in the runfiles tree, works the same as a local copy would.
+    # @cicada//:Library/_CROOTData.hh, not a local copy: ROOT_INCLUDE_PATH (set above) is a
+    # general search path, not tied to any directory, so the original file works.
     sh_binary(
         name = name,
         srcs = [":" + genrule_name],
