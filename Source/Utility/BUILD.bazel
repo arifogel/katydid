@@ -3,6 +3,8 @@
 # application/GUI loop), plus the ROOT dictionary for the one class here (KTRootGuiLoop) that
 # needs to be usable interactively from the ROOT prompt.
 
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_cc//cc:cc_import.bzl", "cc_import")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("//tools:root_dictionary.bzl", "root_dictionary")
 
@@ -34,8 +36,13 @@ root_dictionary(
     deps = [":katydid_utility_headers"],
 )
 
-cc_library(
-    name = "katydid_utility",
+# A real, standalone .so, matching the CMake build's own libKatydidUtility.so: a statically
+# linked dictionary inside a PIE executable is never a valid dlopen() target for
+# TCling::RegisterModule (see //Source/Executables/Main's own comment on
+# libroot_dict_shared.so for the full explanation). UtilityDict_cxx was compiled statically
+# into this module before this change, same bug as IODict/CicadaDict had before their own fix.
+cc_binary(
+    name = "libKatydidUtility.so",
     srcs = [
         "KTAxisProperties.cc",
         "KTCountHistogram.cc",
@@ -48,20 +55,27 @@ cc_library(
         "complexpolar/specialization.cc",
         ":UtilityDict_cxx",
     ],
-    hdrs = glob([
-        "*.hh",
-        "complexpolar/*.hh",
-    ]),
-    # ROOT's class loader looks for the generated .pcm file next to the compiled library or
-    # executable at runtime, not just at compile time, so it needs to be a runtime dependency.
+    # ROOT's class loader looks for the generated .pcm file next to the compiled library at
+    # runtime, not just at compile time, so it needs to be a runtime dependency.
     data = [":UtilityDict_pcm"],
     defines = ["USE_CPP11"],
-    includes = ["."],
+    linkshared = True,
     deps = [
+        ":katydid_utility_headers",
         "@nymph",
         "@scarab",
         "@system_libs//:boost",
         "@system_libs//:fftw",
         "@system_libs//:root",
     ],
+)
+
+# Wraps the .so above so consumers link against it as a genuine runtime dependency (a real
+# DT_NEEDED entry), the same way //Source/Executables/Main:root_dict_import wraps
+# libroot_dict_shared.so. Keeps the name katydid_utility: every existing consumer's own deps
+# entry needs no change.
+cc_import(
+    name = "katydid_utility",
+    shared_library = ":libKatydidUtility.so",
+    deps = [":katydid_utility_headers"],
 )
