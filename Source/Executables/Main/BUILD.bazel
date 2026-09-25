@@ -143,12 +143,24 @@ _PCM_DATA = [
 cc_binary(
     name = "Katydid_bin",
     srcs = ["Katydid.cc"],
+    # Additional to, not replacing, Bazel's own default RPATH (which points into its own
+    # _solib_k8-style directory structure, present in the build tree but not a packaged
+    # release archive): this makes the dynamic linker also check the directory this binary
+    # itself sits in, so libroot_dict_shared.so -- a genuine runtime shared-library
+    # dependency, via root_dict_import above -- resolves in a flat, extracted release archive
+    # too, where that .so is packaged directly alongside this binary (see
+    # katydid_release_binaries below). $$ORIGIN (doubled $) escapes Bazel's own make-variable
+    # substitution so the literal string "$ORIGIN" -- the linker's own runtime token for "the
+    # directory containing this binary" -- reaches the linker unchanged.
+    linkopts = ["-Wl,-rpath,$$ORIGIN"],
     deps = _ALL_KATYDID_LIBS + _ROOT_DICT_DEPS,
 )
 
 cc_binary(
     name = "Truncate_bin",
     srcs = ["Truncate.cc"],
+    # See Katydid_bin's own identical linkopts line above for why.
+    linkopts = ["-Wl,-rpath,$$ORIGIN"],
     deps = _ALL_KATYDID_LIBS + _ROOT_DICT_DEPS,
 )
 
@@ -194,11 +206,18 @@ sh_test(
 )
 
 # Flat release archive: Katydid/Truncate (the wrapper scripts) plus Katydid_bin/Truncate_bin
-# (the real binaries each wrapper execs) plus every file Cling's runtime dictionary/
-# autoloading machinery needs sitting alongside them (see the genrules and
-# root_include_path_wrapper.sh above for why each of these is here). Extracting this archive
-# anywhere and running ./Katydid from that directory reproduces exactly the layout those
-# mechanisms expect, with no separate runfiles tree required.
+# (the real binaries each wrapper execs) plus libroot_dict_shared.so (a genuine runtime
+# shared-library dependency of those real binaries, via root_dict_import above -- confirmed
+# directly: omitting it here left Katydid_bin unable to start at all outside the build tree,
+# "error while loading shared libraries: libroot_dict_shared.so: cannot open shared object
+# file") plus every file Cling's runtime dictionary/autoloading machinery needs sitting
+# alongside them (see the genrules and root_include_path_wrapper.sh above for why each of
+# these is here). Extracting this archive anywhere and running ./Katydid from that directory
+# reproduces exactly the layout those mechanisms expect, with no separate runfiles tree
+# required -- including for libroot_dict_shared.so itself, findable via Katydid_bin/
+# Truncate_bin's own additional, explicit $ORIGIN-relative RPATH (see their own linkopts
+# above), since Bazel's own default RPATH here points into its own build-tree-only directory
+# structure.
 #
 # Does NOT bundle ROOT/Boost/FFTW/etc: those are dynamically linked at fixed absolute paths
 # (e.g. /opt/homebrew/opt/root/lib/root/libCore.so) and are assumed to already be present,
@@ -212,6 +231,7 @@ pkg_files(
         ":Katydid_bin",
         ":Truncate",
         ":Truncate_bin",
+        ":libroot_dict_shared.so",
     ],
     attributes = pkg_attributes(mode = "0755"),
     # strip_prefix defaults to strip_prefix.files_only(), flattening everything to the
