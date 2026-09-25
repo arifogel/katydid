@@ -6,12 +6,15 @@
 
 load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 load("@rules_cc//cc:cc_import.bzl", "cc_import")
-load("@rules_pkg//pkg:mappings.bzl", "pkg_attributes", "pkg_files")
-load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 package(default_visibility = ["//visibility:public"])
+
+# Referenced by //:katydid_release -- a plain source file needs an explicit exports_files()
+# entry to be visible from another package at all, regardless of this package's own
+# default_visibility (which only applies to rule targets, not source files).
+exports_files(["NOTICE.txt"])
 
 _ALL_KATYDID_LIBS = [
     "//Source/Data:katydid_data",
@@ -84,21 +87,22 @@ cc_import(
 # transitively) needs this too, for the dictionary to be registered.
 _ROOT_DICT_DEPS = [":root_dict_import"]
 
-# ROOT's Cling interpreter looks for a dictionary's _rdict.pcm file directly alongside the
-# consuming binary's own bazel-out bin/ directory, not via Bazel's runfiles tree. katydid_io
-# and @cicada each already declare `data = [":<name>_pcm"]` on their own cc_library, but that
-# only places the PCM in the runfiles tree of whatever consumes them - it does not solve the
-# same-bazel-out-directory requirement, since a `cc_library`'s `data` doesn't relocate anything;
-# it only propagates to consumers' runfiles. Katydid and Truncate both link katydid_io (which
-# itself depends on @cicada), so both are exposed: if a config file run through Katydid ever
-# exercises the ROOT-tree-writing path for classes used via TClonesArray - KTROOTData.hh's
-# TDiscriminatedPoint/TSparseWaterfallCandidateData (IODict), or Cicada's
-# TProcessedTrackData/TMultiTrackEventData (CicadaDict) - Cling falls back to re-parsing the
-# dictionary's embedded payload at runtime and crashes when it can't find the PCM. This is the
-# same crash Source/Executables/Validation:TestTrackProcessing and
-# Source/Executables/Validation:TestSequentialTrackFinder hit and were fixed for, using the same
-# technique here: copy each dictionary's PCM into this package's own bazel-out bin/ directory,
-# which is exactly where Cling looks for a binary built here.
+# ROOT's Cling interpreter looks for a dictionary's _rdict.pcm file directly alongside
+# whatever binary is actually running -- true of Katydid_bin/Truncate_bin themselves, run
+# directly. katydid_io and @cicada each already declare `data = [":<name>_pcm"]` on their own
+# cc_library, but that only places the PCM in the runfiles tree of whatever consumes them; a
+# `cc_library`'s `data` doesn't relocate anything on its own. Katydid and Truncate both link
+# katydid_io (which itself depends on @cicada), so both are exposed: if a config file run
+# through Katydid ever exercises the ROOT-tree-writing path for classes used via
+# TClonesArray - KTROOTData.hh's TDiscriminatedPoint/TSparseWaterfallCandidateData (IODict),
+# or Cicada's TProcessedTrackData/TMultiTrackEventData (CicadaDict) - Cling falls back to
+# re-parsing the dictionary's embedded payload at runtime and crashes when it can't find the
+# PCM. This is the same crash Source/Executables/Validation:TestTrackProcessing and
+# Source/Executables/Validation:TestSequentialTrackFinder hit and were fixed for, using the
+# same technique here: copy each dictionary's PCM into this package's own bazel-out bin/
+# directory, which is exactly where Cling looks for a binary built here -- and, via
+# root_include_path_wrapper.sh's own use of the runfiles library (see below), exactly where
+# Katydid/Truncate's own runfiles tree puts a copy too, so the same files serve both cases.
 genrule(
     name = "IODict_pcm_local_copy",
     srcs = ["//Source/IO:IODict_pcm"],
@@ -117,9 +121,8 @@ genrule(
 # tools/root_dictionary.bzl), and Cling's runtime autoloader looks them up by that same
 # basename, in this same directory, when it first encounters one of these types (observed
 # for Cicada::TProcessedTrackData/TMultiTrackEventData specifically). Exposing the header via
-# @cicada's own `data` isn't enough - like the PCM above, it needs to physically sit next to
-# the binary in this package's own bazel-out bin/ directory, not just be reachable via
-# runfiles.
+# @cicada's own `data` isn't enough on its own - like the PCM above, it needs to physically
+# sit next to whatever binary is actually running.
 genrule(
     name = "CicadaDict_header_local_copy",
     srcs = ["@cicada//:Library/_CROOTData.hh"],
@@ -136,32 +139,12 @@ _PCM_DATA = [
 cc_binary(
     name = "Katydid_bin",
     srcs = ["Katydid.cc"],
-    # Additional to, not replacing, Bazel's own default RPATH (which points into its own
-    # _solib_*-style directory structure, present in the build tree but not a packaged
-    # release archive): this makes the dynamic linker also check the directory this binary
-    # itself sits in, so libroot_dict_shared.so -- a genuine runtime shared-library
-    # dependency, via root_dict_import above -- resolves in a flat, extracted release archive
-    # too, where that .so is packaged directly alongside this binary (see
-    # katydid_release_binaries below). The runtime token for "the directory containing this
-    # binary" differs by object format: $ORIGIN for ELF (Linux); macOS's Mach-O linker
-    # doesn't understand $ORIGIN at all and needs @loader_path instead. $$ORIGIN (doubled $)
-    # escapes Bazel's own make-variable substitution so the literal string reaches the linker
-    # unchanged.
-    linkopts = select({
-        "@platforms//os:macos": ["-Wl,-rpath,@loader_path"],
-        "//conditions:default": ["-Wl,-rpath,$$ORIGIN"],
-    }),
     deps = _ALL_KATYDID_LIBS + _ROOT_DICT_DEPS,
 )
 
 cc_binary(
     name = "Truncate_bin",
     srcs = ["Truncate.cc"],
-    # See Katydid_bin's own identical linkopts line above for why.
-    linkopts = select({
-        "@platforms//os:macos": ["-Wl,-rpath,@loader_path"],
-        "//conditions:default": ["-Wl,-rpath,$$ORIGIN"],
-    }),
     deps = _ALL_KATYDID_LIBS + _ROOT_DICT_DEPS,
 )
 
@@ -170,19 +153,25 @@ cc_binary(
 # why. One shared script for both: it determines which real binary to exec from its own
 # invoked name, so "Katydid"/"Truncate" each just need their own sh_binary using it.
 #
-# _PCM_DATA (not just the real binary) is needed here too: ROOT's Cling interpreter looks for
-# these files sitting directly alongside whatever binary is actually running, not via Bazel's
-# runfiles tree by itself -- see _PCM_DATA's own comment above.
+# use_bash_launcher = True: initializes Bazel's own runfiles library (rules_shell) for this
+# script, which it uses to locate both the real binary and _CROOTData.hh -- see the script's
+# own header comment for why this replaced an earlier, flat-directory-relative lookup.
+#
+# _PCM_DATA (not just the real binary) is needed here too, so these files are part of this
+# target's own runfiles at all: ROOT's Cling interpreter looks for them sitting directly
+# alongside whatever binary is actually running -- see _PCM_DATA's own comment above.
 sh_binary(
     name = "Katydid",
     srcs = ["root_include_path_wrapper.sh"],
     data = [":Katydid_bin"] + _PCM_DATA,
+    use_bash_launcher = True,
 )
 
 sh_binary(
     name = "Truncate",
     srcs = ["root_include_path_wrapper.sh"],
     data = [":Truncate_bin"] + _PCM_DATA,
+    use_bash_launcher = True,
 )
 
 # Regression test for two bugs, both since fixed. TCling::RegisterModule once ended up
@@ -199,83 +188,4 @@ sh_test(
     srcs = ["check_katydid_stderr_test.sh"],
     args = ["$(location :Katydid)"],
     data = [":Katydid"],
-)
-
-# Flat release archive: Katydid/Truncate (the wrapper scripts) plus Katydid_bin/Truncate_bin
-# (the real binaries each wrapper execs) plus libroot_dict_shared.so (a genuine runtime
-# shared-library dependency of those real binaries, via root_dict_import above) plus every
-# file Cling's runtime dictionary/autoloading machinery needs sitting alongside them (see the
-# genrules and root_include_path_wrapper.sh above for why each of these is here). Extracting
-# this archive anywhere and running ./Katydid from that directory reproduces exactly the
-# layout those mechanisms expect, with no separate runfiles tree required -- including for
-# libroot_dict_shared.so itself, findable via Katydid_bin/Truncate_bin's own additional,
-# explicit, platform-conditional RPATH (see their own linkopts above), since Bazel's own
-# default RPATH here points into its own build-tree-only directory structure.
-#
-# Does NOT bundle ROOT/Boost/FFTW/etc: those are dynamically linked at fixed absolute paths
-# (e.g. /opt/homebrew/opt/root/lib/root/libCore.so) and are assumed to already be present,
-# in compatible versions, on any machine this archive is extracted on -- packaging shared
-# library dependencies themselves is a separate, materially larger undertaking this doesn't
-# attempt.
-pkg_files(
-    name = "katydid_release_binaries",
-    srcs = [
-        ":Katydid",
-        ":Katydid_bin",
-        ":Truncate",
-        ":Truncate_bin",
-        ":libroot_dict_shared.so",
-    ],
-    attributes = pkg_attributes(mode = "0755"),
-    # strip_prefix defaults to strip_prefix.files_only(), flattening everything to the
-    # archive root -- exactly what we want, since every file here already lives in this
-    # same package (Source/Executables/Main) and none of that structure needs preserving.
-)
-
-pkg_files(
-    name = "katydid_release_data",
-    srcs = [
-        ":CicadaDict_header_local_copy",
-        ":CicadaDict_pcm_local_copy",
-        ":IODict_pcm_local_copy",
-    ],
-    # default mode (0644) is correct for these -- data files, not executables.
-)
-
-# NOTICE.txt lives here, in this package, rather than at the repo root: its warning is
-# specifically about the compiled binaries in the RELEASE ARCHIVE, not about this source
-# repository (which is fine to share, per the notice's own first paragraph) -- keeping it
-# next to the packaging code that actually bundles it avoids it being mistaken for a
-# blanket statement about the whole repo if someone just browses the source tree.
-#
-# In the archive itself, both NOTICE.txt and Katydid's own LICENSE sit at the top level,
-# next to the binaries -- maximally visible to anyone who opens the archive. See
-# NOTICE.txt for the full explanation: to the best of our knowledge (NOT a legal
-# determination), distributing the compiled binaries in this archive likely violates
-# FFTW's GPL license, since Katydid's own license isn't GPL-compatible.
-pkg_files(
-    name = "katydid_release_notices",
-    srcs = [
-        "NOTICE.txt",
-        "//:LICENSE",
-    ],
-)
-
-# Every third-party license this binary is actually subject to (see NOTICE.txt), collected
-# under a clearly-named subdirectory rather than flattened alongside everything else.
-pkg_files(
-    name = "katydid_release_third_party_licenses",
-    srcs = ["//:third_party_licenses"],
-    prefix = "third_party_licenses",
-)
-
-pkg_tar(
-    name = "katydid_release",
-    srcs = [
-        ":katydid_release_binaries",
-        ":katydid_release_data",
-        ":katydid_release_notices",
-        ":katydid_release_third_party_licenses",
-    ],
-    extension = "tar.gz",
 )

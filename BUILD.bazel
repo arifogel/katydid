@@ -1,6 +1,8 @@
-# Exposes files that live at the repo root, needed by the release archive
-# (see //Source/Executables/Main:katydid_release), which otherwise has no BUILD file to
-# reference them through.
+# Builds the packaged release archive (//:katydid_release) and exposes the repo-root files it
+# needs (LICENSE, third_party_licenses/).
+
+load("@rules_pkg//pkg:mappings.bzl", "pkg_files")
+load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -9,4 +11,61 @@ exports_files(["LICENSE"])
 filegroup(
     name = "third_party_licenses",
     srcs = glob(["third_party_licenses/*.txt"]),
+)
+
+# NOTICE.txt lives at //Source/Executables/Main, not here: its warning is specifically about
+# the compiled binaries in the release archive below, not about this source repository
+# (which is fine to share, per the notice's own first paragraph) -- keeping it next to the
+# targets that actually build and bundle those binaries avoids it being mistaken for a
+# blanket statement about the whole repo if someone just browses the source tree.
+#
+# In the archive itself, both NOTICE.txt and Katydid's own LICENSE sit at the top level, next
+# to the binaries -- maximally visible to anyone who opens the archive. See NOTICE.txt for
+# the full explanation: to the best of our knowledge (NOT a legal determination),
+# distributing the compiled binaries in this archive likely violates FFTW's GPL license,
+# since Katydid's own license isn't GPL-compatible.
+pkg_files(
+    name = "katydid_release_notices",
+    srcs = [
+        "LICENSE",
+        "//Source/Executables/Main:NOTICE.txt",
+    ],
+)
+
+# Every third-party license this binary is actually subject to (see NOTICE.txt), collected
+# under a clearly-named subdirectory rather than flattened alongside everything else.
+pkg_files(
+    name = "katydid_release_third_party_licenses",
+    srcs = [":third_party_licenses"],
+    prefix = "third_party_licenses",
+)
+
+# Katydid/Truncate (the launcher scripts) plus their own complete, correct runfiles --
+# Katydid_bin/Truncate_bin (the real binaries each launcher execs), libroot_dict_shared.so (a
+# genuine runtime shared-library dependency of those real binaries), and every file Cling's
+# runtime dictionary/autoloading machinery needs (see //Source/Executables/Main's own
+# comments for why each of these exists) -- via include_runfiles, rather than a manually-
+# maintained file list that has to be kept in sync by hand as files are added or removed.
+# Extracting this archive anywhere and running ./Katydid from that directory reproduces
+# exactly the runfiles layout those mechanisms expect (see
+# //Source/Executables/Main:root_include_path_wrapper.sh, which locates everything it needs
+# through that same layout, not a flat, hand-assumed one).
+#
+# Does NOT bundle ROOT/Boost/FFTW/etc: those are dynamically linked at fixed absolute paths
+# (e.g. /opt/homebrew/opt/root/lib/root/libCore.so) and are assumed to already be present,
+# in compatible versions, on any machine this archive is extracted on -- packaging shared
+# library dependencies themselves is a separate, materially larger undertaking this doesn't
+# attempt.
+pkg_tar(
+    name = "katydid_release",
+    srcs = [
+        "//Source/Executables/Main:Katydid",
+        "//Source/Executables/Main:Truncate",
+    ],
+    extension = "tar.gz",
+    include_runfiles = True,
+    deps = [
+        ":katydid_release_notices",
+        ":katydid_release_third_party_licenses",
+    ],
 )
