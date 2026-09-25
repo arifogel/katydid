@@ -70,7 +70,7 @@ def root_include_path_launcher(name, real_bin_label):
         # follows as a separate Make variable), not assumed.
         cmd = """cat > $@ << 'LAUNCHER_EOF'
 #!/usr/bin/env bash
-REAL_BIN="$$(rlocation "$(rlocationpath %s)")"
+REAL_BIN="$$(rlocation "$(rlocationpath """ + real_bin_label + """)")"
 CROOT_DATA_HH="$$(rlocation "$(rlocationpath :CicadaDict_header_local_copy)")"
 CROOT_DATA_DIR="$$(dirname "$${CROOT_DATA_HH}")"
 
@@ -85,7 +85,7 @@ fi
 exec "$${REAL_BIN}" "$$@"
 LAUNCHER_EOF
 chmod +x $@
-""" % real_bin_label,
+""",
     )
 
     # _PCM_DATA is needed here too, so these files are part of this target's own runfiles at
