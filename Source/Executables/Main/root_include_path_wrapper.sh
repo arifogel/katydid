@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 # Sets ROOT_INCLUDE_PATH *before* the real binary's own process is created, then execs it.
+# Shared logic for both Katydid/Truncate, called by each one's own tiny, target-specific
+# launcher (katydid_launcher.sh/truncate_launcher.sh) with that target's own real binary and
+# _CROOTData.hh locations hardcoded there -- see either launcher's own header comment for why
+# a launcher passing those in, rather than this script inferring or receiving them some other
+# way, is what's actually reliable across every context this needs to work in.
 #
 # This has to happen externally, from a wrapper, rather than from any code running inside the
 # process: libCore.so is itself a dependency of libroot_dict_shared.so, and per the ELF
@@ -9,24 +14,13 @@
 # ROOT/Cling's autoload machinery never sees a value set later, from inside the process, no
 # matter how early.
 #
-# $1/$2 (the real binary and _CROOTData.hh's own runfiles-relative paths) are passed
-# explicitly, via this target's own args = ["$(location ...)", ...] in BUILD.bazel -- not
-# inferred from $0/this script's own invoked name, and not a package path hardcoded here a
-# second time (Bazel itself already knows it, from each label). Nothing about how Bazel
-# invokes a script guarantees $0 reflects the target's own name: true for a plain sh_binary
-# with no further indirection, false the moment any exists -- confirmed directly,
-# use_bash_launcher's own generated launcher execs this script by its own resolved runfiles
-# path, which resets $0 to that path, not the invoking target's name, and silently execs the
-# wrong binary as a result. That's why this doesn't try $0 at all, and doesn't use
-# use_bash_launcher either -- the runfiles library is initialized manually below (via a
-# deps = ["@rules_shell//shell/runfiles"] dependency in BUILD.bazel), with the library's own
-# official, verbatim init snippet.
-#
-# $1/$2 themselves are Bazel's own $(location) output: a runfiles-relative path, not
-# necessarily a real, resolvable one directly -- rlocation (below) is still needed to turn
-# each into an actual on-disk path. The release archive preserves Katydid/Truncate's own
-# actual runfiles layout (via pkg_tar's own include_runfiles, see //BUILD.bazel) rather than
-# flattening everything, so this same lookup mechanism works unmodified once packaged too.
+# $1/$2 (the real binary and _CROOTData.hh's own runfiles-relative paths) are Bazel's own
+# $(location) output, computed once in each launcher rather than a package path hardcoded
+# here a second time -- but still a runfiles-relative path, not necessarily a real,
+# resolvable one directly, so rlocation (below) is still needed to turn each into an actual
+# on-disk path. The release archive preserves Katydid/Truncate's own actual runfiles layout
+# (via pkg_tar's own include_runfiles, see //BUILD.bazel) rather than flattening everything,
+# so this same lookup mechanism works unmodified once packaged too.
 # --- begin runfiles.bash initialization v3 ---
 # Copy-pasted from the Bazel Bash runfiles library v3.
 set -uo pipefail; set +e; f=bazel_tools/tools/bash/runfiles/runfiles.bash
@@ -41,8 +35,7 @@ source "${RUNFILES_DIR:-/dev/null}/$f" 2>/dev/null || \
 
 if [[ $# -lt 2 ]]; then
   echo >&2 "ERROR: expected at least 2 args (the real binary's and _CROOTData.hh's own" \
-           "locations, from this target's own args = [\"\$(location ...)\", ...] in" \
-           "BUILD.bazel), got $#"
+           "locations, from the calling launcher script), got $#"
   exit 1
 fi
 REAL_BIN_LOCATION="$1"
