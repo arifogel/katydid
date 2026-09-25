@@ -59,13 +59,11 @@ pkg_files(
 pkg_tar(
     name = "katydid_release",
     srcs = [
+        ":katydid_release_notices",
+        ":katydid_release_third_party_licenses",
         "//Source/Executables/Main:Katydid",
         "//Source/Executables/Main:Truncate",
     ],
     extension = "tar.gz",
     include_runfiles = True,
-    deps = [
-        ":katydid_release_notices",
-        ":katydid_release_third_party_licenses",
-    ],
 )
