@@ -153,9 +153,11 @@ cc_binary(
 # why. One shared script for both: it determines which real binary to exec from its own
 # invoked name, so "Katydid"/"Truncate" each just need their own sh_binary using it.
 #
-# use_bash_launcher = True: initializes Bazel's own runfiles library (rules_shell) for this
-# script, which it uses to locate both the real binary and _CROOTData.hh -- see the script's
-# own header comment for why this replaced an earlier, flat-directory-relative lookup.
+# deps on the runfiles library, not use_bash_launcher = True: the latter's own generated
+# launcher looks for that library at the same path this target's own deps line makes it
+# available at, but doesn't add the dependency itself -- confirmed directly, it failed with
+# "ERROR: cannot find bazel_tools/tools/bash/runfiles/runfiles.bash" without this. See
+# root_include_path_wrapper.sh's own header comment for the same explanation.
 #
 # _PCM_DATA (not just the real binary) is needed here too, so these files are part of this
 # target's own runfiles at all: ROOT's Cling interpreter looks for them sitting directly
@@ -164,14 +166,14 @@ sh_binary(
     name = "Katydid",
     srcs = ["root_include_path_wrapper.sh"],
     data = [":Katydid_bin"] + _PCM_DATA,
-    use_bash_launcher = True,
+    deps = ["@rules_shell//shell/runfiles"],
 )
 
 sh_binary(
     name = "Truncate",
     srcs = ["root_include_path_wrapper.sh"],
     data = [":Truncate_bin"] + _PCM_DATA,
-    use_bash_launcher = True,
+    deps = ["@rules_shell//shell/runfiles"],
 )
 
 # Regression test for two bugs, both since fixed. TCling::RegisterModule once ended up
