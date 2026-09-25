@@ -56,9 +56,16 @@ cc_binary(
 
 # Makes the .so above a real DT_NEEDED dependency of Katydid/Truncate/etc., so it's loaded
 # at process start and its static initializer (which calls TCling::RegisterModule) runs.
+#
+# deps on katydid_utility: libroot_dict_shared.so genuinely needs libKatydidUtility.so at
+# runtime (via katydid_io_root_types), but cc_import doesn't see through the .so it wraps to
+# discover that on its own -- consumers of root_dict_import that don't also depend on
+# katydid_utility directly (e.g. TestROOTDictionary) need this told explicitly, or
+# libKatydidUtility.so never makes it into their own runfiles/RPATH resolution.
 cc_import(
     name = "root_dict_import",
     shared_library = ":libroot_dict_shared.so",
+    deps = ["//Source/Utility:katydid_utility"],
 )
 
 # Every target below that links any of katydid_io/katydid_transform/
