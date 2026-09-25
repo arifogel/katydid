@@ -18,15 +18,29 @@
 # confirmed, directly, to actually work.
 #
 # Deliberately does not use Bazel's runfiles library, matching CicadaDict_header_local_copy's
-# own reasoning (see BUILD.bazel): resolves its own real, absolute location, the same way the
-# old in-process hook resolved the running executable's, so this keeps working correctly for
-# a plain packaged/relocated copy (release archives, etc.) that doesn't bring a .runfiles
-# tree along -- not just from within bazel-bin or a test sandbox.
+# own reasoning (see BUILD.bazel): uses this script's own invoked path directly (see below
+# for exactly how, and why not via readlink -f), so this keeps working correctly for a plain
+# packaged/relocated copy (release archives, etc.) that doesn't bring a .runfiles tree along
+# -- not just from within bazel-bin or a test sandbox.
 set -euo pipefail
 
-REAL_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
-SCRIPT_DIR="$(dirname "${REAL_PATH}")"
-SCRIPT_NAME="$(basename "${REAL_PATH}")"
+# Deliberately does NOT resolve symlinks (e.g. via readlink -f): Bazel's own sh_binary, for a
+# plain script with no compilation step, exposes its output path as a symlink straight back
+# to this script's own original source file, not a renamed/copied file -- fully resolving
+# that symlink chain lands on this file's own real name ("root_include_path_wrapper.sh"),
+# not the invoking target's name ("Katydid"/"Truncate"), which is exactly the identity this
+# script needs (confirmed directly: this is what `bazel run //...:Katydid` actually hit).
+# $0 itself, left unresolved, already gives the correct invoked name and (via dirname) the
+# correct directory to find the real binary in -- a genuine, non-symlinked sibling file in
+# that same directory, whether that's a Bazel output directory or a flat, extracted release
+# archive. Trade-off worth being explicit about: this means invoking this script through some
+# other, external symlink (e.g. one a person creates themselves elsewhere, pointing at this
+# script) would look for the real binary in the wrong place, next to that symlink rather than
+# next to this script's own real location. Not a real concern for any way this is actually
+# invoked (bazel run/test, or a plain extracted release archive), only a deliberately
+# unhandled case.
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SCRIPT_NAME="$(basename "$0")"
 
 # _CROOTData.hh (see CicadaDict_header_local_copy in BUILD.bazel) is copied directly
 # alongside this script, in this same package's own bazel-out bin/ directory -- exactly
