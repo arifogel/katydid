@@ -2,11 +2,38 @@
 # time series data into frequency-domain spectra.
 
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
 
 package(default_visibility = ["//visibility:public"])
 
+# Headers plus everything a consumer's own compilation needs to see (includes) -- the only
+# target anything outside this package actually depends on for compile-time visibility.
+# cc_shared_library itself has no defines/includes/hdrs attribute at all, so these have to
+# live here, not on katydid_transform_lib below.
+#
+# deps on other modules' own _headers targets, not the modules themselves: cc_shared_library
+# provides no CcInfo at all, so a plain cc_library (this one) can never depend on one
+# directly -- only another cc_shared_library can, via dynamic_deps, and only for the runtime
+# link, not headers.
 cc_library(
-    name = "katydid_transform",
+    name = "katydid_transform_headers",
+    hdrs = glob(["*.hh"]),
+    includes = ["."],
+    deps = [
+        "//Source/Data:katydid_data_headers",
+        "//Source/IO:katydid_io_headers",
+        "//Source/Utility:katydid_utility_headers",
+    ],
+)
+
+# The actual compiled code. cc_shared_library's own deps attribute whole-archives everything
+# listed here into the shared library unconditionally, so KT_REGISTER_PROCESSOR/READER/
+# WRITER/EGGREADER's own static-initializer registration is guaranteed to run, the same
+# guarantee alwayslink = 1 gave on a cc_library consumed by static linking. Not depended on
+# directly by anything outside this package -- only :katydid_transform_headers (for headers)
+# and :katydid_transform (for the runtime link) are.
+cc_library(
+    name = "katydid_transform_lib",
     srcs = [
         "KTBlackmanHarrisWindow.cc",
         "KTConvertToPower.cc",
@@ -21,18 +48,22 @@ cc_library(
         "KTWindowFunction.cc",
         "KTWindower.cc",
     ],
-    hdrs = glob(["*.hh"]),
-    includes = ["."],
-    deps = [
+    deps = [":katydid_transform_headers"],
+)
+
+# A real, standalone .so, matching the CMake build's own libKatydidTransform.so. Keeps the
+# name katydid_transform: every existing consumer's own deps entry for headers is unaffected
+# (still //Source/Transform:katydid_transform_headers); dynamic_deps carries the genuine
+# runtime dependency on libKatydidData.so/libKatydidIO.so/libKatydidUtility.so.
+cc_shared_library(
+    name = "katydid_transform",
+    dynamic_deps = [
         "//Source/Data:katydid_data",
         "//Source/IO:katydid_io",
         "//Source/Utility:katydid_utility",
+        "@nymph",
+        "@scarab",
     ],
-    # KT_REGISTER_PROCESSOR/READER/WRITER/EGGREADER register into Katydid's
-    # runtime factories purely via static-initializer side effects -- no
-    # other code calls these translation units by symbol. Without
-    # alwayslink, the linker drops them as dead code and every processor
-    # defined here (window functions and transform processors) silently fails to
-    # register at runtime.
-    alwayslink = 1,
+    shared_lib_name = "libKatydidTransform.so",
+    deps = [":katydid_transform_lib"],
 )

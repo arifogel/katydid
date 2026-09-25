@@ -7,16 +7,17 @@ load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 _PCM_DATA = [
     ":CicadaDict_pcm_local_copy",
     ":IODict_pcm_local_copy",
+    ":UtilityDict_pcm_local_copy",
 ]
 
 def root_include_path_launcher(name, real_bin_label):
     """Sets ROOT_INCLUDE_PATH before real_bin_label's own process starts, then execs it.
 
-    libCore.so is a dependency of libroot_dict_shared.so; per the ELF spec, a shared
-    object's dependencies' constructors run before its own. So libCore.so's constructor
-    always runs before any code of ours and reads/caches ROOT_INCLUDE_PATH then. A value set
-    from inside the process, however early, is never seen. It must be set externally, before
-    the process starts.
+    libCore.so is a dependency of every Katydid module .so (katydid_io, katydid_utility,
+    etc.); per the ELF spec, a shared object's dependencies' constructors run before its own.
+    So libCore.so's constructor always runs before any code of ours and reads/caches
+    ROOT_INCLUDE_PATH then. A value set from inside the process, however early, is never
+    seen. It must be set externally, before the process starts.
 
     real_bin_label's path is baked into the generated script via Bazel's $(rlocationpath ...)
     expansion at build time: a rename or move of real_bin_label is a build-time break, not a

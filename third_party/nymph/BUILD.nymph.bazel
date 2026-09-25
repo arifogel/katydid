@@ -1,6 +1,5 @@
-load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
-load("@rules_cc//cc:cc_import.bzl", "cc_import")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
 
 # BUILD file for @nymph (github.com/project8/nymph), the processing-framework library that
 # Katydid is built on top of (processors, data objects, the run-time application/configuration
@@ -10,8 +9,14 @@ load("@rules_cc//cc:cc_library.bzl", "cc_library")
 
 package(default_visibility = ["//visibility:public"])
 
-# Exposes headers separately from the compiled library, same pattern used elsewhere in this
-# repo for a shared-library module (e.g. //Source/Utility:katydid_utility_headers).
+# Headers plus everything a consumer's own compilation needs to see (includes, defines) -- the
+# only target anything outside this package actually depends on for compile-time visibility.
+# cc_shared_library itself has no defines/includes/hdrs attribute at all, so these have to
+# live here, not on nymph_lib below.
+#
+# deps on @scarab//:scarab_headers, not @scarab itself: cc_shared_library provides no CcInfo
+# at all, so a plain cc_library (this one) can never depend on one directly -- only another
+# cc_shared_library can, via dynamic_deps, and only for the runtime link, not headers.
 cc_library(
     name = "nymph_headers",
     hdrs = glob([
@@ -21,6 +26,7 @@ cc_library(
         "Library/IO/*.hh",
         "Library/Application/*.hh",
     ]),
+    defines = ["USE_CPP11"],
     includes = [
         "Library/Application",
         "Library/Data",
@@ -29,14 +35,17 @@ cc_library(
         "Library/Utility",
     ],
     deps = [
-        "@scarab",
+        "@scarab//:scarab_headers",
         "@system_libs//:boost",
     ],
 )
 
-# A real, standalone .so, matching the CMake build's own libNymph_Katydid.so.
-cc_binary(
-    name = "libnymph.so",
+# The actual compiled code. cc_shared_library's own deps attribute whole-archives everything
+# listed here into the shared library unconditionally. Not depended on directly by anything
+# outside this package -- only :nymph_headers (for headers) and :nymph (for the runtime link)
+# are.
+cc_library(
+    name = "nymph_lib",
     srcs = [
         "Library/Application/KTApplication.cc",
         "Library/Application/KTCommandLineHandler.cc",
@@ -67,27 +76,15 @@ cc_binary(
         "Library/Utility/KTLogger.cc",
         "Library/Utility/KTTime.cc",
     ],
-    defines = ["USE_CPP11"],
-    linkshared = True,
-    deps = [
-        ":nymph_headers",
-        "@scarab",
-        "@system_libs//:boost",
-    ],
+    deps = [":nymph_headers"],
 )
 
-# Wraps the .so above so consumers link against it as a genuine runtime dependency. Keeps the
-# name nymph: every existing consumer's own deps entry needs no change.
-#
-# deps on @scarab directly: libnymph.so genuinely needs libscarab.so at runtime, but cc_import
-# doesn't see through the .so it wraps to discover that on its own -- a consumer of :nymph
-# that doesn't also depend on @scarab directly needs this told explicitly, the same issue
-# fixed for root_dict_import/katydid_utility.
-cc_import(
+# A real, standalone .so, matching the CMake build's own libNymph_Katydid.so. Keeps the name
+# nymph: every existing consumer's own deps entry for headers is unaffected (still
+# @nymph//:nymph_headers); dynamic_deps carries the genuine runtime dependency on libscarab.so.
+cc_shared_library(
     name = "nymph",
-    shared_library = ":libnymph.so",
-    deps = [
-        ":nymph_headers",
-        "@scarab",
-    ],
+    dynamic_deps = ["@scarab"],
+    shared_lib_name = "libnymph.so",
+    deps = [":nymph_lib"],
 )

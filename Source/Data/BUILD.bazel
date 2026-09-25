@@ -10,11 +10,46 @@
 # are.
 
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
 
 package(default_visibility = ["//visibility:public"])
 
+# Headers plus everything a consumer's own compilation needs to see (includes) -- the only
+# target anything outside this package actually depends on for compile-time visibility.
+# cc_shared_library itself has no defines/includes/hdrs attribute at all, so these have to
+# live here, not on katydid_data_lib below.
+#
+# deps on //Source/Utility:katydid_utility_headers, not katydid_utility itself:
+# cc_shared_library provides no CcInfo at all, so a plain cc_library (this one) can never
+# depend on one directly -- only another cc_shared_library can, via dynamic_deps, and only
+# for the runtime link, not headers.
 cc_library(
-    name = "katydid_data",
+    name = "katydid_data_headers",
+    hdrs = glob([
+        "SpectrumAnalysis/*.hh",
+        "EventAnalysis/*.hh",
+        "Time/*.hh",
+        "Transform/*.hh",
+    ]),
+    includes = [
+        ".",
+        "EventAnalysis",
+        "SpectrumAnalysis",
+        "Time",
+        "Transform",
+    ],
+    deps = [
+        "//Source/Utility:katydid_utility_headers",
+        "//vendor/nanoflann",
+    ],
+)
+
+# The actual compiled code. cc_shared_library's own deps attribute whole-archives everything
+# listed here into the shared library unconditionally. Not depended on directly by anything
+# outside this package -- only :katydid_data_headers (for headers) and :katydid_data (for the
+# runtime link) are.
+cc_library(
+    name = "katydid_data_lib",
     srcs = [
         "EventAnalysis/KTClassifierResultsData.cc",
         "EventAnalysis/KTFrequencyCandidate.cc",
@@ -78,21 +113,19 @@ cc_library(
         "Transform/KTTimeFrequencyDataPolar.cc",
         "Transform/KTTimeFrequencyPolar.cc",
     ],
-    hdrs = glob([
-        "SpectrumAnalysis/*.hh",
-        "EventAnalysis/*.hh",
-        "Time/*.hh",
-        "Transform/*.hh",
-    ]),
-    includes = [
-        ".",
-        "EventAnalysis",
-        "SpectrumAnalysis",
-        "Time",
-        "Transform",
-    ],
-    deps = [
+    deps = [":katydid_data_headers"],
+)
+
+# A real, standalone .so, matching the CMake build's own libKatydidData.so. Keeps the name
+# katydid_data: every existing consumer's own deps entry for headers is unaffected (still
+# //Source/Data:katydid_data_headers); dynamic_deps carries the genuine runtime dependency on
+# libKatydidUtility.so/libnymph.so.
+cc_shared_library(
+    name = "katydid_data",
+    dynamic_deps = [
         "//Source/Utility:katydid_utility",
-        "//vendor/nanoflann",
+        "@nymph",
     ],
+    shared_lib_name = "libKatydidData.so",
+    deps = [":katydid_data_lib"],
 )

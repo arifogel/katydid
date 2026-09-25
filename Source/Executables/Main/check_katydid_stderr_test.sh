@@ -7,8 +7,10 @@
 # dlopen() target for a PIE binary. On glibc >= 2.29 this is refused outright (the first
 # error, seen on Ubuntu); on toolchains that don't flag the binary DF_1_PIE (AlmaLinux 9's
 # default gcc 11), the dlopen() isn't refused but leaves dictionary registration silently
-# incomplete, producing the second error instead. Fixed by moving the dictionary's code into
-# a separate .so (see BUILD.bazel's comment on :libroot_dict_shared.so).
+# incomplete, producing the second error instead. Fixed by making every Katydid module a
+# real, standalone .so (see Source/Utility/BUILD.bazel's comment on :katydid_utility_lib for
+# the full explanation): each is a valid dlopen() target on its own, so a dictionary's code
+# compiled directly into its own module's .so is no longer a PIE executable at all.
 #
 # Second, unrelated: Cling's runtime autoloader needs ROOT_INCLUDE_PATH set, in the
 # environment, before Katydid's process is created, to find _CROOTData.hh. A value set from

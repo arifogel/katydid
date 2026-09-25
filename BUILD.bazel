@@ -30,7 +30,7 @@ pkg_files(
 )
 
 # include_runfiles: Katydid_bin/Truncate_bin need their own runfiles tree (ROOT dictionary
-# PCM files, libroot_dict_shared.so, etc.) at runtime -- see
+# PCM files, every Katydid module's own .so, etc.) at runtime -- see
 # //Source/Executables/Main:root_include_path_launcher.bzl.
 #
 # Does not bundle ROOT/Boost/FFTW/etc: dynamically linked at fixed absolute paths, assumed

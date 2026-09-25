@@ -27,32 +27,13 @@ genrule(
     """,
 )
 
-# The actual compiled code. cc_shared_library's own deps attribute whole-archives everything
-# listed here into the shared library unconditionally, so REGISTER_PARAM_INPUT_CODEC/
-# REGISTER_PARAM_OUTPUT_CODEC's own static registrar constructors (in param_json.cc,
-# param_yaml.cc) are guaranteed to run, the same guarantee alwayslink = True gave on a
-# cc_library consumed by static linking.
+# Headers plus everything a consumer's own compilation needs to see (includes, defines) --
+# the only target anything outside this package actually depends on for compile-time
+# visibility. cc_shared_library itself has no defines/includes/hdrs attribute at all, so
+# these have to live here, not on scarab_lib below: a consumer never depends on scarab_lib
+# directly, only on this target (for headers) and :scarab (for the runtime link).
 cc_library(
-    name = "scarab_lib",
-    srcs = [
-        "library/authentication/authentication.cc",
-        "library/logger/logger.cc",
-        "library/param/codec/json/param_json.cc",
-        "library/param/codec/yaml/param_yaml.cc",
-        "library/param/configurator.cc",
-        "library/param/global_config.cc",
-        "library/param/param.cc",
-        "library/param/param_codec.cc",
-        "library/param/parsable.cc",
-        "library/param/parser.cc",
-        "library/utility/cancelable.cc",
-        "library/utility/digital.cc",
-        "library/utility/error.cc",
-        "library/utility/path.cc",
-        "library/utility/time.cc",
-        "library/utility/typename.cc",
-        ":scarab_version_cc",
-    ],
+    name = "scarab_headers",
     hdrs = glob([
         "library/utility/*.hh",
         "library/logger/*.hh",
@@ -79,6 +60,36 @@ cc_library(
         "@system_libs//:boost",
         "@yaml_cpp",
     ],
+)
+
+# The actual compiled code. cc_shared_library's own deps attribute whole-archives everything
+# listed here into the shared library unconditionally, so REGISTER_PARAM_INPUT_CODEC/
+# REGISTER_PARAM_OUTPUT_CODEC's own static registrar constructors (in param_json.cc,
+# param_yaml.cc) are guaranteed to run, the same guarantee alwayslink = True gave on a
+# cc_library consumed by static linking. Not depended on directly by anything outside this
+# package -- only :scarab_headers (for headers) and :scarab (for the runtime link) are.
+cc_library(
+    name = "scarab_lib",
+    srcs = [
+        "library/authentication/authentication.cc",
+        "library/logger/logger.cc",
+        "library/param/codec/json/param_json.cc",
+        "library/param/codec/yaml/param_yaml.cc",
+        "library/param/configurator.cc",
+        "library/param/global_config.cc",
+        "library/param/param.cc",
+        "library/param/param_codec.cc",
+        "library/param/parsable.cc",
+        "library/param/parser.cc",
+        "library/utility/cancelable.cc",
+        "library/utility/digital.cc",
+        "library/utility/error.cc",
+        "library/utility/path.cc",
+        "library/utility/time.cc",
+        "library/utility/typename.cc",
+        ":scarab_version_cc",
+    ],
+    deps = [":scarab_headers"],
 )
 
 # A real, standalone .so, matching the CMake build's own libScarab_Nymph_Katydid.so: the CMake
