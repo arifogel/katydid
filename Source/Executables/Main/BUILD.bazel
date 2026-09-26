@@ -12,8 +12,7 @@ load(":root_include_path_launcher.bzl", "root_include_path_launcher")
 
 package(default_visibility = ["//visibility:public"])
 
-# Referenced by //:katydid_release. Source files need exports_files() to be visible outside
-# this package.
+# Referenced by //:katydid_release.
 exports_files(["NOTICE.txt"])
 
 # Headers: for compile-time visibility of whatever Katydid.cc/Truncate.cc #include.
@@ -27,10 +26,9 @@ _ALL_KATYDID_HEADERS = [
     "@cicada//:cicada_headers",
 ]
 
-# The actual .so's: for the runtime link. Each module carries its own ROOT dictionary code
-# directly (IODict_cxx/CicadaDict_cxx/UtilityDict_cxx compile into katydid_io/cicada/
-# katydid_utility themselves, not a separate artifact), making it a valid dlopen() target
-# for TCling::RegisterModule on its own.
+# The actual .so's, for the runtime link. Each module compiles its own ROOT dictionary code
+# directly (IODict_cxx/CicadaDict_cxx/UtilityDict_cxx build into katydid_io/cicada/
+# katydid_utility), making it a valid dlopen() target for TCling::RegisterModule.
 _ALL_KATYDID_LIBS = [
     "//Source/Data:katydid_data",
     "//Source/EventAnalysis:katydid_event_analysis",
@@ -49,7 +47,7 @@ _ALL_KATYDID_LIBS = [
 # Cling falls back to re-parsing the dictionary's embedded payload at runtime and crashes when
 # it can't find the PCM -- the same crash Source/Executables/Validation:TestTrackProcessing
 # and :TestSequentialTrackFinder hit. Fixed the same way here: copy each PCM into this
-# package's own bazel-out bin/ directory.
+# package's bazel-out bin/ directory.
 genrule(
     name = "IODict_pcm_local_copy",
     srcs = ["//Source/IO:IODict_pcm"],
@@ -103,11 +101,10 @@ root_include_path_launcher(
     real_bin_label = ":Truncate_bin",
 )
 
-# Separate from :Katydid/:Truncate above: those are built for `bazel run`/`bazel test`, wired
-# to Bazel's own runfiles tree via root_include_path_launcher.bzl's rlocation-based mechanism.
-# These are for //:katydid_release's own flat bin/ + lib/ + root/ archive layout instead - see
-# release_binary.bzl's own docstring for why a separate binary/wrapper pair is needed rather
-# than reusing the ones above.
+# Separate from :Katydid/:Truncate above (those are wired to Bazel's runfiles tree via
+# root_include_path_launcher.bzl, for `bazel run`/`bazel test`) - these feed
+# //:katydid_release's flat bin/ + lib/ + root/ archive layout instead (see
+# release_binary.bzl's docstring for why).
 release_binary(
     name = "Katydid_release",
     final_bin_name = "Katydid_bin",
@@ -120,11 +117,10 @@ release_binary(
     real_bin_label = ":Truncate_bin",
 )
 
-# Every non-@root .so/.pcm either binary needs at runtime, harvested straight from Bazel's own
-# dependency graph - not hand-listed, so it can't go stale the way an explicit list could (see
-# harvest_runtime_libs.bzl's own docstring). ROOT itself is bundled separately and wholesale
-# (see //tools:root.bzl's own all_files filegroup) into //:katydid_release's own root/
-# subdirectory, not here.
+# Every non-@root .so/.pcm either binary needs at runtime, harvested from Bazel's dependency
+# graph rather than hand-listed (see harvest_runtime_libs.bzl's docstring). ROOT is bundled
+# separately and wholesale (see //tools:root.bzl's all_files filegroup) into
+# //:katydid_release's root/ subdirectory, not here.
 harvest_runtime_libs(
     name = "release_libs",
     binaries = [
@@ -133,11 +129,10 @@ harvest_runtime_libs(
     ],
 )
 
-# Regression test for two fixed bugs: TCling::RegisterModule dlopen()-ing Katydid's own main
+# Regression test for two fixed bugs: TCling::RegisterModule dlopen()-ing Katydid's main
 # executable (fixed by every module being a real, standalone .so, each a valid dlopen()
-# target on its own), and ROOT_INCLUDE_PATH needing to be set before Katydid's process starts
-# (fixed in root_include_path_launcher.bzl). See check_katydid_stderr_test.sh's own header for
-# details.
+# target), and ROOT_INCLUDE_PATH needing to be set before Katydid's process starts (fixed in
+# root_include_path_launcher.bzl). See check_katydid_stderr_test.sh's header for details.
 sh_test(
     name = "katydid_stderr_test",
     srcs = ["check_katydid_stderr_test.sh"],

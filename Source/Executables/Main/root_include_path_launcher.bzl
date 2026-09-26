@@ -4,26 +4,23 @@ load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 # Default PCM data for callers in this package (Source/Executables/Main), where these copies
-# are defined locally. These are package-relative labels, so a caller in another package (see
-# root_include_path_test_launcher, used from Source/Executables/Validation) must pass its own
-# pcm_data explicitly, pointing at its own local copies instead.
+# are defined locally. Package-relative labels, so a caller elsewhere (see
+# root_include_path_test_launcher, used from Source/Executables/Validation) must pass pcm_data
+# explicitly, pointing at its local copies instead.
 _DEFAULT_PCM_DATA = [
     ":CicadaDict_pcm_local_copy",
     ":IODict_pcm_local_copy",
     ":UtilityDict_pcm_local_copy",
 ]
 
-# Every header CicadaDict's own dictionary payload #includes (see
-# third_party/cicada/BUILD.cicada.bazel's own root_dictionary() call for the authoritative
-# list) -- not just _CROOTData.hh. Cling's autoload only needs _CROOTData.hh's own FileEntry,
-# but when that lookup falls back to the embedded payload text (which it always does here,
-# non-fatally), that text's own #include "CMemberVariables.hh" (and the payload's other
-# #includes) still need to resolve through the ordinary compiler include-path mechanism
-# ROOT_INCLUDE_PATH feeds. Declaring only _CROOTData.hh as data leaves it alone in the
-# runfiles tree's copy of Cicada's Library/ directory -- Bazel only materializes files
-# explicitly declared as data/srcs, not a whole directory just because one file in it is
-# referenced -- so every one of these needs to be listed explicitly for autoparse to find them
-# all in that same directory.
+# Every header CicadaDict's dictionary payload #includes (see
+# third_party/cicada/BUILD.cicada.bazel's root_dictionary() call for the authoritative list),
+# not just _CROOTData.hh. Cling's autoload only needs _CROOTData.hh's FileEntry, but the
+# lookup here always falls back (non-fatally) to the embedded payload text, whose
+# #include "CMemberVariables.hh" (and the other #includes) still need to resolve through
+# ROOT_INCLUDE_PATH. Declaring only _CROOTData.hh as data leaves the rest of Cicada's Library/
+# directory unmaterialized in runfiles (Bazel only materializes files explicitly declared as
+# data/srcs), so every one of these needs listing explicitly for autoparse to find them all.
 _CICADA_DICT_HEADERS = [
     "@cicada//:Library/_CROOTData.hh",
     "@cicada//:Library/CClassifierResultsData.hh",
@@ -33,18 +30,16 @@ _CICADA_DICT_HEADERS = [
     "@cicada//:Library/CROOTData.hh",
 ]
 
-# The very first thing Cling does for each dictionary at process start is TCling::LoadPCM,
-# which checks a single, specific path baked into the compiled dictionary at rootcling
-# generation time: wherever that dictionary's own _rdict.pcm target would land in bazel-out,
-# in ITS OWN declaring package -- not wherever the eventually-consuming binary lives, and not
-# the separate, differently-named "local copy" genrules below (those exist for a completely
-# different lookup: Cling checking next to the running binary's own bazel-out directory,
-# consulted only if this first one fails). Bazel only materializes a file on disk if something
-# in the current build graph actually depends on it; without a dependency on these
-# dictionaries' own, original PCM targets, this first lookup always reported "file does not
-# exist" (harmless -- Cling falls back further -- but adds debugging noise). Declaring them
-# as data forces Bazel to build and place each one at exactly the path this first lookup
-# checks.
+# The first thing Cling does for each dictionary at process start is TCling::LoadPCM, which
+# checks a single, specific path baked into the compiled dictionary at rootcling generation
+# time: wherever that dictionary's _rdict.pcm target lands in bazel-out, in its declaring
+# package -- not wherever the consuming binary lives, and not the separate, differently-named
+# "local copy" genrules below (those serve a different lookup: Cling checking next to the
+# running binary's bazel-out directory, consulted only if this first one fails). Bazel only
+# materializes a file if something in the build graph depends on it; without a dependency on
+# these dictionaries' original PCM targets, this first lookup always reported "file does not
+# exist" (harmless -- Cling falls back further -- but adds debugging noise). Declaring them as
+# data forces Bazel to build and place each one at exactly the path this first lookup checks.
 _RAW_PCM_TARGETS = [
     "@cicada//:CicadaDict_pcm",
     "//Source/IO:IODict_pcm",
@@ -60,22 +55,21 @@ def _root_include_path_wrapper(name, real_bin_label, pcm_data, wrapper_rule, tes
     ROOT_INCLUDE_PATH then. A value set from inside the process, however early, is never
     seen. It must be set externally, before the process starts.
 
-    real_bin_label's path is baked into the generated script via Bazel's $(rlocationpath ...)
-    expansion at build time: a rename or move of real_bin_label is a build-time break, not a
-    silent one. $(rlocationpath ...), not $(location ...): the former already includes the
-    repository-qualified prefix rlocation expects, so the script calls rlocation on it
-    directly with no extra path work.
+    real_bin_label's path is baked into the script via $(rlocationpath ...) at build time, not
+    $(location ...): the former already includes the repository-qualified prefix rlocation
+    expects, so the script calls rlocation directly with no extra path work. A rename or move
+    of real_bin_label is then a build-time break, not a silent one.
 
-    use_bash_launcher = True initializes the runfiles library. deps on the runfiles library
-    itself is also required: use_bash_launcher's generated launcher looks for the library at
-    a path this deps entry provides, but does not add the dependency itself.
+    use_bash_launcher = True initializes the runfiles library; the deps entry on the runfiles
+    library is also required - the generated launcher looks for it at a path this deps entry
+    provides, but use_bash_launcher does not add the dependency itself.
 
     wrapper_rule is sh_binary or sh_test: the wrapper execs into real_bin_label without
-    forking, so the real binary's own exit code (and, for a test, pass/fail) propagates to
-    Bazel directly through the wrapper either way.
+    forking, so the real binary's exit code (and, for a test, pass/fail) propagates to Bazel
+    directly through the wrapper either way.
 
     testonly must be True whenever real_bin_label is itself testonly (any cc_test): sh_test
-    already defaults testonly to True on its own, but the intermediate genrule below is not a
+    already defaults testonly to True, but the intermediate genrule below isn't a
     "*_test"-named rule, so it gets no such default and needs it set explicitly, or a plain
     `bazel build //...` refuses to analyze it ("non-test target ... depends on testonly
     target ... and doesn't have testonly attribute set").
@@ -84,8 +78,7 @@ def _root_include_path_wrapper(name, real_bin_label, pcm_data, wrapper_rule, tes
         name: name of the generated sh_binary/sh_test.
         real_bin_label: label of the real binary/test this wraps (e.g. ":Katydid_bin").
         pcm_data: PCM local-copy genrule labels this wraps also needs as data, so Cling finds
-            them next to the real, exec'd binary (see BUILD.bazel's own comment on those
-            genrules).
+            them next to the real, exec'd binary (see BUILD.bazel's comment on those genrules).
         wrapper_rule: sh_binary or sh_test.
         testonly: whether real_bin_label is itself testonly.
     """
@@ -98,11 +91,11 @@ def _root_include_path_wrapper(name, real_bin_label, pcm_data, wrapper_rule, tes
             "@cicada//:Library/_CROOTData.hh",
         ],
         outs = [name + "_launcher_gen.sh"],
-        # $ meant to stay literal at the script's own runtime (not Bazel's genrule build
-        # time) is doubled ($$) per Bazel's genrule cmd escaping rules, including the final
-        # "$@" (arg forwarding): $$@ survives as a literal $@ rather than colliding with
-        # genrule's own bare $@ token for its output file, since Bazel's $$ escaping is a
-        # single left-to-right pass that takes precedence over interpreting what follows.
+        # $ meant to stay literal at the script's runtime (not genrule's build time) is
+        # doubled ($$), including the final "$@" (arg forwarding): $$@ survives as a literal
+        # $@ rather than colliding with genrule's bare $@ output-file token, since Bazel's $$
+        # escaping is a single left-to-right pass that takes precedence over interpreting
+        # what follows.
         cmd = """cat > $@ << 'LAUNCHER_EOF'
 #!/usr/bin/env bash
 REAL_BIN="$$(rlocation "$(rlocationpath """ + real_bin_label + """)")"
@@ -122,7 +115,7 @@ chmod +x $@
 """,
     )
 
-    # data is needed here so these files are part of this target's own runfiles: Cling looks
+    # data is needed here so these files are part of this target's runfiles: Cling looks
     # for the headers via ROOT_INCLUDE_PATH (set above) and the PCMs directly alongside the
     # running binary.
     #
@@ -140,12 +133,12 @@ chmod +x $@
     )
 
 def root_include_path_launcher(name, real_bin_label, pcm_data = _DEFAULT_PCM_DATA):
-    """Sets ROOT_INCLUDE_PATH before real_bin_label's own process starts, then execs it.
+    """Sets ROOT_INCLUDE_PATH before real_bin_label's process starts, then execs it.
 
     Args:
         name: name of the generated sh_binary.
         real_bin_label: label of the real binary this wraps (e.g. ":Katydid_bin").
-        pcm_data: see _root_include_path_wrapper. Defaults to this package's own local copies.
+        pcm_data: see _root_include_path_wrapper. Defaults to this package's local copies.
     """
     _root_include_path_wrapper(name, real_bin_label, pcm_data, sh_binary, testonly = False)
 
@@ -155,13 +148,13 @@ def root_include_path_test_launcher(name, real_bin_label, pcm_data):
     Intended to wrap every Validation cc_test unconditionally, not just ones already known to
     touch Cicada's ROOT dictionary at runtime: harmless for a test that doesn't need it, and
     removes the need to reason case-by-case about which ones do (see
-    Source/Executables/Validation/BUILD.bazel's own top comment).
+    Source/Executables/Validation/BUILD.bazel's top comment).
 
     Args:
         name: name of the generated sh_test.
         real_bin_label: label of the real cc_test this wraps (e.g. ":TestVector_bin").
         pcm_data: see _root_include_path_wrapper. No default: these are package-relative
-            labels defined in the calling package (e.g. Validation's own local PCM copies),
-            not this one.
+            labels defined in the calling package (e.g. Validation's local PCM copies), not
+            this one.
     """
     _root_include_path_wrapper(name, real_bin_label, pcm_data, sh_test, testonly = True)

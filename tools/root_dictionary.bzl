@@ -5,7 +5,7 @@ This is a real Starlark rule rather than a genrule, because rootcling needs to s
 header transitively reachable from the dictionary headers (via Nymph, Scarab, Boost, and so
 on), not just the headers local to the module being built. A genrule has no way to discover
 that automatically; only a rule that reads the CcInfo provider of its `deps` can pull the
-real transitive include directories and headers out of Bazel's own compilation-context
+real transitive include directories and headers out of Bazel's compilation-context
 bookkeeping.
 """
 
@@ -23,7 +23,7 @@ def _root_dictionary_impl(ctx):
     args.add("-f", out_cxx)
     args.add("-inlineInputHeader")
 
-    # quote_includes covers the module's own directory (where the LinkDef/dict headers live);
+    # quote_includes covers the module's directory (where the LinkDef/dict headers live);
     # includes/system_includes cover everything pulled in transitively via deps (Nymph, Scarab,
     # rapidjson, yaml-cpp, Boost, FFTW).
     for d in (compilation_context.quote_includes.to_list() +

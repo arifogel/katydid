@@ -5,8 +5,8 @@ ROOT_INCLUDE_PATH launcher unconditionally. See BUILD.bazel's own top comment fo
 load("@rules_cc//cc:cc_test.bzl", "cc_test")
 load("//Source/Executables/Main:root_include_path_launcher.bzl", "root_include_path_test_launcher")
 
-# Relative labels here resolve against whichever package actually calls this macro (Validation's
-# own), not this .bzl file's own package - the genrules they name are defined in that BUILD file.
+# Relative labels here resolve against whichever package actually calls this macro (Validation's),
+# not this .bzl file's package - the genrules they name are defined in that BUILD file.
 _PCM_DATA = [
     ":CicadaDict_pcm_local_copy",
     ":IODict_pcm_local_copy",

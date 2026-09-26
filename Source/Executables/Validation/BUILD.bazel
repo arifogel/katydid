@@ -37,44 +37,40 @@
 # Implement() signature doesn't match its own header). This would fail to link, not because of
 # anything in this port, but because of that pre-existing exclusion.
 #
-# Every cc_test/cc_binary below lists two kinds of dependency: `deps` on every module's own
-# `_headers` target, for compile-time visibility of whatever the test's own .cc file
-# #includes, and `dynamic_deps` on every module's own cc_shared_library target, for the actual
-# runtime link -- cc_shared_library provides no CcInfo at all, so headers and the runtime link
-# have to be reached through two separate targets. See //Source/Utility:katydid_utility_headers'
-# own comment for the full reasoning.
+# Every cc_test/cc_binary below lists two kinds of dependency: `deps` on each module's
+# `_headers` target, for compile-time visibility of whatever the test's .cc file #includes, and
+# `dynamic_deps` on each module's cc_shared_library target, for the runtime link -
+# cc_shared_library provides no CcInfo, so headers and the runtime link need two separate
+# targets. See //Source/Utility:katydid_utility_headers' comment for the full reasoning.
 #
 # Every test below (other than TestROOTDictionary) is given the FULL set of Katydid module
-# .so's via dynamic_deps, not just whichever module its own .cc file most directly concerns.
-# dynamic_deps is transitive only for deciding which cc_librarys should NOT be statically
-# duplicated (Bazel's own documented behavior) - it does NOT cause the final cc_binary/cc_test's
-# own link command to include every transitively-nested .so. So a test that dynamic_deps's only
-# on, say, katydid_spectrum_analysis, but whose own .cc file (or an included header) directly
-# references a Nymph::KTLogger or scarab::logger symbol - true of nearly every Katydid header,
-# via a pervasive logging macro - fails to link with "undefined reference": that dependency is
-# real but only visible to katydid_spectrum_analysis.so's own DT_NEEDED, not consulted when
-# resolving the separate, final test binary's own undefined symbols. This is the same
-# "link everything, let the linker sort it out" approach used for Source/Executables/Main's own
-# Katydid_bin/Truncate_bin (see that file's own _ALL_KATYDID_LIBS/_ALL_KATYDID_HEADERS) and for
-# ROOT's own libraries in tools/root.bzl, matching the reference CMake build's own approach of
-# linking its full library set into every executable.
+# .so's via dynamic_deps, not just whichever module its .cc file most directly concerns:
+# dynamic_deps's transitivity only decides which cc_librarys avoid static duplication, it does
+# not add every transitively-nested .so to the final binary's link command. A test that
+# dynamic_deps's only on, say, katydid_spectrum_analysis, but whose .cc file (or an included
+# header) directly references a Nymph::KTLogger or scarab::logger symbol - true of nearly every
+# Katydid header, via a pervasive logging macro - fails to link with "undefined reference": that
+# symbol is only visible to katydid_spectrum_analysis.so's DT_NEEDED, not consulted when
+# resolving the final test binary's undefined symbols. Same "link everything, let the linker sort
+# it out" approach as Source/Executables/Main's Katydid_bin/Truncate_bin (that file's
+# _ALL_KATYDID_LIBS/_ALL_KATYDID_HEADERS) and ROOT's libraries in tools/root.bzl, matching the
+# reference CMake build's approach of linking its full library set into every executable.
 #
 # TestROOTDictionary is the one exception, kept deliberately narrow: it depends on @cicada and
 # @nymph only, nothing else, specifically to test dictionary registration in as close to
 # isolation as this codebase allows.
 #
 # Every test is wrapped, unconditionally, with the same ROOT_INCLUDE_PATH-setting launcher
-# Source/Executables/Main's own Katydid_bin/Truncate_bin already use (see
-# root_include_path_launcher.bzl's own comment for the underlying mechanism, and the reference
-# CMake build's own this_katydid.sh/this_cicada.sh, sourced before running anything, for the
-# same requirement in that build). Without ROOT_INCLUDE_PATH set before the process starts,
-# Cling's autoparse of Cicada's dictionary payload fails outright on a missing header
-# (CMemberVariables.hh), not just the "Missing FileEntry" warning a next-to-binary header copy
-# alone produces - and, for any test that actually exercises a TClonesArray-backed class
-# (Cicada::TProcessedTrackData/TMultiTrackEventData), that failure segfaults rather than just
-# logging a warning. Every test gets the wrapper regardless of whether it's known to hit this
-# today: harmless for one that doesn't, and removes the need to reason case-by-case about which
-# ones do as the test suite changes.
+# Source/Executables/Main's Katydid_bin/Truncate_bin already use (see
+# root_include_path_launcher.bzl's comment for the underlying mechanism, and the reference CMake
+# build's this_katydid.sh/this_cicada.sh, sourced before running anything, for the same
+# requirement there). Without ROOT_INCLUDE_PATH set before the process starts, Cling's autoparse
+# of Cicada's dictionary payload fails outright on a missing header (CMemberVariables.hh), not
+# just the "Missing FileEntry" warning a next-to-binary header copy alone produces - and for any
+# test exercising a TClonesArray-backed class (Cicada::TProcessedTrackData/
+# TMultiTrackEventData), that failure segfaults rather than just logging a warning. Every test
+# gets the wrapper regardless of whether it's known to hit this today: harmless for one that
+# doesn't, and removes the need to reason case-by-case as the test suite changes.
 #
 # The wrapper adds a second target per test (name + "_bin", the real cc_test, tagged "manual"
 # so `bazel test //...` doesn't also run it unwrapped and double-count) - `bazel test` and
@@ -94,8 +90,8 @@ _ALL_KATYDID_HEADERS = [
     "@cicada//:cicada_headers",
 ]
 
-# The actual .so's: for the runtime link. See this file's own top comment for why every test
-# gets the full set, not just whichever module it most directly concerns.
+# The actual .so's: for the runtime link. See this file's top comment for why every test gets
+# the full set, not just whichever module it most directly concerns.
 _ALL_KATYDID_LIBS = [
     "//Source/Data:katydid_data",
     "//Source/EventAnalysis:katydid_event_analysis",
@@ -109,19 +105,18 @@ _ALL_KATYDID_LIBS = [
 ]
 
 # ROOT's Cling interpreter looks for a dictionary's _rdict.pcm file directly alongside the
-# consuming binary's own bazel-out bin/ directory, not via Bazel's runfiles tree - a hazard for
-# any binary that lives in a different Bazel package than the one that generated the
-# dictionary (see //Source/IO:IODict_pcm's and @cicada//:CicadaDict_pcm's own root_dictionary()
-# calls). Most code tolerates the resulting "PCM file does not exist" as a harmless warning, but
-# classes used via TClonesArray need the PCM for streamer-info lookup and crash without it:
-# KTROOTData.hh's TDiscriminatedPoint/TSparseWaterfallCandidateData (IODict) and Cicada's
+# consuming binary's bazel-out bin/ directory, not via Bazel's runfiles tree - a hazard for any
+# binary that lives in a different Bazel package than the one that generated the dictionary (see
+# //Source/IO:IODict_pcm's and @cicada//:CicadaDict_pcm's root_dictionary() calls). Most code
+# tolerates the resulting "PCM file does not exist" as a harmless warning, but classes used via
+# TClonesArray need the PCM for streamer-info lookup and crash without it: KTROOTData.hh's
+# TDiscriminatedPoint/TSparseWaterfallCandidateData (IODict) and Cicada's
 # TProcessedTrackData/TMultiTrackEventData (CicadaDict), both written here via
-# KTROOTTreeTypeWriterEventAnalysis. These genrules copy each dictionary's PCM to a plain
-# output in this package, which Bazel builds directly into this package's own bazel-out bin/
-# directory - exactly the path Cling looks in, since genrule outputs are never placed inside a
-# runfiles tree in the first place. Passed as every wrapped test's own pcm_data below, since
-# every one of them is exec'd from the same directory its own wrapper script's runfiles
-# occupies.
+# KTROOTTreeTypeWriterEventAnalysis. These genrules copy each dictionary's PCM to a plain output
+# in this package, landing directly in this package's bazel-out bin/ - exactly the path Cling
+# looks in, since genrule outputs are never placed inside a runfiles tree. Passed as every
+# wrapped test's pcm_data below, since each one is exec'd from the same directory its wrapper
+# script's runfiles occupy.
 genrule(
     name = "IODict_pcm_local_copy",
     srcs = ["//Source/IO:IODict_pcm"],
@@ -136,7 +131,7 @@ genrule(
     cmd = "cp $< $@",
 )
 
-# Duplicated from validation_test.bzl's own _PCM_DATA, which is private and so not loadable here:
+# Duplicated from validation_test.bzl's _PCM_DATA, which is private and so not loadable here:
 # TestDPTReader is a cc_binary, not a cc_test, so it goes through root_include_path_launcher
 # directly instead of the katydid_validation_test macro.
 _PCM_DATA = [
@@ -418,12 +413,12 @@ katydid_validation_test(
     deps = _ALL_KATYDID_HEADERS,
 )
 
-# @cicada does not depend on @nymph (see its own BUILD file's top comment) - this is the only
-# test here whose deps are just @cicada, with nothing that transitively provides Nymph's
+# @cicada does not depend on @nymph (see its BUILD file's top comment) - this is the only test
+# here whose deps are just @cicada, with nothing that transitively provides Nymph's
 # KTLogger.hh, which this test also includes directly. Every other test gets KTLogger.hh for
 # free through one of the katydid_* libraries for *headers* (all depend on @nymph), but every
 # test still needs @nymph and @scarab as direct dynamic_deps too, for the runtime link - see
-# this file's own top comment.
+# this file's top comment.
 katydid_validation_test(
     name = "TestROOTDictionary",
     srcs = ["TestROOTDictionary.cc"],
