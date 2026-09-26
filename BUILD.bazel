@@ -1,7 +1,21 @@
 # Builds the packaged release archive (//:katydid_release) and exposes the repo-root files it
 # needs (LICENSE, third_party_licenses/).
+#
+# Layout: bin/Katydid (a portable wrapper script) execs bin/Katydid_bin (the real, RPATH-
+# patched binary) - same for Truncate. lib/ is flat: every Katydid module .so, Cicada/Nymph/
+# Scarab/yaml-cpp, and their dictionary PCMs, sitting directly beside the .so each PCM belongs
+# to - harvested automatically from Katydid_bin/Truncate_bin's own runfiles (see
+# //Source/Executables/Main:harvest_runtime_libs.bzl), not hand-listed. ROOT is bundled
+# wholesale, unfiltered, into its own root/ subdirectory (see //tools:root.bzl's own
+# all_files filegroup) - deliberately not merged into lib/: ROOT's own runtime needs a real,
+# complete install layout (bin/, lib/, etc/, include/) to find things like etc/gitinfo.txt and
+# dlopen()-load libCling.so by its own internal search logic, so it gets its own, intact
+# subtree rather than being flattened in with everything else.
+#
+# Boost/FFTW (currently resolved via plain system linker paths, not bundled) and Katydid's own
+# flattened include/ headers are deliberately deferred - see NOTES.md for status.
 
-load("@rules_pkg//pkg:mappings.bzl", "pkg_files")
+load("@rules_pkg//pkg:mappings.bzl", "pkg_attributes", "pkg_files", "strip_prefix")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 
 package(default_visibility = ["//visibility:public"])
@@ -29,20 +43,60 @@ pkg_files(
     prefix = "third_party_licenses",
 )
 
-# include_runfiles: Katydid_bin/Truncate_bin need their own runfiles tree (ROOT dictionary
-# PCM files, every Katydid module's own .so, etc.) at runtime -- see
-# //Source/Executables/Main:root_include_path_launcher.bzl.
-#
-# Does not bundle ROOT/Boost/FFTW/etc: dynamically linked at fixed absolute paths, assumed
-# present on the target machine.
+# bin/Katydid, bin/Katydid_bin, bin/Truncate, bin/Truncate_bin - renamed from their own build
+# target names (Katydid_release/Katydid_release_bin/etc.) since Katydid/Katydid_bin were
+# already taken by the bazel run/bazel test variants in the same package (see
+# //Source/Executables/Main:BUILD.bazel's own comment on release_binary()). Explicit mode:
+# genrule outputs don't reliably keep the executable bit through tar packaging otherwise.
+pkg_files(
+    name = "katydid_release_bin",
+    srcs = [
+        "//Source/Executables/Main:Katydid_release",
+        "//Source/Executables/Main:Katydid_release_bin",
+        "//Source/Executables/Main:Truncate_release",
+        "//Source/Executables/Main:Truncate_release_bin",
+    ],
+    attributes = pkg_attributes(mode = "0755"),
+    prefix = "bin",
+    renames = {
+        "//Source/Executables/Main:Katydid_release": "Katydid",
+        "//Source/Executables/Main:Katydid_release_bin": "Katydid_bin",
+        "//Source/Executables/Main:Truncate_release": "Truncate",
+        "//Source/Executables/Main:Truncate_release_bin": "Truncate_bin",
+    },
+)
+
+# lib/*.so, lib/*.pcm - flat, harvested automatically (see the harvest_runtime_libs target's
+# own docstring for why this isn't a hand-maintained list). strip_prefix removes the
+# harvest rule's own output-directory nesting (release_libs/libX.so -> libX.so) before prefix
+# re-adds lib/.
+pkg_files(
+    name = "katydid_release_lib",
+    srcs = ["//Source/Executables/Main:release_libs"],
+    prefix = "lib",
+    strip_prefix = strip_prefix.from_pkg("release_libs"),
+)
+
+# root/ - ROOT's own tarball, wholesale and unfiltered (see this file's own top comment for
+# why it isn't merged into lib/ above). strip_prefix removes the tarball's own top-level
+# "root/" directory name (root/lib/libCore.so -> lib/libCore.so, within this rule's own
+# output) before prefix re-adds it as this archive's own root/ (giving root/lib/libCore.so in
+# the final archive - root/root/lib/libCore.so would be wrong).
+pkg_files(
+    name = "katydid_release_root",
+    srcs = ["@root//:all_files"],
+    prefix = "root",
+    strip_prefix = strip_prefix.from_pkg("root"),
+)
+
 pkg_tar(
     name = "katydid_release",
     srcs = [
+        ":katydid_release_bin",
+        ":katydid_release_lib",
         ":katydid_release_notices",
+        ":katydid_release_root",
         ":katydid_release_third_party_licenses",
-        "//Source/Executables/Main:Katydid",
-        "//Source/Executables/Main:Truncate",
     ],
     extension = "tar.gz",
-    include_runfiles = True,
 )

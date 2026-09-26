@@ -256,6 +256,17 @@ cc_library(
     linkopts = {linkopts},
 )
 
+# The full, unfiltered tarball - every file, not just the narrowed srcs= subset above used for
+# linking. Consumed by //:katydid_release to bundle ROOT wholesale into its own root/
+# subdirectory: ROOT's own runtime needs a real, complete install layout (bin/, lib/, etc/,
+# include/) to find things like etc/gitinfo.txt and dlopen()-load libCling.so by its own
+# internal search logic - neither of those is a real ELF NEEDED dependency of anything, so
+# nothing_short of bundling the whole tree satisfies them.
+filegroup(
+    name = "all_files",
+    srcs = glob(["root/**"], allow_empty = True),
+)
+
 exports_files(["rootcling"])
 """.format(srcs = repr(root_srcs), linkopts = repr(root_linkopts)))
 

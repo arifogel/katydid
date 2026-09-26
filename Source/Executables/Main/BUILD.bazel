@@ -6,6 +6,8 @@
 
 load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load(":harvest_runtime_libs.bzl", "harvest_runtime_libs")
+load(":release_binary.bzl", "release_binary")
 load(":root_include_path_launcher.bzl", "root_include_path_launcher")
 
 package(default_visibility = ["//visibility:public"])
@@ -100,6 +102,34 @@ root_include_path_launcher(
 root_include_path_launcher(
     name = "Truncate",
     real_bin_label = ":Truncate_bin",
+)
+
+# Separate from :Katydid/:Truncate above: those are built for `bazel run`/`bazel test`, wired
+# to Bazel's own runfiles tree via root_include_path_launcher.bzl's rlocation-based mechanism.
+# These are for //:katydid_release's own flat bin/ + lib/ + root/ archive layout instead - see
+# release_binary.bzl's own docstring for why a separate binary/wrapper pair is needed rather
+# than reusing the ones above.
+release_binary(
+    name = "Katydid_release",
+    real_bin_label = ":Katydid_bin",
+)
+
+release_binary(
+    name = "Truncate_release",
+    real_bin_label = ":Truncate_bin",
+)
+
+# Every non-@root .so/.pcm either binary needs at runtime, harvested straight from Bazel's own
+# dependency graph - not hand-listed, so it can't go stale the way an explicit list could (see
+# harvest_runtime_libs.bzl's own docstring). ROOT itself is bundled separately and wholesale
+# (see //tools:root.bzl's own all_files filegroup) into //:katydid_release's own root/
+# subdirectory, not here.
+harvest_runtime_libs(
+    name = "release_libs",
+    binaries = [
+        ":Katydid_bin",
+        ":Truncate_bin",
+    ],
 )
 
 # Regression test for two fixed bugs: TCling::RegisterModule dlopen()-ing Katydid's own main

@@ -325,3 +325,16 @@ without Boost/FFTW/MatIO/ROOT actually present.
   native `cc_library` build files, avoiding Boost's own `b2` build system) is the natural
   starting point for Boost specifically. ROOT is a much larger undertaking and not recommended:
   a full source build is slow, and there is no maintained "ROOT for Bazel" project to build on.
+- `//:katydid_release`'s packaged archive layout is `bin/` (portable wrapper scripts execing
+  RPATH-patched real binaries), `lib/` (every Katydid/Cicada/Nymph/Scarab/yaml-cpp `.so` and
+  dictionary PCM, harvested automatically from the binaries' own runfiles — see
+  `Source/Executables/Main/harvest_runtime_libs.bzl`), and `root/` (ROOT's own tarball,
+  bundled wholesale and kept separate from `lib/`, since ROOT's own runtime needs a real,
+  intact install layout to find `etc/gitinfo.txt` and `dlopen()`-load `libCling.so`). Not yet
+  done: Boost/FFTW are still resolved via plain system linker paths at archive-build time, not
+  bundled into the archive itself, so the target machine still needs them installed; Katydid's
+  own headers aren't flattened into a single `include/Katydid/` the way the CMake install
+  does; and the RPATH-patching step (`Source/Executables/Main/release_binary.bzl`) only
+  implements the Linux path (`patchelf`) — the macOS equivalent (`install_name_tool`, which
+  needs existing `LC_RPATH` entries deleted before new ones are added, unlike `patchelf`'s
+  single `--set-rpath`) is unwritten and untested.
