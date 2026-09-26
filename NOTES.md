@@ -51,12 +51,12 @@ branches on the host platform:
 
 - **ROOT** is fetched directly as a prebuilt binary from root.cern, one exact, baked-in URL per
   supported platform (Ubuntu 24.04, AlmaLinux 9.x, macOS on arm64 - the three this repository's
-  own CI supports), pinned to one `_ROOT_VERSION`. Unlike Boost/FFTW/MatIO below, ROOT's own
-  prebuilt binaries are versioned per exact OS release and toolchain, not just "linux" or
-  "macos", so this reads `/etc/os-release`'s `ID` field on Linux rather than just checking which
-  package manager is on `PATH`. After extracting the tarball, the rule still queries the
+  CI supports), pinned to one `_ROOT_VERSION`. Unlike Boost/FFTW/MatIO below, ROOT's prebuilt
+  binaries are versioned per exact OS release and toolchain, not just "linux" or "macos", so
+  this reads `/etc/os-release`'s `ID` field on Linux rather than just checking which package
+  manager is on `PATH`. After extracting the tarball, the rule still queries the
   now-locally-extracted `root-config --libs`/`--libdir` (rather than hardcoding the libs list),
-  and adds `-lGui -lSpectrum -lTMVA` on top, matching Katydid's own
+  and adds `-lGui -lSpectrum -lTMVA` on top, matching Katydid's
   `find_package(ROOT 6.00 COMPONENTS Gui Spectrum TMVA)` in the original CMake build.
   `rootcling` is symlinked to the repository root and exposed as `@system_libs//:rootcling`.
   No installation step, and no `root-config` needs to already be on `PATH` beforehand.
@@ -327,12 +327,12 @@ without Boost/FFTW/MatIO/ROOT actually present.
   a full source build is slow, and there is no maintained "ROOT for Bazel" project to build on.
 - `//:katydid_release`'s packaged archive layout is `bin/` (portable wrapper scripts execing
   RPATH-patched real binaries), `lib/` (every Katydid/Cicada/Nymph/Scarab/yaml-cpp `.so` and
-  dictionary PCM, harvested automatically from the binaries' own runfiles — see
-  `Source/Executables/Main/harvest_runtime_libs.bzl`), `root/` (ROOT's own tarball, bundled
-  wholesale and kept separate from `lib/`, since ROOT's own runtime needs a real, intact
-  install layout to find `etc/gitinfo.txt` and `dlopen()`-load `libCling.so`), and `include/`
-  (currently just the six Cicada headers `CicadaDict`'s own dictionary payload `#include`s by
-  bare filename — the specific set needed for Cling's autoparse to succeed rather than fail
+  dictionary PCM, harvested automatically from the binaries' runfiles — see
+  `Source/Executables/Main/harvest_runtime_libs.bzl`), `root/` (ROOT's tarball, bundled
+  wholesale and kept separate from `lib/`, since ROOT's runtime needs a real, intact install
+  layout to find `etc/gitinfo.txt` and `dlopen()`-load `libCling.so`), and `include/`
+  (currently just the six Cicada headers `CicadaDict`'s dictionary payload `#include`s by bare
+  filename — the specific set needed for Cling's autoparse to succeed rather than fail
   outright on a TClonesArray-backed write). Not yet done: Boost/FFTW are still resolved via
   plain system linker paths at archive-build time, not bundled into the archive itself, so the
   target machine still needs them installed; every other Katydid/Nymph/Scarab header isn't

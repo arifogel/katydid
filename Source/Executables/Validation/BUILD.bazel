@@ -45,24 +45,19 @@
 # own comment for the full reasoning.
 #
 # Every test below (other than TestROOTDictionary) is given the FULL set of Katydid module
-# .so's via dynamic_deps, not just whichever module its own .cc file most directly concerns -
-# deliberately, not out of laziness. dynamic_deps is transitive only for deciding which
-# cc_librarys should NOT be statically duplicated (bazel's own documented behavior) - it does
-# NOT cause a final cc_binary/cc_test's own link command to include every transitively-nested
-# .so as well. So a test that dynamic_deps's only on, say, katydid_spectrum_analysis, but whose
-# own .cc file (or a header it includes) directly references a Nymph::KTLogger or
-# scarab::logger symbol - true of nearly every Katydid header, via a pervasive logging macro -
-# fails to link with "undefined reference", even though katydid_spectrum_analysis itself
-# genuinely does depend on Nymph/Scarab at runtime: that dependency is real but only visible to
-# katydid_spectrum_analysis.so's own DT_NEEDED, not consulted by the linker when resolving the
-# separate, final test binary's own undefined symbols (confirmed empirically: this file
-# originally scoped dynamic_deps per-tier, matching only the most directly relevant module, and
-# the vast majority of targets built that way failed exactly this way). This is the same
-# "link everything, let the linker sort it out" approach already used successfully for
-# Source/Executables/Main's own Katydid_bin/Truncate_bin (see that file's own
-# _ALL_KATYDID_LIBS/_ALL_KATYDID_HEADERS) and, separately, for ROOT's own libraries in
-# tools/root.bzl - matching the reference CMake build's own approach directly, which
-# links its own full external+internal library set into every executable the same way.
+# .so's via dynamic_deps, not just whichever module its own .cc file most directly concerns.
+# dynamic_deps is transitive only for deciding which cc_librarys should NOT be statically
+# duplicated (Bazel's own documented behavior) - it does NOT cause the final cc_binary/cc_test's
+# own link command to include every transitively-nested .so. So a test that dynamic_deps's only
+# on, say, katydid_spectrum_analysis, but whose own .cc file (or an included header) directly
+# references a Nymph::KTLogger or scarab::logger symbol - true of nearly every Katydid header,
+# via a pervasive logging macro - fails to link with "undefined reference": that dependency is
+# real but only visible to katydid_spectrum_analysis.so's own DT_NEEDED, not consulted when
+# resolving the separate, final test binary's own undefined symbols. This is the same
+# "link everything, let the linker sort it out" approach used for Source/Executables/Main's own
+# Katydid_bin/Truncate_bin (see that file's own _ALL_KATYDID_LIBS/_ALL_KATYDID_HEADERS) and for
+# ROOT's own libraries in tools/root.bzl, matching the reference CMake build's own approach of
+# linking its full library set into every executable.
 #
 # TestROOTDictionary is the one exception, kept deliberately narrow: it depends on @cicada and
 # @nymph only, nothing else, specifically to test dictionary registration in as close to
@@ -141,10 +136,9 @@ genrule(
     cmd = "cp $< $@",
 )
 
-# A plain BUILD file cannot define a function (def is only legal in a .bzl file) - the actual
-# test-wrapping macro (katydid_validation_test, loaded above) lives in validation_test.bzl.
-# Duplicated here, in the one place still needed directly: TestDPTReader is a cc_binary (not a
-# cc_test), so it goes through root_include_path_launcher directly instead of the macro.
+# Duplicated from validation_test.bzl's own _PCM_DATA, which is private and so not loadable here:
+# TestDPTReader is a cc_binary, not a cc_test, so it goes through root_include_path_launcher
+# directly instead of the katydid_validation_test macro.
 _PCM_DATA = [
     ":CicadaDict_pcm_local_copy",
     ":IODict_pcm_local_copy",

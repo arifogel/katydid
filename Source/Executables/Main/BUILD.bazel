@@ -27,11 +27,10 @@ _ALL_KATYDID_HEADERS = [
     "@cicada//:cicada_headers",
 ]
 
-# The actual .so's: for the runtime link. Every module here is now a real, standalone .so
-# that carries its own ROOT dictionary code directly (IODict_cxx/CicadaDict_cxx/UtilityDict_cxx
-# are compiled into katydid_io/cicada/katydid_utility themselves, not a separate artifact) --
-# each is a valid dlopen() target for TCling::RegisterModule on its own, so no separate
-# libroot_dict_shared.so/root_dict_import/katydid_io_root_types mechanism is needed anymore.
+# The actual .so's: for the runtime link. Each module carries its own ROOT dictionary code
+# directly (IODict_cxx/CicadaDict_cxx/UtilityDict_cxx compile into katydid_io/cicada/
+# katydid_utility themselves, not a separate artifact), making it a valid dlopen() target
+# for TCling::RegisterModule on its own.
 _ALL_KATYDID_LIBS = [
     "//Source/Data:katydid_data",
     "//Source/EventAnalysis:katydid_event_analysis",

@@ -20,8 +20,8 @@ non_bazel_deps = use_extension("//tools:non_bazel_deps.bzl", "non_bazel_deps")
 use_repo(non_bazel_deps, "cicada", "nymph", "rapidjson", "scarab", "yaml_cpp")
 
 # --- ROOT ------------------------------------------------------------------------------
-# Fetched directly as a prebuilt binary from root.cern for the current platform - see
-# tools/root.bzl for details, and BUILDING.md for supported platforms.
+# Fetched as a prebuilt binary from root.cern for the current platform - see tools/root.bzl
+# for details, and BUILDING.md for supported platforms.
 
 root_deps = use_extension("//tools:root.bzl", "root_deps")
 use_repo(root_deps, "root")

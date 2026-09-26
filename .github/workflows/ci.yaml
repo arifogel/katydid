@@ -33,9 +33,9 @@ jobs:
 
       # --- Linux: Boost, FFTW, and MatIO come from apt (which installs into locations the
       # compiler already searches by default, so no further configuration is needed - see
-      # tools/system_deps.bzl). ROOT is fetched directly by tools/system_deps.bzl itself now
-      # (a prebuilt binary published by the ROOT team, since Ubuntu does not package a usable
-      # ROOT build), not by a separate CI step - Bazel's own repository cache covers it.
+      # tools/system_deps.bzl). ROOT is fetched directly by tools/system_deps.bzl (a prebuilt
+      # binary published by the ROOT team, since Ubuntu does not package a usable ROOT build),
+      # not by a separate CI step - Bazel's repository cache covers it.
       #
       # libtbb12 and libblas3 are not Katydid's own dependencies - they are runtime
       # dependencies of ROOT's own prebuilt binaries and shared libraries (rootcling itself
@@ -89,7 +89,7 @@ jobs:
       # --- macOS: Homebrew is preinstalled on GitHub's runners, but Boost, FFTW, and MatIO
       # are not, and are large enough downloads to be worth caching across CI runs even
       # though each run starts from a fresh virtual machine. ROOT is fetched directly by
-      # tools/system_deps.bzl itself now, not brew - Bazel's own repository cache covers it.
+      # tools/system_deps.bzl, not brew - Bazel's repository cache covers it.
       - name: Cache Homebrew downloads (macOS)
         if: runner.os == 'macOS'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
@@ -121,11 +121,9 @@ jobs:
         run: bazel build -c ${{ matrix.compilation_mode }} //...
 
       # Every cc_test binary here links ROOT's shared libraries transitively (even a target
-      # with no ROOT-specific code of its own, via katydid_utility) - the set of ROOT shared
-      # libraries (libCore.so, libRIO.so, etc.) actually linked into every test binary, needed
-      # at *test* runtime. A missing one here fails every single test uniformly with a bare
-      # "Exit 127", regardless of what that test actually depends on, which is easy to mistake
-      # for a real bug in the test itself.
+      # with no ROOT-specific code of its own, via katydid_utility). A missing one here fails
+      # every single test uniformly with a bare "Exit 127", regardless of what that test
+      # actually depends on, which is easy to mistake for a real bug in the test itself.
       - name: Check a built test binary for missing shared libraries (Linux)
         if: runner.os == 'Linux'
         run: |
@@ -171,9 +169,9 @@ jobs:
       #
       # xxhash-devel and tbb-devel are, like libtbb12 in the Ubuntu job above, not Katydid
       # dependencies either - they are runtime dependencies of the prebuilt `rootcling` binary
-      # tools/system_deps.bzl fetches directly (not this step - Bazel's own repository cache
-      # covers it, so there's no separate CI download/extract/check step for ROOT here
-      # anymore). freetype and gsl are the same category again, but for ROOT's own shared
+      # tools/system_deps.bzl fetches directly (Bazel's repository cache covers it, so there's
+      # no separate CI download/extract/check step for ROOT here). freetype and gsl are the
+      # same category again, but for ROOT's own shared
       # libraries rather than rootcling specifically: every test binary here links ROOT, which
       # needs both at runtime (font rendering and linear algebra, respectively). A missing one
       # here doesn't show up until every single test fails at runtime with a bare "Exit 127" -

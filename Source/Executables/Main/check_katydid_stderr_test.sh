@@ -23,8 +23,7 @@ set -uo pipefail
 
 KATYDID="$1"
 
-# Katydid's own --help exit code isn't asserted on here: this test cares
-# about stderr content only, not about --help itself succeeding or not.
+# Exit code isn't checked here -- this test only cares about stderr content.
 STDERR_OUTPUT="$("${KATYDID}" --help 2>&1 >/dev/null || true)"
 
 FAILED=0

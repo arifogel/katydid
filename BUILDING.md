@@ -51,12 +51,10 @@ thing.
 
 Bazel fetches Katydid's own bundled dependencies (Nymph, Scarab, Cicada, and a few small
 libraries) automatically, and - on the three platforms above - ROOT too, as a prebuilt binary
-downloaded directly by Bazel itself the first time you build. There's nothing to install for
-ROOT specifically: no `brew install root`, no manual download, no `PATH`/`thisroot.sh` setup.
+downloaded directly by Bazel the first time you build. There's nothing to install for ROOT
+specifically: no `brew install root`, no manual download, no `PATH`/`thisroot.sh` setup.
 
-Boost, FFTW, and MatIO are still installed the normal way for your operating system: these are
-large, widely-used scientific libraries you very likely already have some familiarity with, so
-it's more convenient to install them normally than have Bazel manage them too.
+Boost, FFTW, and MatIO are still installed the normal way for your operating system.
 
 ### macOS
 
@@ -112,8 +110,8 @@ debugging support (breakpoints, stepping, variable inspection) through `lldb`.
 
 - **"No prebuilt ROOT binary is configured for ... in tools/root.bzl"** — you're on a
   platform this repository doesn't have a baked-in ROOT download for yet (see the "Supported
-  platforms" table above). Ask a maintainer, or see `tools/root.bzl`'s own
-  `_ROOT_DOWNLOADS` table for how to add one.
+  platforms" table above). Ask a maintainer, or see `tools/root.bzl`'s `_ROOT_DOWNLOADS`
+  table for how to add one.
 - **`brew` was not found on PATH** (macOS) — install [Homebrew](https://brew.sh) first.
 - **Missing header errors mentioning Boost, FFTW, or MatIO** — the setup script or `brew
   install` step above wasn't run, or didn't complete successfully. Re-run it and check for

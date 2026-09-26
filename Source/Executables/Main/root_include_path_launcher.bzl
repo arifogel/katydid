@@ -40,11 +40,11 @@ _CICADA_DICT_HEADERS = [
 # the separate, differently-named "local copy" genrules below (those exist for a completely
 # different lookup: Cling checking next to the running binary's own bazel-out directory,
 # consulted only if this first one fails). Bazel only materializes a file on disk if something
-# in the current build graph actually depends on it; nothing depended on these dictionaries'
-# own, original PCM targets directly until now, so this first lookup always reported "file
-# does not exist" (harmless on its own -- Cling falls back further -- but needless noise, and
-# a source of doubt about what's actually broken here vs. not). Declaring them as data forces
-# Bazel to build and place each one at exactly the path this first lookup checks.
+# in the current build graph actually depends on it; without a dependency on these
+# dictionaries' own, original PCM targets, this first lookup always reported "file does not
+# exist" (harmless -- Cling falls back further -- but adds debugging noise). Declaring them
+# as data forces Bazel to build and place each one at exactly the path this first lookup
+# checks.
 _RAW_PCM_TARGETS = [
     "@cicada//:CicadaDict_pcm",
     "//Source/IO:IODict_pcm",

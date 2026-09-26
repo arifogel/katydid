@@ -9,14 +9,14 @@ load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
 
 package(default_visibility = ["//visibility:public"])
 
-# Headers plus everything a consumer's own compilation needs to see (includes, defines) -- the
-# only target anything outside this package actually depends on for compile-time visibility.
-# cc_shared_library itself has no defines/includes/hdrs attribute at all, so these have to
-# live here, not on nymph_lib below.
+# Headers plus everything a consumer's compilation needs to see (includes, defines) -- the
+# only target anything outside this package depends on for compile-time visibility.
+# cc_shared_library has no defines/includes/hdrs attribute, so these live here, not on
+# nymph_lib below.
 #
-# deps on @scarab//:scarab_headers, not @scarab itself: cc_shared_library provides no CcInfo
-# at all, so a plain cc_library (this one) can never depend on one directly -- only another
-# cc_shared_library can, via dynamic_deps, and only for the runtime link, not headers.
+# Depends on @scarab//:scarab_headers, not @scarab: cc_shared_library provides no CcInfo, so
+# a plain cc_library can't depend on one directly -- only another cc_shared_library can, via
+# dynamic_deps, and only for the runtime link, not headers.
 cc_library(
     name = "nymph_headers",
     hdrs = glob([
@@ -40,10 +40,9 @@ cc_library(
     ],
 )
 
-# The actual compiled code. cc_shared_library's own deps attribute whole-archives everything
-# listed here into the shared library unconditionally. Not depended on directly by anything
-# outside this package -- only :nymph_headers (for headers) and :nymph (for the runtime link)
-# are.
+# The compiled code. cc_shared_library's deps attribute whole-archives everything listed here
+# into the shared library unconditionally. Not depended on directly outside this package --
+# only :nymph_headers (for headers) and :nymph (for the runtime link) are.
 cc_library(
     name = "nymph_lib",
     srcs = [
@@ -79,9 +78,9 @@ cc_library(
     deps = [":nymph_headers"],
 )
 
-# A real, standalone .so, matching the CMake build's own libNymph_Katydid.so. Keeps the name
-# nymph: every existing consumer's own deps entry for headers is unaffected (still
-# @nymph//:nymph_headers); dynamic_deps carries the genuine runtime dependency on libscarab.so.
+# A real, standalone .so, matching the CMake build's libNymph_Katydid.so. Keeps the name
+# nymph so existing consumers' deps entries for headers (@nymph//:nymph_headers) are
+# unaffected; dynamic_deps carries the runtime dependency on libscarab.so.
 cc_shared_library(
     name = "nymph",
     dynamic_deps = ["@scarab"],

@@ -14,15 +14,13 @@ load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
 
 package(default_visibility = ["//visibility:public"])
 
-# Headers plus everything a consumer's own compilation needs to see (includes) -- the only
-# target anything outside this package actually depends on for compile-time visibility.
-# cc_shared_library itself has no defines/includes/hdrs attribute at all, so these have to
-# live here, not on katydid_data_lib below.
+# Headers and consumer-visible compile flags (includes) -- the only target anything outside
+# this package depends on for compile-time visibility. cc_shared_library has no
+# defines/includes/hdrs attribute, so these must live here, not on katydid_data_lib below.
 #
-# deps on //Source/Utility:katydid_utility_headers, not katydid_utility itself:
-# cc_shared_library provides no CcInfo at all, so a plain cc_library (this one) can never
-# depend on one directly -- only another cc_shared_library can, via dynamic_deps, and only
-# for the runtime link, not headers.
+# Depends on //Source/Utility:katydid_utility_headers, not katydid_utility: cc_shared_library
+# produces no CcInfo, so a plain cc_library can only reach another via dynamic_deps, for the
+# runtime link, never directly for headers.
 cc_library(
     name = "katydid_data_headers",
     hdrs = glob([
@@ -44,10 +42,9 @@ cc_library(
     ],
 )
 
-# The actual compiled code. cc_shared_library's own deps attribute whole-archives everything
-# listed here into the shared library unconditionally. Not depended on directly by anything
-# outside this package -- only :katydid_data_headers (for headers) and :katydid_data (for the
-# runtime link) are.
+# The compiled code. cc_shared_library's deps attribute whole-archives everything here into the
+# shared library unconditionally. Nothing outside this package depends on this directly --
+# only :katydid_data_headers (headers) and :katydid_data (runtime link) do.
 cc_library(
     name = "katydid_data_lib",
     srcs = [
@@ -116,10 +113,9 @@ cc_library(
     deps = [":katydid_data_headers"],
 )
 
-# A real, standalone .so, matching the CMake build's own libKatydidData.so. Keeps the name
-# katydid_data: every existing consumer's own deps entry for headers is unaffected (still
-# //Source/Data:katydid_data_headers); dynamic_deps carries the genuine runtime dependency on
-# libKatydidUtility.so/libnymph.so.
+# A real, standalone .so, matching the CMake build's libKatydidData.so. Keeps the name
+# katydid_data so existing consumers' headers deps (//Source/Data:katydid_data_headers) stay
+# valid; dynamic_deps carries the runtime dependency on libKatydidUtility.so/libnymph.so.
 cc_shared_library(
     name = "katydid_data",
     dynamic_deps = [

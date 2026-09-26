@@ -27,11 +27,11 @@ genrule(
     """,
 )
 
-# Headers plus everything a consumer's own compilation needs to see (includes, defines) --
-# the only target anything outside this package actually depends on for compile-time
-# visibility. cc_shared_library itself has no defines/includes/hdrs attribute at all, so
-# these have to live here, not on scarab_lib below: a consumer never depends on scarab_lib
-# directly, only on this target (for headers) and :scarab (for the runtime link).
+# Headers plus everything a consumer's compilation needs to see (includes, defines) -- the
+# only target anything outside this package depends on for compile-time visibility.
+# cc_shared_library has no defines/includes/hdrs attribute, so these live here, not on
+# scarab_lib below: a consumer depends on this target (for headers) and :scarab (for the
+# runtime link), never on scarab_lib directly.
 cc_library(
     name = "scarab_headers",
     hdrs = glob([
@@ -62,12 +62,12 @@ cc_library(
     ],
 )
 
-# The actual compiled code. cc_shared_library's own deps attribute whole-archives everything
-# listed here into the shared library unconditionally, so REGISTER_PARAM_INPUT_CODEC/
-# REGISTER_PARAM_OUTPUT_CODEC's own static registrar constructors (in param_json.cc,
-# param_yaml.cc) are guaranteed to run, the same guarantee alwayslink = True gave on a
-# cc_library consumed by static linking. Not depended on directly by anything outside this
-# package -- only :scarab_headers (for headers) and :scarab (for the runtime link) are.
+# The compiled code. cc_shared_library's deps attribute whole-archives everything listed here
+# into the shared library unconditionally, so REGISTER_PARAM_INPUT_CODEC/
+# REGISTER_PARAM_OUTPUT_CODEC's static registrar constructors (in param_json.cc,
+# param_yaml.cc) are guaranteed to run -- the same guarantee alwayslink = True gave under
+# static linking. Not depended on directly outside this package -- only :scarab_headers (for
+# headers) and :scarab (for the runtime link) are.
 cc_library(
     name = "scarab_lib",
     srcs = [
@@ -92,11 +92,10 @@ cc_library(
     deps = [":scarab_headers"],
 )
 
-# A real, standalone .so, matching the CMake build's own libScarab_Nymph_Katydid.so: the CMake
+# A real, standalone .so, matching the CMake build's libScarab_Nymph_Katydid.so: the CMake
 # build never statically links this module into anything, so REGISTER_PARAM_INPUT_CODEC/
-# REGISTER_PARAM_OUTPUT_CODEC's own static registrar constructors run exactly once, when this
-# one .so loads. Keeps the name scarab: every existing consumer's own deps entry needs no
-# change.
+# REGISTER_PARAM_OUTPUT_CODEC's static registrar constructors run exactly once, when this .so
+# loads. Keeps the name scarab so existing consumers need no deps change.
 cc_shared_library(
     name = "scarab",
     dynamic_deps = ["@yaml_cpp"],
