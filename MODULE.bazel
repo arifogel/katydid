@@ -19,10 +19,17 @@ bazel_dep(name = "rules_shell", version = "0.8.0")
 non_bazel_deps = use_extension("//tools:non_bazel_deps.bzl", "non_bazel_deps")
 use_repo(non_bazel_deps, "cicada", "nymph", "rapidjson", "scarab", "yaml_cpp")
 
-# --- System-provided scientific libraries (ROOT, Boost, FFTW, MatIO) -----------------------
+# --- ROOT ------------------------------------------------------------------------------
+# Fetched directly as a prebuilt binary from root.cern for the current platform - see
+# tools/root.bzl for details, and BUILDING.md for supported platforms.
+
+root_deps = use_extension("//tools:root.bzl", "root_deps")
+use_repo(root_deps, "root")
+
+# --- System-provided scientific libraries (Boost, FFTW, MatIO) -----------------------------
 # These are located on the host machine rather than built by Bazel - see tools/system_deps.bzl
 # for how each is found on macOS, Ubuntu, and AlmaLinux/RHEL-family Linux, and BUILDING.md for
 # what needs to be installed on each platform before building.
 
 system_deps = use_extension("//tools:system_deps.bzl", "system_deps")
-use_repo(system_deps, "root", "system_libs")
+use_repo(system_deps, "system_libs")

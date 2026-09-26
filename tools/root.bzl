@@ -20,10 +20,9 @@ every single build, regardless of whether anything had actually changed. Every c
 references @root directly (e.g. deps = ["@root"]) - there is no @system_libs//:root alias, to
 avoid exactly the confusion a same-named alias into a different repository invites.
 
-root_repo (the repository_rule below) is registered from tools/system_deps.bzl's own
-system_deps module extension, alongside @system_libs - not from a separate module extension of
-its own - so MODULE.bazel's own use_extension/use_repo calls didn't need to change when this
-file was split out.
+root_repo (the repository_rule below) is registered by this file's own module extension
+(root_deps, at the bottom) - fully independent of system_deps.bzl's own system_deps
+extension, which registers @system_libs and knows nothing about @root or this file.
 """
 
 # Bump this (and nowhere else) to change the ROOT version used everywhere - matches
@@ -195,3 +194,8 @@ exports_files(["rootcling"])
 # defeated download_and_extract's own cache and re-downloaded the ~300MB tarball on every
 # single build, confirmed directly, not assumed.
 root_repo = repository_rule(implementation = _root_repo_impl)
+
+def _root_deps_impl(_module_ctx):
+    root_repo(name = "root")
+
+root_deps = module_extension(implementation = _root_deps_impl)

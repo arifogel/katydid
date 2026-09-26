@@ -2,11 +2,9 @@
 Homebrew on macOS, via apt or dnf on Linux (whichever is actually on PATH - not a hardcoded
 distro list, so this doesn't need editing again for the next Linux flavor that shows up).
 
-ROOT's own fetch/discovery lives in tools/root.bzl now, not here - see that file's own
-docstring for why it's fetched as a prebuilt binary and kept in its own repository (@root),
-separate from @system_libs. This file's own system_deps module extension still registers both
-@root and @system_libs (see _system_deps_impl at the bottom), so MODULE.bazel's own
-use_extension/use_repo calls didn't need to change when root.bzl was split out.
+ROOT's own fetch/discovery lives in tools/root.bzl, fully independent of this file: its own
+module extension (root_deps) registers @root on its own, and this file's own system_deps
+extension knows nothing about it.
 
 On Linux, Boost/FFTW/MatIO are exposed as real cc_import targets pointing directly at the
 actual, already-installed .so file for each library component (located via known apt/dnf
@@ -39,8 +37,6 @@ of the way.
 
 Usage from a BUILD file: deps = ["@system_libs//:boost", "@system_libs//:fftw"]
 """
-
-load(":root.bzl", "root_repo")
 
 _MAC_FORMULAE = {
     "boost": {
@@ -306,7 +302,6 @@ _system_libs_repo = repository_rule(
 )
 
 def _system_deps_impl(_module_ctx):
-    root_repo(name = "root")
     _system_libs_repo(name = "system_libs")
 
 system_deps = module_extension(implementation = _system_deps_impl)
