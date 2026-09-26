@@ -110,9 +110,9 @@ debugging support (breakpoints, stepping, variable inspection) through `lldb`.
 
 ## If something goes wrong
 
-- **"No prebuilt ROOT binary is configured for ... in tools/system_deps.bzl"** — you're on a
+- **"No prebuilt ROOT binary is configured for ... in tools/root.bzl"** — you're on a
   platform this repository doesn't have a baked-in ROOT download for yet (see the "Supported
-  platforms" table above). Ask a maintainer, or see `tools/system_deps.bzl`'s own
+  platforms" table above). Ask a maintainer, or see `tools/root.bzl`'s own
   `_ROOT_DOWNLOADS` table for how to add one.
 - **`brew` was not found on PATH** (macOS) — install [Homebrew](https://brew.sh) first.
 - **Missing header errors mentioning Boost, FFTW, or MatIO** — the setup script or `brew

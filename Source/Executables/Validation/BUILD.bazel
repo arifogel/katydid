@@ -61,7 +61,7 @@
 # "link everything, let the linker sort it out" approach already used successfully for
 # Source/Executables/Main's own Katydid_bin/Truncate_bin (see that file's own
 # _ALL_KATYDID_LIBS/_ALL_KATYDID_HEADERS) and, separately, for ROOT's own libraries in
-# tools/system_deps.bzl - matching the reference CMake build's own approach directly, which
+# tools/root.bzl - matching the reference CMake build's own approach directly, which
 # links its own full external+internal library set into every executable the same way.
 #
 # TestROOTDictionary is the one exception, kept deliberately narrow: it depends on @cicada and

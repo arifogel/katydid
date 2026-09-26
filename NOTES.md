@@ -27,8 +27,10 @@ and with C/C++ build and link mechanics generally.
   git commits, each paired with a hand-written `BUILD.bazel` file under `third_party/`, since
   none of them have native Bazel support upstream. Also applies two source patches to Scarab
   (see "Known pre-existing issues" below).
-- `tools/system_deps.bzl` — locates ROOT, Boost, FFTW, and MatIO on the host machine and exposes
-  them as `cc_library` targets under the repository name `@system_libs`.
+- `tools/root.bzl` — fetches a prebuilt ROOT binary from root.cern for the current platform,
+  exposed as `@root`.
+- `tools/system_deps.bzl` — locates Boost, FFTW, and MatIO on the host machine and exposes
+  them as `cc_library`/`cc_import` targets under the repository name `@system_libs`.
 - `tools/root_dictionary.bzl` — a Bazel rule wrapping `rootcling`, replacing CMake's
   `ROOT_GENERATE_DICTIONARY()` macro.
 - `Source/*/BUILD.bazel` — one per active Katydid module, translated from the corresponding
