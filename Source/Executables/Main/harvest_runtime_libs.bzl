@@ -30,13 +30,19 @@ load("@system_libs//:lib_dirs.bzl", "MAC_LIB_DIRS")
 # doesn't require anything at that path to exist.
 _ROOT_WORKSPACE_NAME = Label("@root//:BUILD.bazel").workspace_name
 
+# @system_libs (Boost/FFTW/MatIO) is excluded from harvesting the same way @root is: on every
+# OS, the release archive relies on these already being present on the machine it runs on
+# (Homebrew on macOS, apt/dnf's own default search paths on Linux - see tools/system_deps.bzl),
+# so there is nothing to bundle here. This also sidesteps a real RHEL-family packaging quirk:
+# AlmaLinux's boost-devel ships at least one unversioned name (libboost_thread.so) as a plain
+# linker script, not a real ELF file, which patchelf below correctly refuses to touch.
+_SYSTEM_LIBS_WORKSPACE_NAME = Label("@system_libs//:BUILD.bazel").workspace_name
+
 # One '-add_rpath <dir>' per macOS Homebrew formula directory (see tools/system_deps.bzl's
-# comment on mac_lib_dirs): Boost/FFTW/MatIO's .dylib files are never reachable from binaries'
-# runfiles (they're a plain `deps` of a cc_library wrapped into a cc_shared_library - see
-# Source/Utility/BUILD.bazel - not a `dynamic_deps` sibling the way this rule's harvesting is),
-# so there's nothing to bundle into lib/; the release archive instead has to find Homebrew's
-# copy on whatever machine runs it, the same non-hermetic trade-off Linux already makes for
-# these three libraries via apt/dnf's default search paths.
+# comment on mac_lib_dirs): since Boost/FFTW/MatIO are never bundled into lib/ (excluded above),
+# the release archive instead has to find Homebrew's copy on whatever machine runs it - the
+# same non-hermetic trade-off Linux already makes for these three libraries via apt/dnf's
+# default search paths, which need no equivalent RPATH addition here.
 _MAC_EXTRA_RPATH_FLAGS = " ".join(["-add_rpath '{}'".format(d) for d in MAC_LIB_DIRS])
 
 def _harvest_runtime_libs_impl(ctx):
@@ -53,8 +59,9 @@ def _harvest_runtime_libs_impl(ctx):
             # separately (see //tools:root.bzl's all_files filegroup) - anything owned by it
             # here would be a duplicate, and ROOT's libraries deliberately don't live
             # alongside Katydid's in lib/ (see this repo's top-level BUILD.bazel comment on
-            # //:katydid_release for why).
-            if f.owner != None and f.owner.workspace_name == _ROOT_WORKSPACE_NAME:
+            # //:katydid_release for why). @system_libs is excluded for a different reason -
+            # see this file's own comment on _SYSTEM_LIBS_WORKSPACE_NAME above.
+            if f.owner != None and f.owner.workspace_name in (_ROOT_WORKSPACE_NAME, _SYSTEM_LIBS_WORKSPACE_NAME):
                 continue
             if not (f.basename.endswith(".so") or f.basename.endswith(".pcm")):
                 continue
@@ -122,5 +129,5 @@ harvest_runtime_libs = rule(
         # release_binary.bzl's own use of @patchelf for the equivalent, select()-scoped case).
         "_patchelf": attr.label(default = Label("@patchelf//:patchelf"), executable = True, cfg = "exec"),
     },
-    doc = "Collects every non-@root .so/.pcm file reachable from binaries' runfiles, flat.",
+    doc = "Collects every .so/.pcm file reachable from binaries' runfiles, flat, excluding @root and @system_libs (see this file's docstring).",
 )
