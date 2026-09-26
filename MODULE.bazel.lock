@@ -259,10 +259,14 @@
     },
     "//tools:system_deps.bzl%system_deps": {
       "general": {
-        "bzlTransitiveDigest": "EzNNhOsKPSdjIg5CS0j8o7ECscVjiYmTPVZL3qXYlKU=",
+        "bzlTransitiveDigest": "Wh6z6UIH3hF3e6Xpyp0AW/4jCA0pnXbLX+SPZ/UlfjA=",
         "usagesDigest": "PFljPu5vgSoTlnuznl8mgsJAHt0kfmdVZ9S4XCZ1Usk=",
         "recordedInputs": [],
         "generatedRepoSpecs": {
+          "root": {
+            "repoRuleId": "@@//tools:system_deps.bzl%_root_repo",
+            "attributes": {}
+          },
           "system_libs": {
             "repoRuleId": "@@//tools:system_deps.bzl%_system_libs_repo",
             "attributes": {}

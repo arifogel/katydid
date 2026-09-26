@@ -72,15 +72,15 @@ _ROOT_DOWNLOADS = {
     # (linux_distro_id, arch) for Linux; ("macos", arch) for macOS.
     ("ubuntu", "x86_64"): {
         "url": "https://root.cern/download/root_v{v}.Linux-ubuntu24.04-x86_64-gcc13.3.tar.gz",
-        "sha256": "",
+        "sha256": "0fb35191ed9b3847abd9ab5f25878845545a5acc16a4465ca1f4310bd63191a8",
     },
     ("almalinux", "x86_64"): {
         "url": "https://root.cern/download/root_v{v}.Linux-almalinux9.8-x86_64-gcc11.5.tar.gz",
-        "sha256": "",
+        "sha256": "00e2fea3cde708c135bf35f2421031a5d036770604652d137b2e65badb01356d",
     },
     ("macos", "aarch64"): {
         "url": "https://root.cern/download/root_v{v}.macos-26.6-arm64-clang210.tar.gz",
-        "sha256": "",
+        "sha256": "325f1329bd4af4fe108615d63926d27087ad98ad6a1c359d55f717ca76ef9314",
     },
 }
 
