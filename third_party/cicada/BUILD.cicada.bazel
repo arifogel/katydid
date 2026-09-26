@@ -1,3 +1,7 @@
+load("@katydid//tools:root_dictionary.bzl", "root_dictionary")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
+
 # BUILD file for @cicada (github.com/Helium6CRES/cicada), Katydid's classifier-results data
 # format library.
 #
@@ -7,17 +11,36 @@
 # bindings are not built either - Katydid does not use them.
 #
 # Cicada does not depend on Nymph - only on Scarab (for logging and reflection utilities) and
-# ROOT.
-
-load("@katydid//tools:root_dictionary.bzl", "root_dictionary")
-load("@rules_cc//cc:cc_library.bzl", "cc_library")
+# ROOT. Per readelf -d on the CMake reference build's libCicada_Katydid.so, its NEEDED list
+# has ROOT and system libraries only, no Scarab: everything Cicada's headers use from Scarab
+# resolves at compile time (inline/template code), so the link needs no libscarab.so at
+# runtime, even though Cicada's headers still need Scarab's headers to compile.
 
 package(default_visibility = ["//visibility:public"])
 
-# Referenced directly by label from //Source/Executables/Main, to copy this header alongside
-# the Katydid/Truncate binaries for Cling's runtime autoloader (see the comment there).
-exports_files(["Library/_CROOTData.hh"])
+# Referenced by label from Source/Executables/Main/root_include_path_launcher.bzl, so Cling's
+# autoparse of the dictionary payload (embedded via -inlineInputHeader) can resolve every
+# #include the payload contains -- not just _CROOTData.hh's FileEntry lookup (autoloading),
+# but CMemberVariables.hh and friends too (autoparsing the payload text). Matches
+# root_dictionary's "headers" list below exactly.
+exports_files([
+    "Library/_CROOTData.hh",
+    "Library/CClassifierResultsData.hh",
+    "Library/CMemberVariables.hh",
+    "Library/CMTEWithClassifierResultsData.hh",
+    "Library/CProcessedMPTData.hh",
+    "Library/CROOTData.hh",
+])
 
+# Headers plus everything a consumer's compilation needs to see (includes, defines) -- the
+# only target anything outside this package depends on for compile-time visibility.
+# cc_shared_library has no defines/includes/hdrs attribute, so these live here, not on
+# cicada_lib below.
+#
+# Depends on @scarab//:scarab_headers, not @scarab: cc_shared_library provides no CcInfo, so
+# a plain cc_library can't depend on one directly -- only another cc_shared_library can, via
+# dynamic_deps, and only for the runtime link, not headers. (Cicada needs Scarab's headers
+# regardless of whether the .so needs libscarab.so at runtime -- see the top comment.)
 cc_library(
     name = "cicada_headers",
     hdrs = glob(["Library/*.hh"]) + [
@@ -26,10 +49,11 @@ cc_library(
         # It needs to be visible to the compiler like a header, even though it is a .cc file.
         "Library/_CROOTData.cc",
     ],
+    defines = ["USE_CPP11"],
     includes = ["Library"],
     deps = [
-        "@scarab",
-        "@system_libs//:root",
+        "@root",
+        "@scarab//:scarab_headers",
     ],
 )
 
@@ -47,8 +71,17 @@ root_dictionary(
     deps = [":cicada_headers"],
 )
 
+# The compiled code. cc_shared_library's deps attribute whole-archives everything listed here
+# into the shared library unconditionally. Not depended on directly outside this package --
+# only :cicada_headers (for headers) and :cicada (for the runtime link) are.
+#
+# CicadaDict_cxx is compiled in directly because TCling::RegisterModule (in libCore.so) calls
+# dlopen() on whatever file holds a dictionary's compiled code -- a statically linked
+# dictionary inside a PIE executable is never a valid dlopen() target (glibc >= 2.29 refuses
+# it outright; other toolchains leave registration silently incomplete). A real, standalone
+# .so is a valid target.
 cc_library(
-    name = "cicada",
+    name = "cicada_lib",
     srcs = [
         "Library/CClassifierResultsData.cc",
         "Library/CMTEWithClassifierResultsData.cc",
@@ -56,12 +89,18 @@ cc_library(
         "Library/CROOTData.cc",
         ":CicadaDict_cxx",
     ],
-    hdrs = glob(["Library/*.hh"]) + ["Library/_CROOTData.cc"],
+    # ROOT's class loader looks for the generated .pcm file next to the compiled library at
+    # runtime, not just compile time, so it must be a runtime dependency.
     data = [":CicadaDict_pcm"],
-    defines = ["USE_CPP11"],
-    includes = ["Library"],
-    deps = [
-        "@scarab",
-        "@system_libs//:root",
-    ],
+    deps = [":cicada_headers"],
+)
+
+# A real, standalone .so, matching the CMake build's libCicada_Katydid.so. Keeps the name
+# cicada so existing consumers' deps entries for headers (@cicada//:cicada_headers) are
+# unaffected. No dynamic_deps: per readelf -d, libCicada_Katydid.so needs no other
+# Katydid-native or Scarab .so at runtime (see the top comment).
+cc_shared_library(
+    name = "cicada",
+    shared_lib_name = "libCicada_Katydid.so",
+    deps = [":cicada_lib"],
 )

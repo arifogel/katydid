@@ -50,15 +50,16 @@ thing.
 ## 2. Install the system libraries Katydid needs
 
 Bazel fetches Katydid's own bundled dependencies (Nymph, Scarab, Cicada, and a few small
-libraries) automatically. It does **not** automatically install ROOT, Boost, FFTW, or MatIO —
-these are large, widely-used scientific libraries that you very likely already have some
-familiarity with, so it's more convenient to install them the normal way for your operating
-system.
+libraries) automatically, and - on the three platforms above - ROOT too, as a prebuilt binary
+downloaded directly by Bazel the first time you build. There's nothing to install for ROOT
+specifically: no `brew install root`, no manual download, no `PATH`/`thisroot.sh` setup.
+
+Boost, FFTW, and MatIO are still installed the normal way for your operating system.
 
 ### macOS
 
 ```
-brew install boost fftw libmatio root
+brew install boost fftw libmatio
 ```
 
 That's it — nothing else to configure. Bazel will find these automatically.
@@ -72,18 +73,6 @@ Run the setup script included in the repository:
 
 This installs Boost, FFTW, and MatIO through `apt`, in a way that can be cleanly removed later
 (via `sudo apt remove katydid-build-deps && sudo apt autoremove`) if you ever need to.
-
-ROOT is not available through `apt` on Ubuntu in a form that works well here, so it's installed
-separately, from a prebuilt binary published by the ROOT team:
-```
-wget https://root.cern/download/root_v6.40.04.Linux-ubuntu24.04-x86_64-gcc13.3.tar.gz
-tar -xzf root_v6.40.04.Linux-ubuntu24.04-x86_64-gcc13.3.tar.gz -C /opt/
-echo 'source /opt/root/bin/thisroot.sh' >> ~/.bashrc
-source ~/.bashrc
-```
-(If you already have a ROOT installation you're happy with, and `root-config --version` prints
-something sensible in a terminal, you can skip this — Bazel just needs `root-config` to be
-findable, however that happens.)
 
 ## 3. Build Katydid
 
@@ -119,10 +108,10 @@ debugging support (breakpoints, stepping, variable inspection) through `lldb`.
 
 ## If something goes wrong
 
-- **`root-config` was not found on PATH** — ROOT isn't installed, or its location wasn't added
-  to your shell's `PATH`. On macOS, `brew install root` handles this automatically; on Ubuntu,
-  make sure you sourced `thisroot.sh` as shown above (and that you did so in the same terminal
-  you're building from, or added it to your shell startup file as shown).
+- **"No prebuilt ROOT binary is configured for ... in tools/root.bzl"** — you're on a
+  platform this repository doesn't have a baked-in ROOT download for yet (see the "Supported
+  platforms" table above). Ask a maintainer, or see `tools/root.bzl`'s `_ROOT_DOWNLOADS`
+  table for how to add one.
 - **`brew` was not found on PATH** (macOS) — install [Homebrew](https://brew.sh) first.
 - **Missing header errors mentioning Boost, FFTW, or MatIO** — the setup script or `brew
   install` step above wasn't run, or didn't complete successfully. Re-run it and check for

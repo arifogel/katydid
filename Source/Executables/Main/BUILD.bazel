@@ -5,11 +5,32 @@
 # reading library), which is off by Katydid's default configuration.
 
 load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
-load("@rules_pkg//pkg:mappings.bzl", "pkg_attributes", "pkg_files")
-load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load(":harvest_runtime_libs.bzl", "harvest_runtime_libs")
+load(":release_binary.bzl", "release_binary")
+load(":root_include_path_launcher.bzl", "root_include_path_launcher")
 
 package(default_visibility = ["//visibility:public"])
 
+# Referenced by //:katydid_release. Source files need exports_files() to be visible outside
+# this package.
+exports_files(["NOTICE.txt"])
+
+# Headers: for compile-time visibility of whatever Katydid.cc/Truncate.cc #include.
+_ALL_KATYDID_HEADERS = [
+    "//Source/Data:katydid_data_headers",
+    "//Source/EventAnalysis:katydid_event_analysis_headers",
+    "//Source/IO:katydid_io_headers",
+    "//Source/SpectrumAnalysis:katydid_spectrum_analysis_headers",
+    "//Source/Transform:katydid_transform_headers",
+    "//Source/Utility:katydid_utility_headers",
+    "@cicada//:cicada_headers",
+]
+
+# The actual .so's: for the runtime link. Each module carries its own ROOT dictionary code
+# directly (IODict_cxx/CicadaDict_cxx/UtilityDict_cxx compile into katydid_io/cicada/
+# katydid_utility themselves, not a separate artifact), making it a valid dlopen() target
+# for TCling::RegisterModule on its own.
 _ALL_KATYDID_LIBS = [
     "//Source/Data:katydid_data",
     "//Source/EventAnalysis:katydid_event_analysis",
@@ -17,23 +38,18 @@ _ALL_KATYDID_LIBS = [
     "//Source/SpectrumAnalysis:katydid_spectrum_analysis",
     "//Source/Transform:katydid_transform",
     "//Source/Utility:katydid_utility",
+    "@cicada",
+    "@nymph",
+    "@scarab",
 ]
 
-# ROOT's Cling interpreter looks for a dictionary's _rdict.pcm file directly alongside the
-# consuming binary's own bazel-out bin/ directory, not via Bazel's runfiles tree. katydid_io
-# and @cicada each already declare `data = [":<name>_pcm"]` on their own cc_library, but that
-# only places the PCM in the runfiles tree of whatever consumes them - it does not solve the
-# same-bazel-out-directory requirement, since a `cc_library`'s `data` doesn't relocate anything;
-# it only propagates to consumers' runfiles. Katydid and Truncate both link katydid_io (which
-# itself depends on @cicada), so both are exposed: if a config file run through Katydid ever
-# exercises the ROOT-tree-writing path for classes used via TClonesArray - KTROOTData.hh's
-# TDiscriminatedPoint/TSparseWaterfallCandidateData (IODict), or Cicada's
-# TProcessedTrackData/TMultiTrackEventData (CicadaDict) - Cling falls back to re-parsing the
-# dictionary's embedded payload at runtime and crashes when it can't find the PCM. This is the
-# same crash Source/Executables/Validation:TestTrackProcessing and
-# Source/Executables/Validation:TestSequentialTrackFinder hit and were fixed for, using the same
-# technique here: copy each dictionary's PCM into this package's own bazel-out bin/ directory,
-# which is exactly where Cling looks for a binary built here.
+# Cling looks for a dictionary's _rdict.pcm file directly alongside the running binary.
+# katydid_io/@cicada/katydid_utility declare `data = [":<name>_pcm"]` on their own cc_library,
+# but that only places the PCM in the runfiles tree, not next to the binary. Without this,
+# Cling falls back to re-parsing the dictionary's embedded payload at runtime and crashes when
+# it can't find the PCM -- the same crash Source/Executables/Validation:TestTrackProcessing
+# and :TestSequentialTrackFinder hit. Fixed the same way here: copy each PCM into this
+# package's own bazel-out bin/ directory.
 genrule(
     name = "IODict_pcm_local_copy",
     srcs = ["//Source/IO:IODict_pcm"],
@@ -48,115 +64,83 @@ genrule(
     cmd = "cp $< $@",
 )
 
-# CicadaDict's .rootmap records its dictionary headers by bare basename (see
-# tools/root_dictionary.bzl), and Cling's runtime autoloader looks them up by that same
-# basename, in this same directory, when it first encounters one of these types (observed
-# for Cicada::TProcessedTrackData/TMultiTrackEventData specifically). Exposing the header via
-# @cicada's own `data` isn't enough - like the PCM above, it needs to physically sit next to
-# the binary in this package's own bazel-out bin/ directory, not just be reachable via
-# runfiles.
 genrule(
-    name = "CicadaDict_header_local_copy",
-    srcs = ["@cicada//:Library/_CROOTData.hh"],
-    outs = ["_CROOTData.hh"],
+    name = "UtilityDict_pcm_local_copy",
+    srcs = ["//Source/Utility:UtilityDict_pcm"],
+    outs = ["UtilityDict_gen_rdict.pcm"],
     cmd = "cp $< $@",
 )
 
-_PCM_DATA = [
-    ":CicadaDict_pcm_local_copy",
-    ":CicadaDict_header_local_copy",
+_ALL_PCM_DATA = [
     ":IODict_pcm_local_copy",
+    ":CicadaDict_pcm_local_copy",
+    ":UtilityDict_pcm_local_copy",
 ]
 
 cc_binary(
-    name = "Katydid",
-    srcs = [
-        "Katydid.cc",
-        # Bazel-only; not in CMakeLists.txt, see the file's own comment for why.
-        "BazelRootIncludePath.cc",
-    ],
-    data = _PCM_DATA,
-    deps = _ALL_KATYDID_LIBS,
+    name = "Katydid_bin",
+    srcs = ["Katydid.cc"],
+    data = _ALL_PCM_DATA,
+    dynamic_deps = _ALL_KATYDID_LIBS,
+    deps = _ALL_KATYDID_HEADERS,
 )
 
 cc_binary(
+    name = "Truncate_bin",
+    srcs = ["Truncate.cc"],
+    data = _ALL_PCM_DATA,
+    dynamic_deps = _ALL_KATYDID_LIBS,
+    deps = _ALL_KATYDID_HEADERS,
+)
+
+root_include_path_launcher(
+    name = "Katydid",
+    real_bin_label = ":Katydid_bin",
+)
+
+root_include_path_launcher(
     name = "Truncate",
-    srcs = [
-        "Truncate.cc",
-        # Bazel-only; not in CMakeLists.txt, see the file's own comment for why.
-        "BazelRootIncludePath.cc",
-    ],
-    data = _PCM_DATA,
-    deps = _ALL_KATYDID_LIBS,
+    real_bin_label = ":Truncate_bin",
 )
 
-# Flat release archive: Katydid/Truncate plus every file Cling's runtime dictionary/
-# autoloading machinery needs sitting alongside them (see the genrules and
-# BazelRootIncludePath.cc above for why each of these is here). Extracting this archive
-# anywhere and running ./Katydid from that directory reproduces exactly the layout those
-# mechanisms expect, with no separate runfiles tree required.
-#
-# Does NOT bundle ROOT/Boost/FFTW/etc: those are dynamically linked at fixed absolute paths
-# (e.g. /opt/homebrew/opt/root/lib/root/libCore.so) and are assumed to already be present,
-# in compatible versions, on any machine this archive is extracted on -- packaging shared
-# library dependencies themselves is a separate, materially larger undertaking this doesn't
-# attempt.
-pkg_files(
-    name = "katydid_release_binaries",
-    srcs = [
-        ":Katydid",
-        ":Truncate",
-    ],
-    attributes = pkg_attributes(mode = "0755"),
-    # strip_prefix defaults to strip_prefix.files_only(), flattening everything to the
-    # archive root -- exactly what we want, since every file here already lives in this
-    # same package (Source/Executables/Main) and none of that structure needs preserving.
+# Separate from :Katydid/:Truncate above: those are built for `bazel run`/`bazel test`, wired
+# to Bazel's own runfiles tree via root_include_path_launcher.bzl's rlocation-based mechanism.
+# These are for //:katydid_release's own flat bin/ + lib/ + root/ archive layout instead - see
+# release_binary.bzl's own docstring for why a separate binary/wrapper pair is needed rather
+# than reusing the ones above.
+release_binary(
+    name = "Katydid_release",
+    final_bin_name = "Katydid_bin",
+    real_bin_label = ":Katydid_bin",
 )
 
-pkg_files(
-    name = "katydid_release_data",
-    srcs = [
-        ":CicadaDict_header_local_copy",
-        ":CicadaDict_pcm_local_copy",
-        ":IODict_pcm_local_copy",
-    ],
-    # default mode (0644) is correct for these -- data files, not executables.
+release_binary(
+    name = "Truncate_release",
+    final_bin_name = "Truncate_bin",
+    real_bin_label = ":Truncate_bin",
 )
 
-# NOTICE.txt lives here, in this package, rather than at the repo root: its warning is
-# specifically about the compiled binaries in the RELEASE ARCHIVE, not about this source
-# repository (which is fine to share, per the notice's own first paragraph) -- keeping it
-# next to the packaging code that actually bundles it avoids it being mistaken for a
-# blanket statement about the whole repo if someone just browses the source tree.
-#
-# In the archive itself, both NOTICE.txt and Katydid's own LICENSE sit at the top level,
-# next to the binaries -- maximally visible to anyone who opens the archive. See
-# NOTICE.txt for the full explanation: to the best of our knowledge (NOT a legal
-# determination), distributing the compiled binaries in this archive likely violates
-# FFTW's GPL license, since Katydid's own license isn't GPL-compatible.
-pkg_files(
-    name = "katydid_release_notices",
-    srcs = [
-        "NOTICE.txt",
-        "//:LICENSE",
+# Every non-@root .so/.pcm either binary needs at runtime, harvested straight from Bazel's own
+# dependency graph - not hand-listed, so it can't go stale the way an explicit list could (see
+# harvest_runtime_libs.bzl's own docstring). ROOT itself is bundled separately and wholesale
+# (see //tools:root.bzl's own all_files filegroup) into //:katydid_release's own root/
+# subdirectory, not here.
+harvest_runtime_libs(
+    name = "release_libs",
+    binaries = [
+        ":Katydid_bin",
+        ":Truncate_bin",
     ],
 )
 
-# Every third-party license this binary is actually subject to (see NOTICE.txt), collected
-# under a clearly-named subdirectory rather than flattened alongside everything else.
-pkg_files(
-    name = "katydid_release_third_party_licenses",
-    srcs = ["//:third_party_licenses"],
-    prefix = "third_party_licenses",
-)
-
-pkg_tar(
-    name = "katydid_release",
-    srcs = [
-        ":katydid_release_binaries",
-        ":katydid_release_data",
-        ":katydid_release_notices",
-        ":katydid_release_third_party_licenses",
-    ],
-    extension = "tar.gz",
+# Regression test for two fixed bugs: TCling::RegisterModule dlopen()-ing Katydid's own main
+# executable (fixed by every module being a real, standalone .so, each a valid dlopen()
+# target on its own), and ROOT_INCLUDE_PATH needing to be set before Katydid's process starts
+# (fixed in root_include_path_launcher.bzl). See check_katydid_stderr_test.sh's own header for
+# details.
+sh_test(
+    name = "katydid_stderr_test",
+    srcs = ["check_katydid_stderr_test.sh"],
+    args = ["$(location :Katydid)"],
+    data = [":Katydid"],
 )

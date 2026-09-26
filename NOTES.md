@@ -27,8 +27,10 @@ and with C/C++ build and link mechanics generally.
   git commits, each paired with a hand-written `BUILD.bazel` file under `third_party/`, since
   none of them have native Bazel support upstream. Also applies two source patches to Scarab
   (see "Known pre-existing issues" below).
-- `tools/system_deps.bzl` — locates ROOT, Boost, FFTW, and MatIO on the host machine and exposes
-  them as `cc_library` targets under the repository name `@system_libs`.
+- `tools/root.bzl` — fetches a prebuilt ROOT binary from root.cern for the current platform,
+  exposed as `@root`.
+- `tools/system_deps.bzl` — locates Boost, FFTW, and MatIO on the host machine and exposes
+  them as `cc_library`/`cc_import` targets under the repository name `@system_libs`.
 - `tools/root_dictionary.bzl` — a Bazel rule wrapping `rootcling`, replacing CMake's
   `ROOT_GENERATE_DICTIONARY()` macro.
 - `Source/*/BUILD.bazel` — one per active Katydid module, translated from the corresponding
@@ -47,13 +49,17 @@ and with C/C++ build and link mechanics generally.
 `tools/system_deps.bzl` implements a single repository rule, exposed as `@system_libs`, that
 branches on the host platform:
 
-- **ROOT** is located identically on every platform: by requiring `root-config` to already be
-  on `PATH`. This works whether ROOT came from Homebrew, a manually-extracted binary tarball, or
-  any other installation method, since `root-config` is ROOT's own official query tool and every
-  ROOT distribution ships one. The rule queries `root-config --incdir`, `--libdir`, and
-  `--libs`, and adds `-lGui -lSpectrum -lTMVA` on top of the base libraries, matching Katydid's
-  `find_package(ROOT 6.00 COMPONENTS Gui Spectrum TMVA)` in the original CMake build. `rootcling`
-  is located via `root-config --bindir` and exposed as `@system_libs//:rootcling`.
+- **ROOT** is fetched directly as a prebuilt binary from root.cern, one exact, baked-in URL per
+  supported platform (Ubuntu 24.04, AlmaLinux 9.x, macOS on arm64 - the three this repository's
+  CI supports), pinned to one `_ROOT_VERSION`. Unlike Boost/FFTW/MatIO below, ROOT's prebuilt
+  binaries are versioned per exact OS release and toolchain, not just "linux" or "macos", so
+  this reads `/etc/os-release`'s `ID` field on Linux rather than just checking which package
+  manager is on `PATH`. After extracting the tarball, the rule still queries the
+  now-locally-extracted `root-config --libs`/`--libdir` (rather than hardcoding the libs list),
+  and adds `-lGui -lSpectrum -lTMVA` on top, matching Katydid's
+  `find_package(ROOT 6.00 COMPONENTS Gui Spectrum TMVA)` in the original CMake build.
+  `rootcling` is symlinked to the repository root and exposed as `@system_libs//:rootcling`.
+  No installation step, and no `root-config` needs to already be on `PATH` beforehand.
 - **Boost, FFTW, and MatIO** are located differently depending on the package manager:
   - On **macOS**, via Homebrew (`brew --prefix <formula>`), since Homebrew deliberately installs
     outside the compiler's default search paths.
@@ -319,3 +325,21 @@ without Boost/FFTW/MatIO/ROOT actually present.
   native `cc_library` build files, avoiding Boost's own `b2` build system) is the natural
   starting point for Boost specifically. ROOT is a much larger undertaking and not recommended:
   a full source build is slow, and there is no maintained "ROOT for Bazel" project to build on.
+- `//:katydid_release`'s packaged archive layout is `bin/` (portable wrapper scripts execing
+  RPATH-patched real binaries), `lib/` (every Katydid/Cicada/Nymph/Scarab/yaml-cpp `.so` and
+  dictionary PCM, harvested automatically from the binaries' runfiles — see
+  `Source/Executables/Main/harvest_runtime_libs.bzl`), `root/` (ROOT's tarball, bundled
+  wholesale and kept separate from `lib/`, since ROOT's runtime needs a real, intact install
+  layout to find `etc/gitinfo.txt` and `dlopen()`-load `libCling.so`), and `include/`
+  (currently just the six Cicada headers `CicadaDict`'s dictionary payload `#include`s by bare
+  filename — the specific set needed for Cling's autoparse to succeed rather than fail
+  outright on a TClonesArray-backed write). Not yet done: Boost/FFTW are still resolved via
+  plain system linker paths at archive-build time, not bundled into the archive itself, so the
+  target machine still needs them installed; every other Katydid/Nymph/Scarab header isn't
+  bundled or flattened into a single `include/Katydid/` the way the CMake install does, so the
+  archive isn't yet usable as a build-against dependency for downstream code; and the
+  RPATH-patching step (`Source/Executables/Main/release_binary.bzl`,
+  `Source/Executables/Main/harvest_runtime_libs.bzl`) only implements the Linux path
+  (`patchelf`) — the macOS equivalent (`install_name_tool`, which needs existing `LC_RPATH`
+  entries deleted before new ones are added, unlike `patchelf`'s single `--set-rpath`) is
+  unwritten and untested.

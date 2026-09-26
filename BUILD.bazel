@@ -1,6 +1,32 @@
-# Exposes files that live at the repo root, needed by the release archive
-# (see //Source/Executables/Main:katydid_release), which otherwise has no BUILD file to
-# reference them through.
+# Builds the packaged release archive (//:katydid_release) and exposes the repo-root files it
+# needs (LICENSE, third_party_licenses/).
+#
+# Layout: bin/Katydid (a portable wrapper script) execs bin/Katydid_bin (the real, RPATH-
+# patched binary) - same for Truncate. lib/ is flat: every Katydid module .so, Cicada/Nymph/
+# Scarab/yaml-cpp, and their dictionary PCMs, sitting directly beside the .so each PCM belongs
+# to - harvested automatically from Katydid_bin/Truncate_bin's runfiles (see
+# //Source/Executables/Main:harvest_runtime_libs.bzl), not hand-listed. ROOT is bundled
+# wholesale, unfiltered, into its own root/ subdirectory (see //tools:root.bzl's all_files
+# filegroup), kept separate from lib/: ROOT's runtime needs a real, complete install layout
+# (bin/, lib/, etc/, include/) to find things like etc/gitinfo.txt and dlopen()-load
+# libCling.so.
+#
+# include/ is deliberately narrow for now: just the six Cicada headers
+# (third_party/cicada/BUILD.cicada.bazel's root_dictionary() call names the authoritative
+# list) that CicadaDict's dictionary payload #includes by bare filename - the specific gap
+# that made Cling's autoparse fail outright (fatal "CMemberVariables.hh file not found", not
+# just the harmless "Missing FileEntry for _CROOTData.hh" autoload warning) whenever the
+# release binary exercises a TClonesArray-backed class
+# (Cicada::TProcessedTrackData/TMultiTrackEventData), confirmed directly by the same crash
+# TestROOTTreeWritingViaCicada hit before ROOT_INCLUDE_PATH's header set was fixed. Every
+# other Katydid/Nymph/Scarab header, flattened for a downstream consumer to build against the
+# way CMake's install does, is a separate, still-deferred concern - see NOTES.md.
+#
+# Boost/FFTW (currently resolved via plain system linker paths, not bundled) are also
+# deliberately deferred - see NOTES.md for status.
+
+load("@rules_pkg//pkg:mappings.bzl", "pkg_attributes", "pkg_files", "strip_prefix")
+load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -9,4 +35,98 @@ exports_files(["LICENSE"])
 filegroup(
     name = "third_party_licenses",
     srcs = glob(["third_party_licenses/*.txt"]),
+)
+
+# NOTICE.txt lives at //Source/Executables/Main (see there). Included here at the archive's
+# top level, next to LICENSE.
+pkg_files(
+    name = "katydid_release_notices",
+    srcs = [
+        "LICENSE",
+        "//Source/Executables/Main:NOTICE.txt",
+    ],
+)
+
+pkg_files(
+    name = "katydid_release_third_party_licenses",
+    srcs = [":third_party_licenses"],
+    prefix = "third_party_licenses",
+)
+
+# bin/Katydid, bin/Katydid_bin, bin/Truncate, bin/Truncate_bin - renamed from their build
+# target names (Katydid_release/Katydid_release_bin/etc.) since Katydid/Katydid_bin were
+# already taken by the bazel run/bazel test variants in the same package (see
+# //Source/Executables/Main:BUILD.bazel's comment on release_binary()). Explicit mode:
+# genrule outputs don't reliably keep the executable bit through tar packaging otherwise.
+pkg_files(
+    name = "katydid_release_bin",
+    srcs = [
+        "//Source/Executables/Main:Katydid_release",
+        "//Source/Executables/Main:Katydid_release_bin",
+        "//Source/Executables/Main:Truncate_release",
+        "//Source/Executables/Main:Truncate_release_bin",
+    ],
+    attributes = pkg_attributes(mode = "0755"),
+    prefix = "bin",
+    renames = {
+        "//Source/Executables/Main:Katydid_release": "Katydid",
+        "//Source/Executables/Main:Katydid_release_bin": "Katydid_bin",
+        "//Source/Executables/Main:Truncate_release": "Truncate",
+        "//Source/Executables/Main:Truncate_release_bin": "Truncate_bin",
+    },
+)
+
+# lib/*.so, lib/*.pcm - flat, harvested automatically (see the harvest_runtime_libs target's
+# docstring for why this isn't a hand-maintained list). strip_prefix removes the harvest
+# rule's output-directory nesting (release_libs/libX.so -> libX.so) before prefix re-adds
+# lib/.
+pkg_files(
+    name = "katydid_release_lib",
+    srcs = ["//Source/Executables/Main:release_libs"],
+    prefix = "lib",
+    strip_prefix = strip_prefix.from_pkg("release_libs"),
+)
+
+# root/ - ROOT's tarball, wholesale and unfiltered (see this file's top comment for why it
+# isn't merged into lib/ above). strip_prefix removes the tarball's top-level "root/"
+# directory name (root/lib/libCore.so -> lib/libCore.so, within this rule's output) before
+# prefix re-adds it as this archive's root/ (giving root/lib/libCore.so in the final archive -
+# root/root/lib/libCore.so would be wrong).
+pkg_files(
+    name = "katydid_release_root",
+    srcs = ["@root//:all_files"],
+    prefix = "root",
+    strip_prefix = strip_prefix.from_pkg("root"),
+)
+
+# include/ - see this file's top comment for why this is narrow (just CicadaDict's
+# dictionary headers) rather than every Katydid/Nymph/Scarab header. strip_prefix removes
+# Cicada's "Library/" directory name (Library/_CROOTData.hh -> _CROOTData.hh) before prefix
+# re-adds include/, giving flat paths like include/_CROOTData.hh - matching how the
+# dictionary payload #includes them, by bare filename with no subdirectory.
+pkg_files(
+    name = "katydid_release_include",
+    srcs = [
+        "@cicada//:Library/CClassifierResultsData.hh",
+        "@cicada//:Library/CMTEWithClassifierResultsData.hh",
+        "@cicada//:Library/CMemberVariables.hh",
+        "@cicada//:Library/CProcessedMPTData.hh",
+        "@cicada//:Library/CROOTData.hh",
+        "@cicada//:Library/_CROOTData.hh",
+    ],
+    prefix = "include",
+    strip_prefix = strip_prefix.from_pkg("Library"),
+)
+
+pkg_tar(
+    name = "katydid_release",
+    srcs = [
+        ":katydid_release_bin",
+        ":katydid_release_include",
+        ":katydid_release_lib",
+        ":katydid_release_notices",
+        ":katydid_release_root",
+        ":katydid_release_third_party_licenses",
+    ],
+    extension = "tar.gz",
 )

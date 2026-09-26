@@ -4,26 +4,32 @@
 # needs to be usable interactively from the ROOT prompt.
 
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
 load("//tools:root_dictionary.bzl", "root_dictionary")
 
 package(default_visibility = ["//visibility:public"])
 
-# Exposes this module's headers, and everything reachable through its dependencies, without
-# depending on the full katydid_utility library below - which would be circular, since that
-# library's sources include the dictionary file generated from this target.
+# Headers and consumer-visible compile flags (includes, defines) -- the only target anything
+# outside this package depends on for compile-time visibility. cc_shared_library has no
+# defines/includes/hdrs attribute, so these must live here, not on katydid_utility_lib below.
+#
+# Depends on @nymph//:nymph_headers/@scarab//:scarab_headers, not @nymph/@scarab themselves:
+# cc_shared_library produces no CcInfo, so a plain cc_library can only reach another via
+# dynamic_deps, for the runtime link, never directly for headers.
 cc_library(
     name = "katydid_utility_headers",
     hdrs = glob([
         "*.hh",
         "complexpolar/*.hh",
     ]),
+    defines = ["USE_CPP11"],
     includes = ["."],
     deps = [
-        "@nymph",
-        "@scarab",
+        "@nymph//:nymph_headers",
+        "@root",
+        "@scarab//:scarab_headers",
         "@system_libs//:boost",
         "@system_libs//:fftw",
-        "@system_libs//:root",
     ],
 )
 
@@ -34,8 +40,16 @@ root_dictionary(
     deps = [":katydid_utility_headers"],
 )
 
+# The compiled code. cc_shared_library's deps attribute whole-archives everything here into the
+# shared library unconditionally. Nothing outside this package depends on this directly --
+# only :katydid_utility_headers (headers) and :katydid_utility (runtime link) do.
+#
+# UtilityDict_cxx is compiled in directly: TCling::RegisterModule (in libCore.so) calls
+# dlopen() on whatever file holds a dictionary's compiled code, and a statically linked
+# dictionary inside a PIE executable is never a valid dlopen() target (glibc >= 2.29 refuses
+# it outright; other toolchains leave registration silently incomplete).
 cc_library(
-    name = "katydid_utility",
+    name = "katydid_utility_lib",
     srcs = [
         "KTAxisProperties.cc",
         "KTCountHistogram.cc",
@@ -48,20 +62,22 @@ cc_library(
         "complexpolar/specialization.cc",
         ":UtilityDict_cxx",
     ],
-    hdrs = glob([
-        "*.hh",
-        "complexpolar/*.hh",
-    ]),
-    # ROOT's class loader looks for the generated .pcm file next to the compiled library or
-    # executable at runtime, not just at compile time, so it needs to be a runtime dependency.
+    # ROOT's class loader looks for the generated .pcm file next to the compiled library at
+    # runtime, not just at compile time, so it needs to be a runtime dependency.
     data = [":UtilityDict_pcm"],
-    defines = ["USE_CPP11"],
-    includes = ["."],
-    deps = [
+    deps = [":katydid_utility_headers"],
+)
+
+# A real, standalone .so, matching the CMake build's libKatydidUtility.so. Keeps the name
+# katydid_utility so existing consumers' headers deps
+# (//Source/Utility:katydid_utility_headers) stay valid; dynamic_deps carries the runtime
+# dependency on libnymph.so/libscarab.so.
+cc_shared_library(
+    name = "katydid_utility",
+    dynamic_deps = [
         "@nymph",
         "@scarab",
-        "@system_libs//:boost",
-        "@system_libs//:fftw",
-        "@system_libs//:root",
     ],
+    shared_lib_name = "libKatydidUtility.so",
+    deps = [":katydid_utility_lib"],
 )

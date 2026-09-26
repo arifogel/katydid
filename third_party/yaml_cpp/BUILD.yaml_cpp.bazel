@@ -1,18 +1,44 @@
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
 
 # BUILD file for @yaml_cpp (github.com/jbeder/yaml-cpp), used by Scarab to read Katydid's YAML
 # configuration files.
 
 package(default_visibility = ["//visibility:public"])
 
+# Headers plus everything a consumer's compilation needs to see -- the only target anything
+# outside this package depends on for compile-time visibility. cc_shared_library has no
+# hdrs/includes attribute, so these live here, not on yaml_cpp_lib below.
 cc_library(
-    name = "yaml_cpp",
+    name = "yaml_cpp_headers",
+    hdrs = glob(["include/yaml-cpp/**/*.h"]),
+    includes = ["include"],
+)
+
+# The compiled code: real, substantial source we compile ourselves (unlike boost/fftw/matio/
+# root, which already exist as precompiled system .so's and are wrapped via cc_import instead
+# -- see tools/system_deps.bzl's top comment). cc_shared_library's deps attribute
+# whole-archives everything listed here into the shared library unconditionally. Not
+# depended on directly outside this package -- only :yaml_cpp_headers (for headers) and
+# :yaml_cpp (for the runtime link) are.
+cc_library(
+    name = "yaml_cpp_lib",
     srcs = glob([
         "src/*.cpp",
         "src/contrib/*.cpp",
         "src/*.h",
         "src/contrib/*.h",
     ]),
-    hdrs = glob(["include/yaml-cpp/**/*.h"]),
-    includes = ["include"],
+    deps = [":yaml_cpp_headers"],
+)
+
+# A real, standalone .so, matching the CMake reference build's libyaml-cpp.so.0.5 (per
+# readelf -d: a single, standalone .so, never statically linked into anything else). Keeps
+# the name yaml_cpp so existing consumers' deps entries for headers
+# (@yaml_cpp//:yaml_cpp_headers) are unaffected; scarab's dynamic_deps carries the runtime
+# dependency on this .so.
+cc_shared_library(
+    name = "yaml_cpp",
+    shared_lib_name = "libyaml-cpp.so",
+    deps = [":yaml_cpp_lib"],
 )
