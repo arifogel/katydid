@@ -59,10 +59,11 @@ cp $(location """ + real_bin_label + """) $@
 chmod +w $@
 # Rewrite every non-system dependency reference to @rpath/<basename> - see this file's own
 # docstring for why this (unlike Linux's bare-soname NEEDED entries) can't be skipped. Every
-# shell-level $ below is doubled ($$) - genrule's own cmd attribute expands a bare $ as a Make
-# variable reference (see this file's own $$ORIGIN below, and the wrapper genrule further
-# down), so a literal shell/awk $ has to be escaped the same way $@ itself does not (that one
-# is Bazel's own genrule output-file variable, deliberately left single).
+# shell-level dollar sign below is doubled: genrule's own cmd attribute expands even a bare
+# dollar sign inside what becomes a shell comment (see this file's own use of a doubled
+# $$ORIGIN below, and the wrapper genrule further down) as an attempted Make-variable
+# reference, so a literal shell/awk dollar sign has to be escaped the same way $@ itself does
+# not (that one is Bazel's own genrule output-file variable, deliberately left single).
 otool -L $@ | tail -n +2 | awk '{print $$1}' | while read -r dep; do
   case "$$dep" in
     /usr/lib/*|/System/*) ;;
