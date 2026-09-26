@@ -10,12 +10,8 @@ load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
 
 package(default_visibility = ["//visibility:public"])
 
-# Headers and consumer-visible compile flags (includes) -- the only target anything outside
-# this package depends on for compile-time visibility; cc_shared_library has no such attribute,
-# so these must live here, not on katydid_spectrum_analysis_lib below.
-#
-# Depends on other modules' _headers targets, not the modules themselves - see
-# //Source/Utility:katydid_utility_headers's comment for why.
+# cc_shared_library has no defines/includes/hdrs attribute, so headers and consumer-visible
+# compile flags (includes) live here, not on katydid_spectrum_analysis_lib below.
 cc_library(
     name = "katydid_spectrum_analysis_headers",
     hdrs = glob(["*.hh"]),
@@ -31,8 +27,6 @@ cc_library(
 # The compiled code. cc_shared_library's deps attribute whole-archives everything here into the
 # shared library unconditionally, giving KT_REGISTER_PROCESSOR/READER/WRITER/EGGREADER's
 # static-initializer registration the same guarantee alwayslink = 1 gave under static linking.
-# Nothing outside this package depends on this directly -- only
-# :katydid_spectrum_analysis_headers (headers) and :katydid_spectrum_analysis (runtime link) do.
 cc_library(
     name = "katydid_spectrum_analysis_lib",
     srcs = [
@@ -67,9 +61,7 @@ cc_library(
 
 # A real, standalone .so, matching the CMake build's libKatydidSpectrumAnalysis.so. Keeps the
 # name katydid_spectrum_analysis so existing consumers' headers deps
-# (//Source/SpectrumAnalysis:katydid_spectrum_analysis_headers) stay valid; dynamic_deps
-# carries the runtime dependency on
-# libKatydidData.so/libKatydidIO.so/libKatydidTransform.so/libKatydidUtility.so.
+# (//Source/SpectrumAnalysis:katydid_spectrum_analysis_headers) stay valid.
 cc_shared_library(
     name = "katydid_spectrum_analysis",
     dynamic_deps = [

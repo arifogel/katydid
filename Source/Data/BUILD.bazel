@@ -14,12 +14,8 @@ load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
 
 package(default_visibility = ["//visibility:public"])
 
-# Headers and consumer-visible compile flags (includes) -- the only target anything outside
-# this package depends on for compile-time visibility; cc_shared_library has no such attribute,
-# so these must live here, not on katydid_data_lib below.
-#
-# Depends on //Source/Utility:katydid_utility_headers, not katydid_utility - see that target's
-# comment for why.
+# cc_shared_library has no defines/includes/hdrs attribute, so headers and consumer-visible
+# compile flags (includes) live here, not on katydid_data_lib below.
 cc_library(
     name = "katydid_data_headers",
     hdrs = glob([
@@ -42,8 +38,7 @@ cc_library(
 )
 
 # The compiled code. cc_shared_library's deps attribute whole-archives everything here into the
-# shared library unconditionally. Nothing outside this package depends on this directly --
-# only :katydid_data_headers (headers) and :katydid_data (runtime link) do.
+# shared library unconditionally.
 cc_library(
     name = "katydid_data_lib",
     srcs = [
@@ -114,7 +109,7 @@ cc_library(
 
 # A real, standalone .so, matching the CMake build's libKatydidData.so. Keeps the name
 # katydid_data so existing consumers' headers deps (//Source/Data:katydid_data_headers) stay
-# valid; dynamic_deps carries the runtime dependency on libKatydidUtility.so/libnymph.so.
+# valid.
 cc_shared_library(
     name = "katydid_data",
     dynamic_deps = [

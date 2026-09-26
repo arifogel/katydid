@@ -27,11 +27,8 @@ genrule(
     """,
 )
 
-# Headers plus everything a consumer's compilation needs to see (includes, defines) -- the
-# only target anything outside this package depends on for compile-time visibility;
-# cc_shared_library has no such attribute, so these live here, not on scarab_lib below: a
-# consumer depends on this target (for headers) and :scarab (for the runtime link), never on
-# scarab_lib directly.
+# cc_shared_library has no defines/includes/hdrs attribute, so headers plus everything a
+# consumer's compilation needs to see (includes, defines) live here, not on scarab_lib below.
 cc_library(
     name = "scarab_headers",
     hdrs = glob([
@@ -66,8 +63,7 @@ cc_library(
 # into the shared library unconditionally, so REGISTER_PARAM_INPUT_CODEC/
 # REGISTER_PARAM_OUTPUT_CODEC's static registrar constructors (in param_json.cc,
 # param_yaml.cc) are guaranteed to run -- the same guarantee alwayslink = True gave under
-# static linking. Not depended on directly outside this package -- only :scarab_headers (for
-# headers) and :scarab (for the runtime link) are.
+# static linking.
 cc_library(
     name = "scarab_lib",
     srcs = [

@@ -32,13 +32,8 @@ exports_files([
     "Library/CROOTData.hh",
 ])
 
-# Headers plus everything a consumer's compilation needs to see (includes, defines) -- the
-# only target anything outside this package depends on for compile-time visibility;
-# cc_shared_library has no such attribute, so these live here, not on cicada_lib below.
-#
-# Depends on @scarab//:scarab_headers, not @scarab - see
-# //Source/Utility:katydid_utility_headers's comment for why. (Cicada needs Scarab's headers
-# regardless of whether the .so needs libscarab.so at runtime -- see the top comment.)
+# cc_shared_library has no defines/includes/hdrs attribute, so headers plus everything a
+# consumer's compilation needs to see (includes, defines) live here, not on cicada_lib below.
 cc_library(
     name = "cicada_headers",
     hdrs = glob(["Library/*.hh"]) + [
@@ -70,8 +65,7 @@ root_dictionary(
 )
 
 # The compiled code. cc_shared_library's deps attribute whole-archives everything listed here
-# into the shared library unconditionally. Not depended on directly outside this package --
-# only :cicada_headers (for headers) and :cicada (for the runtime link) are.
+# into the shared library unconditionally.
 #
 # CicadaDict_cxx is compiled in directly because TCling::RegisterModule (in libCore.so) calls
 # dlopen() on whatever file holds a dictionary's compiled code -- a statically linked

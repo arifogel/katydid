@@ -6,12 +6,8 @@ load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
 
 package(default_visibility = ["//visibility:public"])
 
-# Headers and consumer-visible compile flags (includes) -- the only target anything outside
-# this package depends on for compile-time visibility; cc_shared_library has no such attribute,
-# so these must live here, not on katydid_transform_lib below.
-#
-# Depends on other modules' _headers targets, not the modules themselves - see
-# //Source/Utility:katydid_utility_headers's comment for why.
+# cc_shared_library has no defines/includes/hdrs attribute, so headers and consumer-visible
+# compile flags (includes) live here, not on katydid_transform_lib below.
 cc_library(
     name = "katydid_transform_headers",
     hdrs = glob(["*.hh"]),
@@ -26,8 +22,6 @@ cc_library(
 # The compiled code. cc_shared_library's deps attribute whole-archives everything here into the
 # shared library unconditionally, giving KT_REGISTER_PROCESSOR/READER/WRITER/EGGREADER's
 # static-initializer registration the same guarantee alwayslink = 1 gave under static linking.
-# Nothing outside this package depends on this directly -- only :katydid_transform_headers
-# (headers) and :katydid_transform (runtime link) do.
 cc_library(
     name = "katydid_transform_lib",
     srcs = [
@@ -49,8 +43,7 @@ cc_library(
 
 # A real, standalone .so, matching the CMake build's libKatydidTransform.so. Keeps the name
 # katydid_transform so existing consumers' headers deps
-# (//Source/Transform:katydid_transform_headers) stay valid; dynamic_deps carries the runtime
-# dependency on libKatydidData.so/libKatydidIO.so/libKatydidUtility.so.
+# (//Source/Transform:katydid_transform_headers) stay valid.
 cc_shared_library(
     name = "katydid_transform",
     dynamic_deps = [

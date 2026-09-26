@@ -45,12 +45,8 @@ _IO_HDRS = glob([
     "TerminalWriter/*.hh",
 ])
 
-# Headers and consumer-visible compile flags (includes) -- the only target anything outside
-# this package depends on for compile-time visibility; cc_shared_library has no such attribute,
-# so these must live here, not on katydid_io_lib below.
-#
-# Depends on other modules' _headers targets, not the modules themselves - see
-# //Source/Utility:katydid_utility_headers's comment for why.
+# cc_shared_library has no defines/includes/hdrs attribute, so headers and consumer-visible
+# compile flags (includes) live here, not on katydid_io_lib below.
 cc_library(
     name = "katydid_io_headers",
     hdrs = _IO_HDRS,
@@ -76,8 +72,6 @@ root_dictionary(
 # The compiled code. cc_shared_library's deps attribute whole-archives everything here into the
 # shared library unconditionally, giving KT_REGISTER_PROCESSOR/READER/WRITER/EGGREADER's
 # static-initializer registration the same guarantee alwayslink = 1 gave under static linking.
-# Nothing outside this package depends on this directly -- only :katydid_io_headers (headers)
-# and :katydid_io (runtime link) do.
 #
 # IODict_cxx is compiled in directly: TCling::RegisterModule (in libCore.so) calls dlopen() on
 # whatever file holds a dictionary's compiled code, and a statically linked dictionary inside a
@@ -137,9 +131,7 @@ cc_library(
 )
 
 # A real, standalone .so, matching the CMake build's libKatydidIO.so. Keeps the name
-# katydid_io so existing consumers' headers deps (//Source/IO:katydid_io_headers) stay valid;
-# dynamic_deps carries the runtime dependency on
-# libKatydidData.so/libKatydidUtility.so/libCicada_Katydid.so.
+# katydid_io so existing consumers' headers deps (//Source/IO:katydid_io_headers) stay valid.
 cc_shared_library(
     name = "katydid_io",
     dynamic_deps = [
