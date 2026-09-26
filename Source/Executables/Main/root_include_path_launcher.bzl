@@ -68,11 +68,11 @@ def _root_include_path_wrapper(name, real_bin_label, pcm_data, wrapper_rule, tes
     forking, so the real binary's exit code (and, for a test, pass/fail) propagates to Bazel
     directly through the wrapper either way.
 
-    testonly must be True whenever real_bin_label is itself testonly (any cc_test): sh_test
-    already defaults testonly to True, but the intermediate genrule below isn't a
-    "*_test"-named rule, so it gets no such default and needs it set explicitly, or a plain
-    `bazel build //...` refuses to analyze it ("non-test target ... depends on testonly
-    target ... and doesn't have testonly attribute set").
+    testonly must be True whenever real_bin_label is itself testonly: sh_test already defaults
+    testonly to True, but the intermediate genrule below isn't a "*_test"-named rule, so it gets
+    no such default and needs it set explicitly, or a plain `bazel build //...` refuses to
+    analyze it ("non-test target ... depends on testonly target ... and doesn't have testonly
+    attribute set").
 
     Args:
         name: name of the generated sh_binary/sh_test.
@@ -143,16 +143,18 @@ def root_include_path_launcher(name, real_bin_label, pcm_data = _DEFAULT_PCM_DAT
     _root_include_path_wrapper(name, real_bin_label, pcm_data, sh_binary, testonly = False)
 
 def root_include_path_test_launcher(name, real_bin_label, pcm_data):
-    """Test counterpart of root_include_path_launcher: wraps a cc_test as a real sh_test.
+    """Test counterpart of root_include_path_launcher: wraps a testonly cc_binary as a real
+    sh_test.
 
-    Intended to wrap every Validation cc_test unconditionally, not just ones already known to
+    Intended to wrap every Validation test unconditionally, not just ones already known to
     touch Cicada's ROOT dictionary at runtime: harmless for a test that doesn't need it, and
     removes the need to reason case-by-case about which ones do (see
     Source/Executables/Validation/BUILD.bazel's top comment).
 
     Args:
         name: name of the generated sh_test.
-        real_bin_label: label of the real cc_test this wraps (e.g. ":TestVector_bin").
+        real_bin_label: label of the real, testonly cc_binary this wraps (e.g.
+            ":TestVector_bin").
         pcm_data: see _root_include_path_wrapper. No default: these are package-relative
             labels defined in the calling package (e.g. Validation's local PCM copies), not
             this one.

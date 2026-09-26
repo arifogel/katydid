@@ -1,8 +1,8 @@
-"""Defines katydid_validation_test, a macro wrapping one Validation cc_test in the
+"""Defines katydid_validation_test, a macro wrapping one Validation test in the
 ROOT_INCLUDE_PATH launcher unconditionally. See BUILD.bazel's own top comment for why.
 """
 
-load("@rules_cc//cc:cc_test.bzl", "cc_test")
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 load("//Source/Executables/Main:root_include_path_launcher.bzl", "root_include_path_test_launcher")
 
 # Relative labels here resolve against whichever package actually calls this macro (Validation's),
@@ -15,25 +15,26 @@ _PCM_DATA = [
 def katydid_validation_test(name, srcs, deps, dynamic_deps, data = []):
     """Defines one Validation test, wrapped unconditionally in the ROOT_INCLUDE_PATH launcher.
 
-    The real cc_test is named name + "_bin" and tagged "manual" (so `bazel test //...` doesn't
-    also run it unwrapped, double-counting it); the wrapper sh_test, named plain name, is what
-    `bazel test`/`bazel run` should always be given.
+    The real binary is a testonly cc_binary named name + "_bin": running it directly is never
+    valid (ROOT_INCLUDE_PATH must be set before it starts - see root_include_path_launcher.bzl's
+    docstring), so it's a cc_binary rather than a cc_test. The wrapper sh_test, named plain
+    name, is the actual test target and what `bazel test`/`bazel run` should be given.
 
     Args:
         name: the test's public name; also the name of the generated sh_test wrapper.
-        srcs: passed straight to the underlying cc_test.
-        deps: passed straight to the underlying cc_test.
-        dynamic_deps: passed straight to the underlying cc_test.
-        data: passed straight to the underlying cc_test.
+        srcs: passed straight to the underlying cc_binary.
+        deps: passed straight to the underlying cc_binary.
+        dynamic_deps: passed straight to the underlying cc_binary.
+        data: passed straight to the underlying cc_binary.
     """
     bin_name = name + "_bin"
-    cc_test(
+    cc_binary(
         name = bin_name,
+        testonly = True,
         srcs = srcs,
         data = data,
         dynamic_deps = dynamic_deps,
         deps = deps,
-        tags = ["manual"],
     )
     root_include_path_test_launcher(
         name = name,

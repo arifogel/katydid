@@ -1,5 +1,5 @@
 # Ports Source/Executables/Validation/CMakeLists.txt's various test programs to real Bazel
-# cc_test/cc_binary targets, so they participate in `bazel test //...` with correct per-target
+# test/binary targets, so they participate in `bazel test //...` with correct per-target
 # pass/fail tracking.
 #
 # These are small, pre-existing validation programs, not a rigorous test suite: most exercise a
@@ -24,12 +24,13 @@
 # outside the Bazel build, the same way Source/Time, Source/Simulation, and Source/Evaluation
 # are not built at all.
 #
-# TestDPTReader is a cc_binary, not a cc_test: it requires a .dpt data file to be given as a
-# command-line argument, and - importantly - returns 0 (success) when none is given. No sample
-# .dpt file exists anywhere in this repository (checked), and it was never part of the original
-# CMake build's own CI/test.sh either. Wiring it up as a "test" with no real input would trivially
-# pass every time without checking anything, which would be actively misleading. As a cc_binary
-# it's still compile-checked by `bazel build //...`, just not claimed as a real automated test.
+# TestDPTReader is wired up as a plain binary, not a test (root_include_path_launcher, not
+# root_include_path_test_launcher - no sh_test wrapper): it requires a .dpt data file to be
+# given as a command-line argument, and - importantly - returns 0 (success) when none is given.
+# No sample .dpt file exists anywhere in this repository (checked), and it was never part of the
+# original CMake build's own CI/test.sh either. Wiring it up as a "test" with no real input would
+# trivially pass every time without checking anything, which would be actively misleading. It's
+# still compile-checked by `bazel build //...`, just not claimed as a real automated test.
 #
 # Test2DDiscrim is NOT ported here: it directly constructs a KTSpline object
 # (`new KTSpline(xVals, yVals, 3)`), and that constructor's only definition is in
@@ -72,9 +73,9 @@
 # gets the wrapper regardless of whether it's known to hit this today: harmless for one that
 # doesn't, and removes the need to reason case-by-case as the test suite changes.
 #
-# The wrapper adds a second target per test (name + "_bin", the real cc_test, tagged "manual"
-# so `bazel test //...` doesn't also run it unwrapped and double-count) - `bazel test` and
-# `bazel run` should always use the plain name, never the "_bin" target directly.
+# The wrapper adds a second target per test (name + "_bin", a testonly cc_binary - running it
+# directly is never valid, so it's not a cc_test) - `bazel test` and `bazel run` should always
+# use the plain name, never the "_bin" target directly.
 
 load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 load("//Source/Executables/Main:root_include_path_launcher.bzl", "root_include_path_launcher")
@@ -132,8 +133,8 @@ genrule(
 )
 
 # Duplicated from validation_test.bzl's _PCM_DATA, which is private and so not loadable here:
-# TestDPTReader is a cc_binary, not a cc_test, so it goes through root_include_path_launcher
-# directly instead of the katydid_validation_test macro.
+# TestDPTReader has no sh_test wrapper, so it goes through root_include_path_launcher directly
+# instead of the katydid_validation_test macro.
 _PCM_DATA = [
     ":CicadaDict_pcm_local_copy",
     ":IODict_pcm_local_copy",
