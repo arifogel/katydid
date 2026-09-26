@@ -32,8 +32,6 @@ exports_files([
     "Library/CROOTData.hh",
 ])
 
-# cc_shared_library has no defines/includes/hdrs attribute, so headers plus everything a
-# consumer's compilation needs to see (includes, defines) live here, not on cicada_lib below.
 cc_library(
     name = "cicada_headers",
     hdrs = glob(["Library/*.hh"]) + [
@@ -64,9 +62,6 @@ root_dictionary(
     deps = [":cicada_headers"],
 )
 
-# The compiled code. cc_shared_library's deps attribute whole-archives everything listed here
-# into the shared library unconditionally.
-#
 # CicadaDict_cxx is compiled in directly because TCling::RegisterModule (in libCore.so) calls
 # dlopen() on whatever file holds a dictionary's compiled code -- a statically linked
 # dictionary inside a PIE executable is never a valid dlopen() target (glibc >= 2.29 refuses

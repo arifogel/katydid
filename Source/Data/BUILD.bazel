@@ -14,8 +14,6 @@ load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
 
 package(default_visibility = ["//visibility:public"])
 
-# cc_shared_library has no defines/includes/hdrs attribute, so headers and consumer-visible
-# compile flags (includes) live here, not on katydid_data_lib below.
 cc_library(
     name = "katydid_data_headers",
     hdrs = glob([
@@ -37,8 +35,6 @@ cc_library(
     ],
 )
 
-# The compiled code. cc_shared_library's deps attribute whole-archives everything here into the
-# shared library unconditionally.
 cc_library(
     name = "katydid_data_lib",
     srcs = [

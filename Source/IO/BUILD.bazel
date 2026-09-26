@@ -45,8 +45,6 @@ _IO_HDRS = glob([
     "TerminalWriter/*.hh",
 ])
 
-# cc_shared_library has no defines/includes/hdrs attribute, so headers and consumer-visible
-# compile flags (includes) live here, not on katydid_io_lib below.
 cc_library(
     name = "katydid_io_headers",
     hdrs = _IO_HDRS,
@@ -69,10 +67,6 @@ root_dictionary(
     deps = [":katydid_io_headers"],
 )
 
-# The compiled code. cc_shared_library's deps attribute whole-archives everything here into the
-# shared library unconditionally, giving KT_REGISTER_PROCESSOR/READER/WRITER/EGGREADER's
-# static-initializer registration the same guarantee alwayslink = 1 gave under static linking.
-#
 # IODict_cxx is compiled in directly: TCling::RegisterModule (in libCore.so) calls dlopen() on
 # whatever file holds a dictionary's compiled code, and a statically linked dictionary inside a
 # PIE executable is never a valid dlopen() target (glibc >= 2.29 refuses it outright; other

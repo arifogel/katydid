@@ -6,18 +6,15 @@ load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
 
 package(default_visibility = ["//visibility:public"])
 
-# cc_shared_library has no hdrs/includes attribute, so headers plus everything a consumer's
-# compilation needs to see live here, not on yaml_cpp_lib below.
 cc_library(
     name = "yaml_cpp_headers",
     hdrs = glob(["include/yaml-cpp/**/*.h"]),
     includes = ["include"],
 )
 
-# The compiled code: real, substantial source we compile ourselves (unlike boost/fftw/matio/
-# root, which already exist as precompiled system .so's and are wrapped via cc_import instead
-# -- see tools/system_deps.bzl's top comment). cc_shared_library's deps attribute
-# whole-archives everything listed here into the shared library unconditionally.
+# Real, substantial source compiled ourselves (unlike boost/fftw/matio/root, which already
+# exist as precompiled system .so's and are wrapped via cc_import instead - see
+# tools/system_deps.bzl's top comment).
 cc_library(
     name = "yaml_cpp_lib",
     srcs = glob([

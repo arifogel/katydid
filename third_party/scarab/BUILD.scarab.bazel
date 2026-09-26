@@ -27,8 +27,6 @@ genrule(
     """,
 )
 
-# cc_shared_library has no defines/includes/hdrs attribute, so headers plus everything a
-# consumer's compilation needs to see (includes, defines) live here, not on scarab_lib below.
 cc_library(
     name = "scarab_headers",
     hdrs = glob([
@@ -59,11 +57,6 @@ cc_library(
     ],
 )
 
-# The compiled code. cc_shared_library's deps attribute whole-archives everything listed here
-# into the shared library unconditionally, so REGISTER_PARAM_INPUT_CODEC/
-# REGISTER_PARAM_OUTPUT_CODEC's static registrar constructors (in param_json.cc,
-# param_yaml.cc) are guaranteed to run -- the same guarantee alwayslink = True gave under
-# static linking.
 cc_library(
     name = "scarab_lib",
     srcs = [

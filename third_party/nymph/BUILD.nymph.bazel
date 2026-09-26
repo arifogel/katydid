@@ -9,8 +9,6 @@ load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
 
 package(default_visibility = ["//visibility:public"])
 
-# cc_shared_library has no defines/includes/hdrs attribute, so headers plus everything a
-# consumer's compilation needs to see (includes, defines) live here, not on nymph_lib below.
 cc_library(
     name = "nymph_headers",
     hdrs = glob([
@@ -34,8 +32,6 @@ cc_library(
     ],
 )
 
-# The compiled code. cc_shared_library's deps attribute whole-archives everything listed here
-# into the shared library unconditionally.
 cc_library(
     name = "nymph_lib",
     srcs = [

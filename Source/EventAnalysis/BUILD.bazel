@@ -10,8 +10,6 @@ load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
 
 package(default_visibility = ["//visibility:public"])
 
-# cc_shared_library has no defines/includes/hdrs attribute, so headers and consumer-visible
-# compile flags (includes) live here, not on katydid_event_analysis_lib below.
 cc_library(
     name = "katydid_event_analysis_headers",
     hdrs = glob([
@@ -29,9 +27,6 @@ cc_library(
     ],
 )
 
-# The compiled code. cc_shared_library's deps attribute whole-archives everything here into the
-# shared library unconditionally, giving KT_REGISTER_PROCESSOR/READER/WRITER/EGGREADER's
-# static-initializer registration the same guarantee alwayslink = 1 gave under static linking.
 cc_library(
     name = "katydid_event_analysis_lib",
     srcs = [
