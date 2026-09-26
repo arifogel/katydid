@@ -201,6 +201,20 @@ def _system_libs_repo_impl(repository_ctx):
     ]
     build_file_parts.append('package(default_visibility = ["//visibility:public"])')
 
+    # Every macOS formula's own absolute <prefix>/lib directory (empty on Linux) - written out
+    # below as its own .bzl file so release_binary.bzl/harvest_runtime_libs.bzl can bake these
+    # in as extra RPATH entries on the release archive's own binaries/libraries. Necessary
+    # because (unlike Linux, where apt/dnf install into the dynamic linker's own default
+    # search paths, so a release archive extracted onto a similar machine finds libfftw3.so
+    # there without any help) Homebrew never does, and this repo's own docstring already
+    # documents Boost/FFTW/MatIO as deliberately *not* bundled/fetched hermetically - discovered
+    # from whatever's already on the machine instead. An absolute RPATH entry pointing at this
+    # exact build machine's own Homebrew prefix is that same trade-off made explicit for macOS,
+    # rather than bundling copies into the release archive's own lib/ (which the actual runtime
+    # dependency graph doesn't even surface these libraries' files to in the first place - see
+    # harvest_runtime_libs.bzl's own docstring).
+    mac_lib_dirs = []
+
     # --- Boost / FFTW / MatIO: genuinely different discovery per OS, not just a different
     # formula name. Homebrew deliberately keeps things out of default search paths (needs
     # explicit -I/-L, found via `brew --prefix`); apt installs into them (needs neither).
@@ -224,6 +238,7 @@ def _system_libs_repo_impl(repository_ctx):
                     ),
                 )
             prefix = result.stdout.strip()
+            mac_lib_dirs.append(prefix + "/lib")
 
             # Symlink brew's include dir into this repo so `hdrs = glob(...)` has real files to
             # see - brew's prefix lives outside the workspace/output tree, Bazel can't glob into
@@ -329,6 +344,10 @@ cc_import(
             ))
 
     repository_ctx.file("BUILD.bazel", "\n".join(build_file_parts))
+
+    # See this function's own top comment (mac_lib_dirs) for why this exists: empty on Linux,
+    # one absolute <prefix>/lib directory per macOS formula otherwise.
+    repository_ctx.file("lib_dirs.bzl", "MAC_LIB_DIRS = " + repr(mac_lib_dirs) + "\n")
 
 _system_libs_repo = repository_rule(
     implementation = _system_libs_repo_impl,

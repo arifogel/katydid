@@ -25,11 +25,24 @@ release_binary.bzl: for a file already inside lib/, ../lib round-trips back to l
 (finding its own siblings), so one RPATH is correct in both places.
 """
 
+load("@system_libs//:lib_dirs.bzl", "MAC_LIB_DIRS")
+
 # Resolved once, at load time, via this file's own repo mapping - not hardcoded against
 # Bazel's internal, version-specific canonical-name mangling (e.g. the "+root_deps+root"-style
 # names visible in solib directory paths). Label() only parses/canonicalizes a label string; it
 # doesn't require anything at that path to exist.
 _ROOT_WORKSPACE_NAME = Label("@root//:BUILD.bazel").workspace_name
+
+# One '-add_rpath <dir>' per macOS Homebrew formula directory (see tools/system_deps.bzl's own
+# comment on mac_lib_dirs for why this is necessary): Boost/FFTW/MatIO's own .dylib files are
+# never reachable from binaries' own runfiles at all (they're a plain `deps` of a cc_library
+# that's itself wrapped into a cc_shared_library - see Source/Utility/BUILD.bazel - not a
+# `dynamic_deps` sibling the way this rule's own harvesting is), so unlike the harvested
+# libraries themselves, there's nothing to bundle a copy of into lib/; the release archive
+# instead has to be able to find Homebrew's own copy on whatever machine runs it, the same
+# non-hermetic trade-off already made for these three libraries specifically on Linux (which
+# relies on apt/dnf's default search paths for the exact same reason).
+_MAC_EXTRA_RPATH_FLAGS = " ".join(["-add_rpath '{}'".format(d) for d in MAC_LIB_DIRS])
 
 def _harvest_runtime_libs_impl(ctx):
     # Resolved via a private constraint-value attribute, the standard way for a rule
@@ -76,9 +89,9 @@ def _harvest_runtime_libs_impl(ctx):
                         "esac; done && " +
                         "for rp in $(otool -l '{out}' | awk '/cmd LC_RPATH/{{getline; getline; print $2}}'); do " +
                         "install_name_tool -delete_rpath \"$rp\" '{out}'; done && " +
-                        "install_name_tool -add_rpath '@loader_path/../lib' -add_rpath '@loader_path/../root/lib' '{out}' && " +
+                        "install_name_tool -add_rpath '@loader_path/../lib' -add_rpath '@loader_path/../root/lib' {extra} '{out}' && " +
                         "codesign --sign - --force '{out}'"
-                    ).format(src = f.path, out = out.path, base = f.basename)
+                    ).format(src = f.path, out = out.path, base = f.basename, extra = _MAC_EXTRA_RPATH_FLAGS)
                 else:
                     # --set-rpath, not --add-rpath: replaces this .so's own, Bazel-baked-in
                     # RPATH outright (see this file's own docstring for why it's meaningless

@@ -25,6 +25,14 @@ which tolerated this - so the binary is re-signed ad hoc (`codesign --sign -`) a
 step, not an optional cleanup.
 """
 
+load("@system_libs//:lib_dirs.bzl", "MAC_LIB_DIRS")
+
+# One '-add_rpath <dir>' per macOS Homebrew formula directory - see tools/system_deps.bzl's own
+# comment on mac_lib_dirs, and harvest_runtime_libs.bzl's own copy of this same constant, for
+# why: Boost/FFTW/MatIO's own .dylib files are never bundled into this release archive's lib/
+# at all, so the binary has to be able to find Homebrew's own copy on whatever machine runs it.
+_MAC_EXTRA_RPATH_FLAGS = " ".join(["-add_rpath '{}'".format(d) for d in MAC_LIB_DIRS])
+
 def release_binary(name, real_bin_label, final_bin_name):
     """Defines <name>_bin (RPATH-patched copy of real_bin_label) and <name> (wrapper script).
 
@@ -77,7 +85,7 @@ done
 for rp in $$(otool -l $@ | awk '/cmd LC_RPATH/{getline; getline; print $$2}'); do
   install_name_tool -delete_rpath "$$rp" $@
 done
-install_name_tool -add_rpath '@loader_path/../lib' -add_rpath '@loader_path/../root/lib' $@
+install_name_tool -add_rpath '@loader_path/../lib' -add_rpath '@loader_path/../root/lib' """ + _MAC_EXTRA_RPATH_FLAGS + """ $@
 # install_name_tool invalidates the linker's own ad hoc signature; re-sign so Apple Silicon
 # will actually run this binary (see this file's own docstring).
 codesign --sign - --force $@
