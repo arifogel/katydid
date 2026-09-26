@@ -257,16 +257,25 @@
         }
       }
     },
-    "//tools:system_deps.bzl%system_deps": {
+    "//tools:root.bzl%root_deps": {
       "general": {
-        "bzlTransitiveDigest": "Wh6z6UIH3hF3e6Xpyp0AW/4jCA0pnXbLX+SPZ/UlfjA=",
-        "usagesDigest": "PFljPu5vgSoTlnuznl8mgsJAHt0kfmdVZ9S4XCZ1Usk=",
+        "bzlTransitiveDigest": "3VGkpwLoA5lRqPig15fGWfVHGYYYUZ7Yexhp+h8cpcI=",
+        "usagesDigest": "sDSkyOP5sRLOjjGmJ18eUF59tYieCxZ7/7JCTOMg6bE=",
         "recordedInputs": [],
         "generatedRepoSpecs": {
           "root": {
-            "repoRuleId": "@@//tools:system_deps.bzl%_root_repo",
+            "repoRuleId": "@@//tools:root.bzl%root_repo",
             "attributes": {}
-          },
+          }
+        }
+      }
+    },
+    "//tools:system_deps.bzl%system_deps": {
+      "general": {
+        "bzlTransitiveDigest": "+i0AcZ6wxl/N/H8GbLneE5bybyw5BveS/R+vS9nbrVA=",
+        "usagesDigest": "PFljPu5vgSoTlnuznl8mgsJAHt0kfmdVZ9S4XCZ1Usk=",
+        "recordedInputs": [],
+        "generatedRepoSpecs": {
           "system_libs": {
             "repoRuleId": "@@//tools:system_deps.bzl%_system_libs_repo",
             "attributes": {}
