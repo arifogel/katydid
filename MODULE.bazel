@@ -15,7 +15,7 @@ bazel_dep(name = "rules_shell", version = "0.8.0")
 # its @patchelf//:patchelf binary to rewrite RPATHs in the release archive on Linux.
 bazel_dep(name = "patchelf", version = "0.19.1")
 
-# --- Katydid's own git-based dependencies (Nymph, Scarab, Cicada, rapidjson, yaml-cpp) ------
+# --- Katydid's git-based dependencies (Nymph, Scarab, Cicada, rapidjson, yaml-cpp) ----------
 # None of these have native Bazel support, so each is fetched as a pinned git commit and paired
 # with a hand-written BUILD file under third_party/. Pins should be kept in sync with whatever
 # commits the project's canonical CMake build (via git submodules, for Nymph/Scarab/Cicada) is

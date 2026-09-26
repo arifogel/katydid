@@ -10,12 +10,13 @@ load("//tools:root_dictionary.bzl", "root_dictionary")
 package(default_visibility = ["//visibility:public"])
 
 # Headers and consumer-visible compile flags (includes, defines) -- the only target anything
-# outside this package depends on for compile-time visibility. cc_shared_library has no
-# defines/includes/hdrs attribute, so these must live here, not on katydid_utility_lib below.
+# outside this package depends on for compile-time visibility; cc_shared_library has no such
+# attribute, so these must live here, not on katydid_utility_lib below.
 #
 # Depends on @nymph//:nymph_headers/@scarab//:scarab_headers, not @nymph/@scarab themselves:
 # cc_shared_library produces no CcInfo, so a plain cc_library can only reach another via
-# dynamic_deps, for the runtime link, never directly for headers.
+# dynamic_deps, for the runtime link, never directly for headers. (Every other Katydid module's
+# BUILD.bazel points here for this same reasoning.)
 cc_library(
     name = "katydid_utility_headers",
     hdrs = glob([

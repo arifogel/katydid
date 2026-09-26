@@ -46,12 +46,11 @@ _IO_HDRS = glob([
 ])
 
 # Headers and consumer-visible compile flags (includes) -- the only target anything outside
-# this package depends on for compile-time visibility. cc_shared_library has no
-# defines/includes/hdrs attribute, so these must live here, not on katydid_io_lib below.
+# this package depends on for compile-time visibility; cc_shared_library has no such attribute,
+# so these must live here, not on katydid_io_lib below.
 #
-# Depends on other modules' own _headers targets, not the modules themselves: cc_shared_library
-# produces no CcInfo, so a plain cc_library can only reach another via dynamic_deps, for the
-# runtime link, never directly for headers.
+# Depends on other modules' _headers targets, not the modules themselves - see
+# //Source/Utility:katydid_utility_headers's comment for why.
 cc_library(
     name = "katydid_io_headers",
     hdrs = _IO_HDRS,

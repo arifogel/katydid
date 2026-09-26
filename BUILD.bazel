@@ -6,7 +6,7 @@
 # Scarab/yaml-cpp, and their dictionary PCMs, sitting directly beside the .so each PCM belongs
 # to - harvested automatically from Katydid_bin/Truncate_bin's runfiles (see
 # //Source/Executables/Main:harvest_runtime_libs.bzl), not hand-listed. ROOT is bundled
-# wholesale, unfiltered, into its own root/ subdirectory (see //tools:root.bzl's all_files
+# wholesale, unfiltered, into a separate root/ subdirectory (see //tools:root.bzl's all_files
 # filegroup), kept separate from lib/: ROOT's runtime needs a real, complete install layout
 # (bin/, lib/, etc/, include/) to find things like etc/gitinfo.txt and dlopen()-load
 # libCling.so.
