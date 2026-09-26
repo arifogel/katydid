@@ -111,11 +111,13 @@ root_include_path_launcher(
 # than reusing the ones above.
 release_binary(
     name = "Katydid_release",
+    final_bin_name = "Katydid_bin",
     real_bin_label = ":Katydid_bin",
 )
 
 release_binary(
     name = "Truncate_release",
+    final_bin_name = "Truncate_bin",
     real_bin_label = ":Truncate_bin",
 )
 

@@ -10,6 +10,18 @@ depset that already makes `bazel run`/`bazel test` correct - reading it here doe
 a new source of truth, it reuses the existing one. Filtering by the file's own `.owner` (a
 Label, a real graph property) rather than by matching against Bazel's internal, versioned
 solib-mangling scheme keeps this robust to how Bazel happens to name things internally.
+
+Every harvested .so also gets its own RPATH rewritten (via patchelf, Linux only - see
+release_binary.bzl's own docstring for the same macOS caveat), not just copied as-is: each one
+still carries whatever RPATH Bazel baked in at its own original build time (pointing at
+Bazel's own _solib_k8 paths, meaningless once repackaged), and library-to-library dependencies
+among the bundled .so files themselves (e.g. libscarab.so's own genuine NEEDED entry on
+libyaml-cpp.so - not a dependency of Katydid_bin directly, so invisible to a NEEDED-based
+allowlist or to only patching the top-level binary) need this fixed too, the same way the
+binary itself does. $ORIGIN/../lib:$ORIGIN/../root/lib is used for every harvested .so here,
+identical to the top-level binary's own RPATH in release_binary.bzl: for a file already
+inside lib/, $ORIGIN/../lib round-trips back to lib/ itself (finding its own siblings), so one
+RPATH string is correct in both places.
 """
 
 # Resolved once, at load time, via this file's own repo mapping - not hardcoded against
@@ -42,10 +54,20 @@ def _harvest_runtime_libs_impl(ctx):
             seen_basenames[f.basename] = True
 
             out = ctx.actions.declare_file(ctx.label.name + "/" + f.basename)
+            if f.basename.endswith(".so"):
+                # --set-rpath, not --add-rpath: replaces this .so's own, Bazel-baked-in RPATH
+                # outright (see this file's own docstring for why it's meaningless here),
+                # rather than appending to it.
+                command = (
+                    "cp -f '{src}' '{out}' && chmod +w '{out}' && " +
+                    "patchelf --set-rpath '$ORIGIN/../lib:$ORIGIN/../root/lib' '{out}'"
+                ).format(src = f.path, out = out.path)
+            else:
+                command = "cp -f '{}' '{}'".format(f.path, out.path)
             ctx.actions.run_shell(
                 outputs = [out],
                 inputs = [f],
-                command = "cp -f '{}' '{}'".format(f.path, out.path),
+                command = command,
                 mnemonic = "HarvestRuntimeLib",
                 progress_message = "Harvesting %s for the release archive" % f.basename,
             )

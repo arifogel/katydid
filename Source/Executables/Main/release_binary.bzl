@@ -17,24 +17,30 @@ release archive yet either. Calling release_binary on macOS fails loudly instead
 producing a broken artifact.
 """
 
-def release_binary(name, real_bin_label):
+def release_binary(name, real_bin_label, final_bin_name):
     """Defines <name>_bin (RPATH-patched copy of real_bin_label) and <name> (wrapper script).
 
-    Both are meant to be packaged directly into //:katydid_release's own bin/ prefix - the
-    wrapper as bin/<name>, the patched binary as bin/<name>_bin, alongside a sibling lib/ and
-    root/ (ROOT's own, fully bundled tarball) this wrapper's own RPATH/ROOTSYS point at.
+    Both are meant to be packaged into //:katydid_release's own bin/ prefix, renamed to bin/
+    <name> and bin/<final_bin_name> respectively (see BUILD.bazel's own pkg_files renames) -
+    alongside a sibling lib/ and root/ (ROOT's own, fully bundled tarball) this wrapper's own
+    RPATH/ROOTSYS point at.
 
     Args:
         name: public name; the wrapper script (outs = [name]) is named exactly this.
         real_bin_label: label of the real, unpatched cc_binary to patch and wrap (e.g.
             ":Katydid_bin").
+        final_bin_name: the patched binary's own final name once packaged (e.g. "Katydid_bin")
+            - baked directly into the wrapper script's own exec line, since the packaging
+            step's own rename (this target's own internal name, name + "_bin", to
+            final_bin_name) happens after this script is generated, not before. Passed
+            explicitly, not derived from name, so the two can never silently drift apart.
     """
     patched_name = name + "_bin"
 
     # --set-rpath, not --add-rpath: replaces Bazel's own build-time RPATH outright (see this
     # file's own docstring for why that RPATH is meaningless here), rather than appending to
-    # it. $ORIGIN is relative to bin/<name>_bin itself: ../lib and ../root/lib are its sibling
-    # directories in the release archive's own flat layout.
+    # it. $ORIGIN is relative to bin/<final_bin_name> itself: ../lib and ../root/lib are its
+    # sibling directories in the release archive's own flat layout.
     native.genrule(
         name = patched_name + "_patchelf",
         srcs = [real_bin_label],
@@ -74,7 +80,7 @@ else
   export ROOT_INCLUDE_PATH="$$DIR/../include"
 fi
 
-exec "$$DIR/""" + patched_name + """" "$$@"
+exec "$$DIR/""" + final_bin_name + """" "$$@"
 WRAPPER_EOF
 chmod +x $@
 """,
