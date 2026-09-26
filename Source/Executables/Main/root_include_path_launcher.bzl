@@ -13,7 +13,7 @@ _DEFAULT_PCM_DATA = [
     ":UtilityDict_pcm_local_copy",
 ]
 
-def _root_include_path_wrapper(name, real_bin_label, pcm_data, wrapper_rule):
+def _root_include_path_wrapper(name, real_bin_label, pcm_data, wrapper_rule, testonly):
     """Shared implementation behind root_include_path_launcher/root_include_path_test_launcher.
 
     libCore.so is a dependency of every Katydid module .so (katydid_io, katydid_utility,
@@ -36,6 +36,12 @@ def _root_include_path_wrapper(name, real_bin_label, pcm_data, wrapper_rule):
     forking, so the real binary's own exit code (and, for a test, pass/fail) propagates to
     Bazel directly through the wrapper either way.
 
+    testonly must be True whenever real_bin_label is itself testonly (any cc_test): sh_test
+    already defaults testonly to True on its own, but the intermediate genrule below is not a
+    "*_test"-named rule, so it gets no such default and needs it set explicitly, or a plain
+    `bazel build //...` refuses to analyze it ("non-test target ... depends on testonly
+    target ... and doesn't have testonly attribute set").
+
     Args:
         name: name of the generated sh_binary/sh_test.
         real_bin_label: label of the real binary/test this wraps (e.g. ":Katydid_bin").
@@ -43,10 +49,12 @@ def _root_include_path_wrapper(name, real_bin_label, pcm_data, wrapper_rule):
             them next to the real, exec'd binary (see BUILD.bazel's own comment on those
             genrules).
         wrapper_rule: sh_binary or sh_test.
+        testonly: whether real_bin_label is itself testonly.
     """
     genrule_name = name + "_launcher_gen"
     native.genrule(
         name = genrule_name,
+        testonly = testonly,
         srcs = [
             real_bin_label,
             "@cicada//:Library/_CROOTData.hh",
@@ -83,6 +91,7 @@ chmod +x $@
     # general search path, not tied to any directory, so the original file works.
     wrapper_rule(
         name = name,
+        testonly = testonly,
         srcs = [":" + genrule_name],
         data = [
             real_bin_label,
@@ -100,7 +109,7 @@ def root_include_path_launcher(name, real_bin_label, pcm_data = _DEFAULT_PCM_DAT
         real_bin_label: label of the real binary this wraps (e.g. ":Katydid_bin").
         pcm_data: see _root_include_path_wrapper. Defaults to this package's own local copies.
     """
-    _root_include_path_wrapper(name, real_bin_label, pcm_data, sh_binary)
+    _root_include_path_wrapper(name, real_bin_label, pcm_data, sh_binary, testonly = False)
 
 def root_include_path_test_launcher(name, real_bin_label, pcm_data):
     """Test counterpart of root_include_path_launcher: wraps a cc_test as a real sh_test.
@@ -117,4 +126,4 @@ def root_include_path_test_launcher(name, real_bin_label, pcm_data):
             labels defined in the calling package (e.g. Validation's own local PCM copies),
             not this one.
     """
-    _root_include_path_wrapper(name, real_bin_label, pcm_data, sh_test)
+    _root_include_path_wrapper(name, real_bin_label, pcm_data, sh_test, testonly = True)
