@@ -304,11 +304,6 @@ def _root_repo_impl(repository_ctx):
         fail("`root-config --libs` failed on the just-extracted ROOT build:\n" + root_base_libs_result.stderr)
     root_extra_component_libs = ["-lGui", "-lSpectrum", "-lTMVA"]
 
-    root_libdir_result = repository_ctx.execute([root_config, "--libdir"])
-    if root_libdir_result.return_code != 0:
-        fail("`root-config --libdir` failed on the just-extracted ROOT build:\n" + root_libdir_result.stderr)
-    root_libdir = root_libdir_result.stdout.strip()
-
     # root-config --libs's own tokens, split into three buckets: -l entries (library names,
     # handled below), -L entries (a search-path hint cc_import doesn't need, since
     # shared_library references the exact file directly - intentionally dropped), and
@@ -319,88 +314,28 @@ def _root_repo_impl(repository_ctx):
     root_lib_names = [x[2:] for x in all_root_libs_tokens if x.startswith("-l")]
     root_other_linkopts = [x for x in all_root_libs_tokens if x and not x.startswith("-l") and not x.startswith("-L")]
 
-    # Real cc_import per ROOT library, not a cc_library with a fake _empty.cc source and a
-    # bare -l linkopt: like Boost/FFTW/MatIO (see this file's own top comment), ROOT's own
-    # compiled implementation already exists as a real .so - here, already sitting in the
-    # tarball just extracted, not something Bazel compiles or even needs to locate elsewhere
-    # on the machine. A library root-config --libs reports that isn't actually part of the
-    # tarball (e.g. -lpthread, -ldl - genuine system libraries, not ROOT's own) falls back to
-    # a plain linkopt on the aggregating cc_import below, the same way it always worked.
-    #
-    # Each declared cc_import also carries its own -Wl,-rpath pointing directly at the real,
-    # original root/lib directory (an absolute path, from root-config --libdir) - not just the
-    # aggregating cc_import's own linkopts, which was tried first and confirmed, empirically,
-    # not to make it into the final link command (the exact mechanism for that gap isn't
-    # confirmed, only the observed result). This matters because of a genuinely separate
-    # problem: ROOT's own .so's, as shipped, all sit together in one root/lib directory and
-    # rely on a $ORIGIN-relative rpath baked in by ROOT's own original build to find siblings
-    # right next to themselves at runtime - including libraries neither root-config --libs nor
-    # this file ever names directly (e.g. libROOTNTupleBrowse.so, a genuine, direct dependency
-    # of one of the libraries this file does declare, confirmed directly from the actual
-    # runtime failure: "error while loading shared libraries: libROOTNTupleBrowse.so: cannot
-    # open shared object file", the classic glibc process-startup loader message for a missing
-    # *recursive* DT_NEEDED, not a dlopen()-time failure). Bazel's own cc_import mechanism
-    # isolates each declared library into its own, separate _solib_k8/... symlink directory,
-    # so a declared library's own baked-in $ORIGIN rpath no longer finds its real, undeclared
-    # siblings once Bazel has moved it away from them. Pointing every declared cc_import's own
-    # rpath directly at the real root/lib directory - not Bazel's per-target solib symlink
-    # dirs - sidesteps this entirely: whatever any of ROOT's own .so's need, declared here or
-    # not, is findable there, since that's where ROOT's own build actually put all of them
-    # together.
-    #
-    # This is a real, known gap of its own, not addressed here: root_libdir is an absolute
-    # path into this build's own external-repository cache, so it will not resolve on a
-    # different machine - e.g. the katydid_release archive extracted elsewhere. Fixing that
-    # would mean bundling the whole root/lib directory as runfiles data on every consuming
-    # binary and using a $ORIGIN-relative rpath into that copy instead.
-    root_rpath_linkopts = ["-Wl,-rpath," + root_libdir]
-
-    component_import_labels = []
-    system_linkopts = list(root_other_linkopts)
-    import_target_parts = []
-    for lib_name in root_lib_names:
-        so_path = "root/lib/lib{}.so".format(lib_name)
-        if repository_ctx.path(so_path).exists:
-            import_name = "_root_{}_import".format(lib_name)
-            component_import_labels.append(":" + import_name)
-            import_target_parts.append("""
-cc_import(
-    name = "{import_name}",
-    shared_library = "{so_path}",
-    linkopts = {rpath_linkopts},
-)
-""".format(import_name = import_name, so_path = so_path, rpath_linkopts = repr(root_rpath_linkopts)))
-        else:
-            system_linkopts.append("-l" + lib_name)
-
-    import_targets = "\n".join(import_target_parts)
+    root_linkopts = root_other_linkopts + [
+        "-l" + lib_name
+        for lib_name in root_lib_names
+        if not repository_ctx.path("root/lib/lib{}.so".format(lib_name)).exists
+    ]
 
     repository_ctx.file("BUILD.bazel", """
-load("@rules_cc//cc:cc_import.bzl", "cc_import")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
 
 package(default_visibility = ["//visibility:public"])
-{import_targets}
-cc_import(
+
+cc_library(
     name = "root",
     hdrs = glob(["root/include/**"], allow_empty = True),
     includes = ["root/include"],
-    # Propagates to every transitive dependent, same reasoning as FFTW_FOUND below - Katydid's
-    # code checks #ifdef ROOT_FOUND throughout, matching CMake's `add_definitions(-DROOT_FOUND)`.
     defines = ["ROOT_FOUND"],
-    # Genuine system libraries root-config --libs reported (e.g. -lpthread) that aren't part
-    # of this tarball are plain linkopts here, same mechanism as always. The rpath itself
-    # lives on each per-component cc_import above instead of here - see the comment there for
-    # why.
-    linkopts = {system_linkopts},
-    deps = {component_import_labels},
+    srcs = glob(["root/lib/*.so"]),
+    linkopts = {linkopts},
 )
 
 exports_files(["rootcling"])
-""".format(
-        import_targets = import_targets,
-        system_linkopts = repr(system_linkopts),
-        component_import_labels = repr(component_import_labels),
-    ))
+""".format(linkopts = repr(root_linkopts)))
 
     # Symlinked to the repository root, not referenced as root/bin/rootcling directly: keeps
     # the label @root//:rootcling short - tools/root_dictionary.bzl's own _rootcling attribute
