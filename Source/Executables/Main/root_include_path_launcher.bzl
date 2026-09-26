@@ -1,17 +1,20 @@
-"""Generates an sh_binary that sets ROOT_INCLUDE_PATH before the real binary it wraps starts."""
+"""Generates a wrapper that sets ROOT_INCLUDE_PATH before the real binary/test it wraps starts."""
 
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
-# Copied into the genrule's own runfiles/data below, so Cling finds them directly alongside
-# the running binary. See BUILD.bazel's comment above the producing genrules.
-_PCM_DATA = [
+# Default PCM data for callers in this package (Source/Executables/Main), where these copies
+# are defined locally. These are package-relative labels, so a caller in another package (see
+# root_include_path_test_launcher, used from Source/Executables/Validation) must pass its own
+# pcm_data explicitly, pointing at its own local copies instead.
+_DEFAULT_PCM_DATA = [
     ":CicadaDict_pcm_local_copy",
     ":IODict_pcm_local_copy",
     ":UtilityDict_pcm_local_copy",
 ]
 
-def root_include_path_launcher(name, real_bin_label):
-    """Sets ROOT_INCLUDE_PATH before real_bin_label's own process starts, then execs it.
+def _root_include_path_wrapper(name, real_bin_label, pcm_data, wrapper_rule):
+    """Shared implementation behind root_include_path_launcher/root_include_path_test_launcher.
 
     libCore.so is a dependency of every Katydid module .so (katydid_io, katydid_utility,
     etc.); per the ELF spec, a shared object's dependencies' constructors run before its own.
@@ -29,9 +32,17 @@ def root_include_path_launcher(name, real_bin_label):
     itself is also required: use_bash_launcher's generated launcher looks for the library at
     a path this deps entry provides, but does not add the dependency itself.
 
+    wrapper_rule is sh_binary or sh_test: the wrapper execs into real_bin_label without
+    forking, so the real binary's own exit code (and, for a test, pass/fail) propagates to
+    Bazel directly through the wrapper either way.
+
     Args:
-        name: name of the generated sh_binary.
-        real_bin_label: label of the real binary this wraps (e.g. ":Katydid_bin").
+        name: name of the generated sh_binary/sh_test.
+        real_bin_label: label of the real binary/test this wraps (e.g. ":Katydid_bin").
+        pcm_data: PCM local-copy genrule labels this wraps also needs as data, so Cling finds
+            them next to the real, exec'd binary (see BUILD.bazel's own comment on those
+            genrules).
+        wrapper_rule: sh_binary or sh_test.
     """
     genrule_name = name + "_launcher_gen"
     native.genrule(
@@ -65,18 +76,45 @@ chmod +x $@
 """,
     )
 
-    # _PCM_DATA is needed here so these files are part of this target's own runfiles: Cling
-    # looks for them directly alongside the running binary.
+    # data is needed here so these files are part of this target's own runfiles: Cling looks
+    # for them directly alongside the running binary.
     #
     # @cicada//:Library/_CROOTData.hh, not a local copy: ROOT_INCLUDE_PATH (set above) is a
     # general search path, not tied to any directory, so the original file works.
-    sh_binary(
+    wrapper_rule(
         name = name,
         srcs = [":" + genrule_name],
         data = [
             real_bin_label,
             "@cicada//:Library/_CROOTData.hh",
-        ] + _PCM_DATA,
+        ] + pcm_data,
         use_bash_launcher = True,
         deps = ["@rules_shell//shell/runfiles"],
     )
+
+def root_include_path_launcher(name, real_bin_label, pcm_data = _DEFAULT_PCM_DATA):
+    """Sets ROOT_INCLUDE_PATH before real_bin_label's own process starts, then execs it.
+
+    Args:
+        name: name of the generated sh_binary.
+        real_bin_label: label of the real binary this wraps (e.g. ":Katydid_bin").
+        pcm_data: see _root_include_path_wrapper. Defaults to this package's own local copies.
+    """
+    _root_include_path_wrapper(name, real_bin_label, pcm_data, sh_binary)
+
+def root_include_path_test_launcher(name, real_bin_label, pcm_data):
+    """Test counterpart of root_include_path_launcher: wraps a cc_test as a real sh_test.
+
+    Intended to wrap every Validation cc_test unconditionally, not just ones already known to
+    touch Cicada's ROOT dictionary at runtime: harmless for a test that doesn't need it, and
+    removes the need to reason case-by-case about which ones do (see
+    Source/Executables/Validation/BUILD.bazel's own top comment).
+
+    Args:
+        name: name of the generated sh_test.
+        real_bin_label: label of the real cc_test this wraps (e.g. ":TestVector_bin").
+        pcm_data: see _root_include_path_wrapper. No default: these are package-relative
+            labels defined in the calling package (e.g. Validation's own local PCM copies),
+            not this one.
+    """
+    _root_include_path_wrapper(name, real_bin_label, pcm_data, sh_test)
