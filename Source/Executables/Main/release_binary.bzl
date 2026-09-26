@@ -57,9 +57,8 @@ def release_binary(name, real_bin_label, final_bin_name):
         name = patched_name + "_patchelf",
         srcs = [real_bin_label],
         outs = [patched_name],
-        # patchelf is built from source by the @patchelf module (see MODULE.bazel) rather than
-        # assumed to be a preinstalled system package - only needed on the default (Linux)
-        # branch below, but select() on `tools` works the same way it does on `cmd`.
+        # patchelf is built from source by the @patchelf module (see MODULE.bazel), not
+        # assumed to be a preinstalled system package - only needed on the Linux branch below.
         tools = select({
             "@platforms//os:macos": [],
             "//conditions:default": ["@patchelf//:patchelf"],
@@ -68,12 +67,11 @@ def release_binary(name, real_bin_label, final_bin_name):
             "@platforms//os:macos": """
 cp $(location """ + real_bin_label + """) $@
 chmod +w $@
-# Rewrite every non-system dependency reference to @rpath/<basename> - see this file's
-# docstring for why this (unlike Linux's bare-soname NEEDED entries) can't be skipped. Every
-# shell-level dollar sign below is doubled ($$): genrule's cmd attribute expands a bare dollar
-# sign as a Make-variable reference even inside what becomes a shell comment, so it has to be
-# escaped like any other shell dollar sign here - $@ is the one exception, Bazel's own
-# genrule output-file variable, deliberately left single.
+# Rewrite every non-system dependency reference to @rpath/<basename> (see this file's
+# docstring for why - unlike Linux's bare-soname NEEDED entries, this can't be skipped).
+# $$ below is a literal shell $: genrule's cmd expands a bare $ even inside a shell comment,
+# so it must be escaped like any other shell $ here - $@ is the one exception (Bazel's own
+# genrule output-file variable).
 otool -L $@ | tail -n +2 | awk '{print $$1}' | while read -r dep; do
   case "$$dep" in
     /usr/lib/*|/System/*) ;;

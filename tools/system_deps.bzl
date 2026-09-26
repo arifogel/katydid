@@ -1,32 +1,25 @@
 """Wraps system-provided libraries (Boost, FFTW, MatIO), exposed as @system_libs - via
-Homebrew on macOS, via apt or dnf on Linux (whichever is actually on PATH - not a hardcoded
-distro list, so this doesn't need editing again for the next Linux flavor that shows up).
+Homebrew on macOS, via apt or dnf on Linux (whichever is on PATH, so a new Linux flavor needs
+no edit here).
 
-ROOT's fetch/discovery lives in tools/root.bzl, fully independent of this file: its module
-extension (root_deps) registers @root on its own, and this file's system_deps extension knows
-nothing about it.
+ROOT's fetch/discovery lives in tools/root.bzl, fully independent of this file.
 
-On every OS, Boost/FFTW/MatIO are exposed as real cc_import targets pointing at the
-already-installed .so/.dylib file for each library component (located via known apt/dnf paths
-on Linux, via `brew --prefix` on macOS), not a cc_library with a fake, empty placeholder
-source file. These libraries are never compiled by Bazel; cc_import represents that directly.
-This also fixes cc_shared_library's "linked statically but not exported" error for a library
+Boost/FFTW/MatIO are exposed as cc_import targets pointing at the already-installed .so/.dylib
+for each library component (apt/dnf's known paths on Linux, `brew --prefix` on macOS). This is
+also what fixes cc_shared_library's "linked statically but not exported" error for a library
 reachable from more than one cc_shared_library's deps (e.g. Boost, needed by both
-katydid_utility and nymph): cc_import is exempt from that check, cc_library is not (confirmed
-empirically, even for a header-only cc_library with zero srcs - bazelbuild/bazel#19920), and
-Bazel's own source doesn't document why. If a future Bazel version's behavior here changes,
-tags = ["LINKABLE_MORE_THAN_ONCE"] on the per-component cc_import targets below is the
-fallback - safe here specifically because a cc_import wrapping an existing system .so/.dylib
-has no compiled code of its own to duplicate, unlike a library actually compiled from source
-(e.g. @yaml_cpp, which needs its own real cc_shared_library instead, since a tag there would
-paper over genuinely duplicated code).
+katydid_utility and nymph): cc_import is exempt from that check, cc_library is not, even a
+header-only cc_library with zero srcs (bazelbuild/bazel#19920). If a future Bazel version's
+behavior here changes, tags = ["LINKABLE_MORE_THAN_ONCE"] on the per-component cc_import
+targets below is the fallback - safe here since a cc_import wrapping an existing system
+.so/.dylib has no compiled code of its own to duplicate, unlike a library actually compiled
+from source (e.g. @yaml_cpp, which needs its own cc_shared_library instead).
 
-Boost/FFTW/MatIO are discovered from what's already on the machine (Homebrew, apt, dnf) rather
-than fetched hermetically, so the exact version you get depends on what's already installed.
-The two OSes differ only in how the library is located, not in what kind of target represents
-it once found: apt/dnf-installed Boost/FFTW/MatIO need no explicit -I (their headers land on
-the compiler's default system include path); Homebrew keeps things out of the way, so macOS
-needs `brew --prefix` plus explicit hdrs/includes on the aggregating cc_import below.
+Boost/FFTW/MatIO are discovered from what's already on the machine rather than fetched
+hermetically, so the exact version depends on what's installed. The two OSes differ only in
+how the library is located: apt/dnf-installed Boost/FFTW/MatIO need no explicit -I (headers
+land on the compiler's default system include path); Homebrew keeps things out of the way, so
+macOS needs `brew --prefix` plus explicit hdrs/includes on the aggregating cc_import below.
 
 Usage from a BUILD file: deps = ["@system_libs//:boost", "@system_libs//:fftw"]
 """
@@ -34,9 +27,9 @@ Usage from a BUILD file: deps = ["@system_libs//:boost", "@system_libs//:fftw"]
 _MAC_FORMULAE = {
     "boost": {
         # Nymph/Scarab/Katydid link these specific components, not just Boost's header-only
-        # parts. boost_system deliberately NOT listed: Boost.System has been header-only since
-        # 1.69, and Boost 1.89 (2025) removed the compiled stub library entirely - linking
-        # -lboost_system now fails outright on any current Homebrew Boost.
+        # parts. boost_system deliberately omitted: header-only since 1.69, and Boost 1.89
+        # removed the compiled stub library entirely - linking -lboost_system fails on any
+        # current Homebrew Boost.
         "libs": [
             "boost_filesystem",
             "boost_thread",
@@ -47,9 +40,8 @@ _MAC_FORMULAE = {
     "fftw": {
         "libs": ["fftw3"],
         # Katydid's code checks #ifdef FFTW_FOUND (e.g. Data/Time/KTPhysicalArrayFFTW.hh) to
-        # choose between real fftw3.h and a bundled stand-in header. Defining it here, once,
-        # propagates transitively to every target that depends on @system_libs//:fftw (directly
-        # or via Utility) - same as CMake's `add_definitions(-DFFTW_FOUND)` did project-wide.
+        # choose between real fftw3.h and a bundled stand-in header - matches CMake's
+        # add_definitions(-DFFTW_FOUND).
         "defines": ["FFTW_FOUND"],
     },
     # Homebrew's formula for MatIO is "libmatio", not "matio" - keep the exposed target name
@@ -60,10 +52,10 @@ _MAC_FORMULAE = {
     },
 }
 
-# Linux: apt-installed Boost/FFTW/MatIO need no -I/-L (default search paths cover them) - just
-# -l flags. Package names/versions confirmed against Ubuntu 24.04 (noble)'s package index -
-# matio's shared lib is libmatio13, but libmatio-dev provides the unversioned libmatio.so
-# symlink a plain -lmatio needs to resolve, same pattern as most -dev packages.
+# apt puts Boost/FFTW/MatIO's .so files and headers on the compiler/linker's default search
+# paths. Package names/versions confirmed against Ubuntu 24.04 (noble)'s package index: matio's
+# shared lib is libmatio13, but libmatio-dev provides the unversioned libmatio.so symlink used
+# here, same pattern as most -dev packages.
 _LINUX_APT_LIBS = {
     "boost": {
         "packages": [
@@ -85,10 +77,10 @@ _LINUX_APT_LIBS = {
     },
 }
 
-# AlmaLinux 9 / RHEL 9 family (dnf). Same "no -I/-L needed" reasoning as apt: dnf also installs
-# into the compiler/linker's default search paths. Package names confirmed against the
-# AlmaLinux/EPEL package index: boost-devel/fftw-devel live in AlmaLinux 9's AppStream repo;
-# matio-devel specifically needs EPEL (`dnf install epel-release`) - it isn't in AppStream or CRB.
+# AlmaLinux 9 / RHEL 9 family (dnf). Same default-search-path story as apt. Package names
+# confirmed against the AlmaLinux/EPEL package index: boost-devel/fftw-devel live in AlmaLinux
+# 9's AppStream repo; matio-devel needs EPEL (`dnf install epel-release`) - not in AppStream or
+# CRB.
 _LINUX_DNF_LIBS = {
     "boost": {
         "packages": ["boost-devel"],
@@ -105,12 +97,11 @@ _LINUX_DNF_LIBS = {
     },
 }
 
-# Checked by looking for the actual header each library installs, not by asking the package
-# manager whether a package name is "installed" (`dpkg -s` / `rpm -q`): some package managers
-# use "transitional" wrapper packages for versioned libraries (e.g. Ubuntu's
-# libboost-filesystem-dev depends on the real libboost-filesystem1.83-dev), and some CI caching
-# doesn't reliably register these wrapper packages even when the files are actually present.
-# Checking for the header sidesteps this and is identical logic on both apt and dnf.
+# Checked via the actual header each library installs, not via the package manager's own
+# "is this installed" query (dpkg -s / rpm -q): some package managers use transitional wrapper
+# packages for versioned libraries (e.g. Ubuntu's libboost-filesystem-dev depends on the real
+# libboost-filesystem1.83-dev), and some CI caching doesn't reliably register these wrapper
+# packages even when the files are present.
 _LINUX_HEADER_CHECK = {
     "boost": "usr/include/boost/version.hpp",
     "fftw": "usr/include/fftw3.h",
@@ -120,9 +111,8 @@ _LINUX_HEADER_CHECK = {
 def _is_macos(repository_ctx):
     return repository_ctx.os.name.lower().startswith("mac")
 
-# Distinguishes apt-based vs dnf-based Linux by which package manager binary is actually on
-# PATH, rather than parsing /etc/os-release or hardcoding a list of distro names - robust to
-# whatever distro shows up next without needing this file edited again.
+# Distinguishes apt vs dnf by which package manager binary is on PATH rather than parsing
+# /etc/os-release or hardcoding distro names, so a new Linux flavor needs no edit here.
 def _linux_pkg_manager(repository_ctx):
     if repository_ctx.which("apt-get"):
         return "apt", _LINUX_APT_LIBS
@@ -142,9 +132,8 @@ def _check_header_or_fail(repository_ctx, formula, header, packages, install_hin
             hint = install_hint.format(pkgs = " ".join(packages)),
         ))
 
-# Locates the real, already-installed .so file: apt (Debian/Ubuntu multiarch) and dnf
-# (RHEL-family lib64) put it in different places, and cc_import needs a concrete file path,
-# not a linker search hint.
+# apt (Debian/Ubuntu multiarch) and dnf (RHEL-family lib64) install to different absolute
+# paths, checked in order.
 def _find_shared_lib_or_fail(repository_ctx, libname, packages, install_hint):
     candidate_paths = [
         "/usr/lib/x86_64-linux-gnu/lib{}.so".format(libname),  # apt (Debian/Ubuntu multiarch)
@@ -163,9 +152,8 @@ def _find_shared_lib_or_fail(repository_ctx, libname, packages, install_hint):
         ),
     )
 
-# Locates the real, already-installed .dylib file under a formula's `brew --prefix` - unlike
-# Linux's apt/dnf, Homebrew always puts it at exactly one place, so there's a single candidate
-# to check rather than a list.
+# Homebrew always puts it at exactly one place (unlike apt/dnf), so there's a single
+# candidate to check.
 def _find_mac_dylib_or_fail(repository_ctx, prefix, libname, brew_formula):
     path = "{}/lib/lib{}.dylib".format(prefix, libname)
     if repository_ctx.path(path).exists:
@@ -183,15 +171,13 @@ def _system_libs_repo_impl(repository_ctx):
     ]
     build_file_parts.append('package(default_visibility = ["//visibility:public"])')
 
-    # Every macOS formula's absolute <prefix>/lib directory (empty on Linux) - written out below
+    # Every macOS formula's absolute <prefix>/lib directory (empty on Linux), written out below
     # as its own .bzl file so release_binary.bzl/harvest_runtime_libs.bzl can bake these in as
-    # extra RPATH entries on the release archive (see harvest_runtime_libs.bzl's docstring for
-    # why the release archive needs this at all).
+    # extra RPATH entries (see harvest_runtime_libs.bzl's docstring for why).
     mac_lib_dirs = []
 
-    # --- Boost / FFTW / MatIO: genuinely different discovery per OS, not just a different
-    # formula name. Homebrew deliberately keeps things out of default search paths (needs
-    # explicit -I/-L, found via `brew --prefix`); apt installs into them (needs neither).
+    # Homebrew keeps headers out of the default include path (needs explicit hdrs/includes,
+    # found via `brew --prefix`); apt puts them on it (needs neither).
     if is_macos:
         brew = repository_ctx.which("brew")
         if not brew:
@@ -214,13 +200,10 @@ def _system_libs_repo_impl(repository_ctx):
             prefix = result.stdout.strip()
             mac_lib_dirs.append(prefix + "/lib")
 
-            # Symlink brew's include dir into this repo so `hdrs = glob(...)` has real files to
-            # see - brew's prefix lives outside the workspace/output tree, Bazel can't glob into
-            # it directly.
+            # Symlinks brew's include dir into this repo (needed for hdrs = glob(...) below).
             repository_ctx.symlink(prefix + "/include", formula + "/include")
 
-            # Real cc_import per library component, matching Linux - see this file's top
-            # comment for why (not a cc_library + linkopts).
+            # Real cc_import per library component, matching Linux (see module docstring).
             component_import_labels = []
             for lib in info["libs"]:
                 dylib_path = _find_mac_dylib_or_fail(repository_ctx, prefix, lib, brew_formula)
@@ -265,10 +248,7 @@ cc_import(
                 install_hint,
             )
 
-            # Real cc_import per library component - see this file's top comment for why.
-            #
-            # Symlinked into this repository first: cc_import's shared_library attribute takes
-            # a label (a file within this repository), not an arbitrary absolute path.
+            # Symlinked into this repository first, then wrapped as cc_import.
             component_import_labels = []
             for lib in info["libs"]:
                 so_path = _find_shared_lib_or_fail(repository_ctx, lib, info["packages"], install_hint)
@@ -285,11 +265,10 @@ cc_import(
 """.format(import_name = import_name, symlink_name = symlink_name))
 
             # No hdrs/includes: apt/dnf already put the headers on the compiler's default
-            # system include path (/usr/include).
+            # system include path.
             #
-            # This aggregating target is a cc_import too (deps on the per-component imports
-            # above, no shared_library/static_library of its own), not a cc_library - see this
-            # file's top comment for why that matters.
+            # This aggregating target is a cc_import too (see module docstring for why), just
+            # deps on the per-component imports above.
             build_file_parts.append("""
 cc_import(
     name = "{formula}",
@@ -304,8 +283,8 @@ cc_import(
 
     repository_ctx.file("BUILD.bazel", "\n".join(build_file_parts))
 
-    # See this function's own top comment (mac_lib_dirs) for why this exists: empty on Linux,
-    # one absolute <prefix>/lib directory per macOS formula otherwise.
+    # See mac_lib_dirs above: empty on Linux, one absolute <prefix>/lib directory per macOS
+    # formula otherwise.
     repository_ctx.file("lib_dirs.bzl", "MAC_LIB_DIRS = " + repr(mac_lib_dirs) + "\n")
 
 _system_libs_repo = repository_rule(

@@ -24,10 +24,9 @@ lib/ itself, so one RPATH is correct in both places.
 
 load("@system_libs//:lib_dirs.bzl", "MAC_LIB_DIRS")
 
-# Resolved once, at load time, via this file's repo mapping rather than hardcoded against
-# Bazel's internal, version-specific canonical-name mangling (e.g. the "+root_deps+root"-style
-# names visible in solib directory paths). Label() only parses/canonicalizes a label string; it
-# doesn't require anything at that path to exist.
+# Resolved via this file's repo mapping rather than hardcoded against Bazel's internal,
+# version-specific canonical-name mangling (e.g. the "+root_deps+root"-style names visible in
+# solib directory paths).
 _ROOT_WORKSPACE_NAME = Label("@root//:BUILD.bazel").workspace_name
 
 # @system_libs (Boost/FFTW/MatIO) is excluded from harvesting the same way @root is: on every
@@ -46,9 +45,6 @@ _SYSTEM_LIBS_WORKSPACE_NAME = Label("@system_libs//:BUILD.bazel").workspace_name
 _MAC_EXTRA_RPATH_FLAGS = " ".join(["-add_rpath '{}'".format(d) for d in MAC_LIB_DIRS])
 
 def _harvest_runtime_libs_impl(ctx):
-    # Resolved via a private constraint-value attribute, the standard way for a rule
-    # implementation (not a macro - select() isn't usable directly inside one) to branch on
-    # target OS.
     is_macos = ctx.target_platform_has_constraint(ctx.attr._macos_constraint[platform_common.ConstraintValueInfo])
 
     outputs = []
@@ -56,11 +52,10 @@ def _harvest_runtime_libs_impl(ctx):
     for binary in ctx.attr.binaries:
         for f in binary[DefaultInfo].default_runfiles.files.to_list():
             # @root is bundled wholesale into the release archive's root/ subdirectory
-            # separately (see //tools:root.bzl's all_files filegroup) - anything owned by it
-            # here would be a duplicate, and ROOT's libraries deliberately don't live
-            # alongside Katydid's in lib/ (see this repo's top-level BUILD.bazel comment on
-            # //:katydid_release for why). @system_libs is excluded for a different reason -
-            # see this file's own comment on _SYSTEM_LIBS_WORKSPACE_NAME above.
+            # separately (see //tools:root.bzl's all_files filegroup and the top-level
+            # BUILD.bazel comment on //:katydid_release), so anything owned by it here would
+            # be a duplicate. @system_libs is excluded for a different reason - see
+            # _SYSTEM_LIBS_WORKSPACE_NAME above.
             if f.owner != None and f.owner.workspace_name in (_ROOT_WORKSPACE_NAME, _SYSTEM_LIBS_WORKSPACE_NAME):
                 continue
             if not (f.basename.endswith(".so") or f.basename.endswith(".pcm")):
@@ -125,8 +120,8 @@ harvest_runtime_libs = rule(
         # its implementation function - this constraint-value attribute is the standard way
         # around that).
         "_macos_constraint": attr.label(default = Label("@platforms//os:macos")),
-        # Only used on the Linux branch above; harmless to build unconditionally (see
-        # release_binary.bzl's own use of @patchelf for the equivalent, select()-scoped case).
+        # Only used on the Linux branch above; harmless to build unconditionally (contrast
+        # release_binary.bzl's select()-scoped @patchelf tools dep for the genrule case).
         "_patchelf": attr.label(default = Label("@patchelf//:patchelf"), executable = True, cfg = "exec"),
     },
     doc = "Collects every .so/.pcm file reachable from binaries' runfiles, flat, excluding @root and @system_libs (see this file's docstring).",

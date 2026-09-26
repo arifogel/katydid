@@ -23,9 +23,9 @@ root_repo (the repository_rule below) is registered by this file's own module ex
 registers @system_libs and knows nothing about @root.
 """
 
-# Bump this (and nowhere else) to change the ROOT version used everywhere - matches
-# ci.yaml's ROOT_VERSION. Confirm any new version is published for every platform below at
-# https://root.cern/install/all_releases/ before bumping, and refresh the sha256 for each.
+# Bump this (and nowhere else) to change the ROOT version used everywhere. Confirm any new
+# version is published for every platform below at https://root.cern/install/all_releases/
+# before bumping, and refresh the sha256 for each.
 _ROOT_VERSION = "6.40.04"
 
 # One exact, baked-in URL per supported platform - only the platforms this repo's CI supports
@@ -49,9 +49,8 @@ _ROOT_DOWNLOADS = {
     },
 }
 
-# Duplicated from tools/system_deps.bzl's _is_macos rather than shared via load(): a
-# leading-underscore Starlark symbol is private to its file and can't be loaded elsewhere,
-# and this two-line helper isn't worth making public just to share.
+# Duplicated from tools/system_deps.bzl's _is_macos rather than shared via load() - not worth
+# making that symbol public just to share a two-line helper.
 def _is_macos(repository_ctx):
     return repository_ctx.os.name.lower().startswith("mac")
 
@@ -140,25 +139,21 @@ def _root_repo_impl(repository_ctx):
     # find_package(ROOT 6.00 COMPONENTS Gui Spectrum TMVA) - root-config --libs alone doesn't
     # include those, so they're added by hand the same way CMake's find_package would.
     #
-    # Every Katydid module gets the full set here (not scoped per module to just what it
-    # calls into), matching the CMake reference build: its top-level CMakeLists.txt makes one
-    # global find_package(ROOT COMPONENTS Gui Spectrum TMVA) call and links the full
-    # ${ROOT_LIBRARIES} set into every target - no per-module CMakeLists.txt scopes this more
-    # narrowly. The reference build's smaller, per-module NEEDED sets come from the system
-    # compiler's default --as-needed linker behavior pruning unused entries at link time, not
-    # from anything CMake does; Bazel's default toolchain may not prune the same way, so this
-    # can end up less minimal. Not a correctness concern: an unused DT_NEEDED entry just means
-    # an extra library gets loaded at process start.
+    # Every Katydid module gets the full set here, not scoped per module, matching the CMake
+    # reference build's own single, global find_package(ROOT COMPONENTS Gui Spectrum TMVA) and
+    # ${ROOT_LIBRARIES} link into every target. The reference build's smaller, per-module
+    # NEEDED sets come from the system compiler's --as-needed pruning, not from CMake itself;
+    # Bazel's toolchain may not prune the same way, so this can end up less minimal. Not a
+    # correctness concern: an unused DT_NEEDED entry just means an extra library load at
+    # process start.
     root_base_libs_result = repository_ctx.execute([root_config, "--libs"])
     if root_base_libs_result.return_code != 0:
         fail("`root-config --libs` failed on the just-extracted ROOT build:\n" + root_base_libs_result.stderr)
     root_extra_component_libs = ["-lGui", "-lSpectrum", "-lTMVA"]
 
     # root-config --libs's tokens, split into three buckets: -l entries (library names,
-    # handled below), -L entries (a search-path hint cc_import doesn't need, since
-    # shared_library references the exact file directly - intentionally dropped), and
-    # everything else (e.g. -pthread, -rdynamic - linker flags with no library name to
-    # extract, preserved verbatim as linkopts).
+    # handled below), -L entries (dropped - unneeded once each .so's exact path is known), and
+    # everything else (e.g. -pthread, -rdynamic, preserved verbatim as linkopts).
     all_root_libs_tokens = root_base_libs_result.stdout.strip().split(" ") + root_extra_component_libs
     root_lib_names = [x[2:] for x in all_root_libs_tokens if x.startswith("-l")]
     root_other_linkopts = [x for x in all_root_libs_tokens if x and not x.startswith("-l") and not x.startswith("-L")]
@@ -190,10 +185,8 @@ def _root_repo_impl(repository_ctx):
         selected = {name: True for name in root_lib_names}
         frontier = list(root_lib_names)
 
-        # Starlark has no while loop - bounded for loop instead, breaking early once the
-        # closure stops growing. 50 is far more than ROOT's internal dependency graph could
-        # ever need; the bound exists only so the loop is expressible in Starlark, not because
-        # 50 is a meaningful limit here.
+        # Bounded for loop, breaking early once the closure stops growing. 50 is far more than
+        # ROOT's internal dependency graph could ever need - not a meaningful limit on its own.
         for _ in range(50):
             if not frontier:
                 break
