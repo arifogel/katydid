@@ -1,6 +1,20 @@
-"""Wraps system-provided libraries (Boost, FFTW, MatIO, ROOT) as cc_library targets - via
-Homebrew on macOS, via apt or dnf on Linux (whichever is actually on PATH - not a hardcoded
-distro list, so this doesn't need editing again for the next Linux flavor that shows up).
+"""Wraps system-provided libraries (Boost, FFTW, MatIO, ROOT) as Bazel targets - via Homebrew
+on macOS, via apt or dnf on Linux (whichever is actually on PATH - not a hardcoded distro
+list, so this doesn't need editing again for the next Linux flavor that shows up).
+
+On Linux, Boost/FFTW/MatIO are exposed as real cc_import targets pointing directly at the
+actual, already-installed .so file for each library component (located via known apt/dnf
+paths, not a bare -l linker search hint) - not a cc_library with a fake, empty placeholder
+source file. These libraries' own compiled implementation already exists on the machine and
+was never something Bazel compiles; cc_import represents that directly. Whether this also
+resolves cc_shared_library's own "linked statically but not exported" error for a library
+reachable from more than one cc_shared_library's own deps (e.g. Boost, needed by both
+katydid_utility and nymph) is what this specific structure is testing empirically - not yet
+confirmed either way. If it turns out cc_import does not exempt a node from that check any
+more than a plain cc_library does, the next thing to try is tags = ["LINKABLE_MORE_THAN_ONCE"]
+on the per-component cc_import targets above - genuinely appropriate here specifically,
+since a cc_import wrapping an already-existing system .so has no compiled code of its own to
+duplicate at all, unlike a library actually compiled from source (e.g. @yaml_cpp).
 
 ROOT is fetched directly as a prebuilt binary from root.cern, one exact URL per supported
 platform, rather than discovered via root-config on PATH: no distro packages a usable ROOT
@@ -189,6 +203,29 @@ def _check_header_or_fail(repository_ctx, formula, header, packages, install_hin
             hint = install_hint.format(pkgs = " ".join(packages)),
         ))
 
+# Locates the real, already-installed .so file for a library - apt (Debian/Ubuntu multiarch)
+# and dnf (RHEL-family lib64) each put it somewhere different, and neither necessarily uses
+# the unversioned name a plain -l flag would resolve via the linker's own search path (which
+# is what the prior linkopts-only approach relied on). cc_import needs a concrete file, not a
+# linker search hint - this finds it directly rather than assuming a single fixed path.
+def _find_shared_lib_or_fail(repository_ctx, libname, packages, install_hint):
+    candidate_paths = [
+        "/usr/lib/x86_64-linux-gnu/lib{}.so".format(libname),  # apt (Debian/Ubuntu multiarch)
+        "/usr/lib64/lib{}.so".format(libname),  # dnf (RHEL-family)
+        "/usr/lib/lib{}.so".format(libname),  # less common, but seen on some distros
+    ]
+    for path in candidate_paths:
+        if repository_ctx.path(path).exists:
+            return path
+    fail(
+        "Could not find lib{lib}.so in any known location ({paths}) - looks like it isn't " +
+        "installed.\nRun:\n  {hint}".format(
+            lib = libname,
+            paths = ", ".join(candidate_paths),
+            hint = install_hint.format(pkgs = " ".join(packages)),
+        ),
+    )
+
 def _root_download_key(repository_ctx):
     if _is_macos(repository_ctx):
         return ("macos", _normalized_arch(repository_ctx))
@@ -273,7 +310,10 @@ exports_files(["rootcling"])
 def _system_libs_repo_impl(repository_ctx):
     is_macos = _is_macos(repository_ctx)
 
-    build_file_parts = ['load("@rules_cc//cc:cc_library.bzl", "cc_library")']
+    build_file_parts = [
+        'load("@rules_cc//cc:cc_import.bzl", "cc_import")',
+        'load("@rules_cc//cc:cc_library.bzl", "cc_library")',
+    ]
     build_file_parts.append('package(default_visibility = ["//visibility:public"])')
 
     # cc_shared_library silently drops linkopts from a cc_library with no srcs
@@ -339,20 +379,52 @@ cc_library(
                 install_hint,
             )
 
-            linkopts = ["-l" + lib for lib in info["libs"]]
+            # Real cc_import per library component, not a cc_library with a fake _empty.cc
+            # source and a bare -l linkopt: boost/fftw/matio's own compiled implementation
+            # already exists as a real .so on the machine, and was never ours to compile in
+            # the first place - cc_import(shared_library = ...) represents that directly,
+            # pointing at the actual, located file, rather than a linker search hint.
+            #
+            # Symlinked into this repository first: cc_import's own shared_library attribute
+            # takes a label (a file within this repository), not an arbitrary absolute path.
+            component_import_labels = []
+            for lib in info["libs"]:
+                so_path = _find_shared_lib_or_fail(repository_ctx, lib, info["packages"], install_hint)
+                symlink_name = "{formula}/lib{lib}.so".format(formula = formula, lib = lib)
+                repository_ctx.symlink(so_path, symlink_name)
+
+                import_name = "_{formula}_{lib}_import".format(formula = formula, lib = lib)
+                component_import_labels.append(":" + import_name)
+                build_file_parts.append("""
+cc_import(
+    name = "{import_name}",
+    shared_library = "{symlink_name}",
+)
+""".format(import_name = import_name, symlink_name = symlink_name))
 
             # No hdrs/includes: apt/dnf already put the headers on the compiler's default system
             # include path (/usr/include), which Bazel's auto-configured C++ toolchain always
             # allows inside the sandbox - the same mechanism that makes <vector>/<stdio.h> work
             # without declaring them as hdrs on any target.
+            #
+            # This aggregating target is itself a cc_import too (no shared_library/
+            # static_library of its own, just deps on the per-component imports above), not a
+            # cc_library: keeps the whole chain cc_import-shaped, testing directly whether
+            # cc_shared_library's own "linked statically but not exported" ODR-reachability
+            # check exempts a cc_import node the way it does not exempt a plain cc_library
+            # (confirmed it does not, even a header-only one with zero srcs -
+            # bazelbuild/bazel#19920).
             build_file_parts.append("""
-cc_library(
+cc_import(
     name = "{formula}",
-    srcs = ["_empty.cc"],
     defines = {defines},
-    linkopts = {linkopts},
+    deps = {component_import_labels},
 )
-""".format(formula = formula, defines = repr(info.get("defines", [])), linkopts = repr(linkopts)))
+""".format(
+                formula = formula,
+                defines = repr(info.get("defines", [])),
+                component_import_labels = repr(component_import_labels),
+            ))
 
     repository_ctx.file("BUILD.bazel", "\n".join(build_file_parts))
 
