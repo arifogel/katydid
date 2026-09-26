@@ -271,7 +271,7 @@ def _root_repo_impl(repository_ctx):
     # No stripPrefix: root.cern's own tarballs already extract with a top-level root/
     # directory (confirmed directly against ci.yaml's own usage, which extracts to /opt/ and
     # then references /opt/root/bin/rootcling) - this lands it at root/ directly inside this
-    # repository, matching what the cc_library below already expects.
+    # repository, matching what the targets below already expect.
     repository_ctx.download_and_extract(
         url = download["url"].format(v = _ROOT_VERSION),
         sha256 = download["sha256"],
@@ -286,6 +286,19 @@ def _root_repo_impl(repository_ctx):
     # COMPONENTS Katydid's CMakeLists.txt explicitly requests via
     # find_package(ROOT 6.00 COMPONENTS Gui Spectrum TMVA) - root-config --libs alone doesn't
     # include those, they have to be added by hand the same way CMake's find_package would.
+    #
+    # Every Katydid module gets the full set here (not scoped per module to just what it
+    # actually calls into), matching the CMake reference build's own approach directly:
+    # confirmed by reading it, the top-level CMakeLists.txt makes one global
+    # find_package(ROOT COMPONENTS Gui Spectrum TMVA) call and links the full
+    # ${ROOT_LIBRARIES} set into every target via pbuilder_add_ext_libraries - no per-module
+    # CMakeLists.txt scopes this more narrowly. The reference build's own, smaller, per-module
+    # NEEDED sets (confirmed via readelf) come entirely from the system compiler's own default
+    # --as-needed linker behavior pruning unused entries at link time, not from anything CMake
+    # itself does - Bazel's own default toolchain is not confirmed to do the same pruning, so
+    # this may end up less minimal than the reference build's own NEEDED sets. Not a
+    # correctness concern either way: an unused DT_NEEDED entry just means an extra library
+    # gets loaded at process start.
     root_base_libs_result = repository_ctx.execute([root_config, "--libs"])
     if root_base_libs_result.return_code != 0:
         fail("`root-config --libs` failed on the just-extracted ROOT build:\n" + root_base_libs_result.stderr)
@@ -296,37 +309,68 @@ def _root_repo_impl(repository_ctx):
         fail("`root-config --libdir` failed on the just-extracted ROOT build:\n" + root_libdir_result.stderr)
     root_libdir = root_libdir_result.stdout.strip()
 
-    root_base_libs = [x for x in root_base_libs_result.stdout.strip().split(" ") if x]
-    root_linkopts = (
-        root_base_libs +
-        root_extra_component_libs +
-        ["-Wl,-rpath," + root_libdir]  # ROOT dlopens plugin libs at runtime; needs rpath, not just -L
-    )
+    # root-config --libs's own tokens, split into three buckets: -l entries (library names,
+    # handled below), -L entries (a search-path hint cc_import doesn't need, since
+    # shared_library references the exact file directly - intentionally dropped), and
+    # everything else (e.g. -pthread, -rdynamic - genuine linker flags with no library name
+    # to extract, preserved verbatim as linkopts, the same way the prior, pre-cc_import
+    # version of this code did for every token here).
+    all_root_libs_tokens = root_base_libs_result.stdout.strip().split(" ") + root_extra_component_libs
+    root_lib_names = [x[2:] for x in all_root_libs_tokens if x.startswith("-l")]
+    root_other_linkopts = [x for x in all_root_libs_tokens if x and not x.startswith("-l") and not x.startswith("-L")]
+
+    # Real cc_import per ROOT library, not a cc_library with a fake _empty.cc source and a
+    # bare -l linkopt: like Boost/FFTW/MatIO (see this file's own top comment), ROOT's own
+    # compiled implementation already exists as a real .so - here, already sitting in the
+    # tarball just extracted, not something Bazel compiles or even needs to locate elsewhere
+    # on the machine. A library root-config --libs reports that isn't actually part of the
+    # tarball (e.g. -lpthread, -ldl - genuine system libraries, not ROOT's own) falls back to
+    # a plain linkopt on the aggregating cc_import below, the same way it always worked.
+    component_import_labels = []
+    system_linkopts = list(root_other_linkopts)
+    import_target_parts = []
+    for lib_name in root_lib_names:
+        so_path = "root/lib/lib{}.so".format(lib_name)
+        if repository_ctx.path(so_path).exists:
+            import_name = "_root_{}_import".format(lib_name)
+            component_import_labels.append(":" + import_name)
+            import_target_parts.append("""
+cc_import(
+    name = "{import_name}",
+    shared_library = "{so_path}",
+)
+""".format(import_name = import_name, so_path = so_path))
+        else:
+            system_linkopts.append("-l" + lib_name)
+
+    import_targets = "\n".join(import_target_parts)
 
     repository_ctx.file("BUILD.bazel", """
-load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_import.bzl", "cc_import")
 
 package(default_visibility = ["//visibility:public"])
-
-cc_library(
+{import_targets}
+cc_import(
     name = "root",
-    srcs = ["_empty.cc"],
     hdrs = glob(["root/include/**"], allow_empty = True),
     includes = ["root/include"],
     # Propagates to every transitive dependent, same reasoning as FFTW_FOUND below - Katydid's
     # code checks #ifdef ROOT_FOUND throughout, matching CMake's `add_definitions(-DROOT_FOUND)`.
     defines = ["ROOT_FOUND"],
-    linkopts = {linkopts},
+    # ROOT dlopens plugin libs at runtime; needs rpath, not just -L. Genuine system libraries
+    # root-config --libs reported (e.g. -lpthread) that aren't part of this tarball are also
+    # plain linkopts here, same mechanism as always.
+    linkopts = {system_linkopts} + ["-Wl,-rpath,{libdir}"],
+    deps = {component_import_labels},
 )
 
 exports_files(["rootcling"])
-""".format(linkopts = repr(root_linkopts)))
-
-    # cc_shared_library silently drops linkopts from a cc_library with no srcs
-    # (bazelbuild/bazel#21884/#27247, a still-open upstream bug; the attempted fix, #24017,
-    # was itself reverted). The cc_library above has linkopts and no srcs, so it gets this
-    # empty, inert source file as its own srcs.
-    repository_ctx.file("_empty.cc", "")
+""".format(
+        import_targets = import_targets,
+        system_linkopts = repr(system_linkopts),
+        libdir = root_libdir,
+        component_import_labels = repr(component_import_labels),
+    ))
 
     # Symlinked to the repository root, not referenced as root/bin/rootcling directly: keeps
     # the label @root//:rootcling short, matching what @system_libs//:rootcling aliases to
