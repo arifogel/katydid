@@ -1,22 +1,16 @@
-"""harvest_runtime_libs: collects every runtime .so/.pcm a binary needs, straight from Bazel's
-dependency graph rather than a hand-maintained list or a directory walk over an
-already-materialized runfiles tree on disk (which can accumulate stale entries across
-incremental builds).
+"""harvest_runtime_libs: collects every runtime .so/.pcm a binary needs, from Bazel's dependency
+graph.
 
-`binary[DefaultInfo].default_runfiles.files` is the same, freshly-computed-every-analysis
-depset that already makes `bazel run`/`bazel test` correct, so reading it here reuses the
-existing source of truth instead of introducing a new one. Filtering by each file's `.owner`
-(a Label, a real graph property) rather than matching Bazel's internal, versioned solib-name
-mangling keeps this robust to how Bazel happens to name things internally.
+`binary[DefaultInfo].default_runfiles.files` is the same depset `bazel run`/`bazel test` use.
+Filtering by each file's `.owner` (a Label) avoids depending on Bazel's internal solib-name
+mangling.
 
-Every harvested .so also gets its RPATH rewritten (patchelf on Linux, install_name_tool on
-macOS - see release_binary.bzl's docstring for the macOS-specific steps this needs beyond a
-plain RPATH rewrite), not just copied as-is: each one still carries whatever RPATH Bazel baked
-in at its original build time (pointing at Bazel's solib-tree paths, meaningless once
-repackaged), and library-to-library dependencies among the bundled .so files (e.g.
-libscarab.so's dependency on libyaml-cpp.so - not a dependency of Katydid_bin directly, so
-invisible to a NEEDED/LC_LOAD_DYLIB-based allowlist or to patching only the top-level binary)
-need the same fix. The RPATH used is identical to the top-level binary's in release_binary.bzl
+Every harvested .so gets its RPATH rewritten (patchelf on Linux, install_name_tool on macOS -
+see release_binary.bzl's docstring for the macOS-specific steps beyond a plain RPATH rewrite):
+each carries whatever RPATH Bazel baked in at its original build time (pointing at Bazel's
+solib-tree paths, meaningless once repackaged), and library-to-library dependencies among the
+bundled .so files (e.g. libscarab.so's dependency on libyaml-cpp.so) need the same fix. The
+RPATH used is identical to the top-level binary's in release_binary.bzl
 ($ORIGIN/../lib:$ORIGIN/../root/lib on Linux, @loader_path/../lib and
 @loader_path/../root/lib on macOS): for a file already inside lib/, ../lib round-trips back to
 lib/ itself, so one RPATH is correct in both places.
