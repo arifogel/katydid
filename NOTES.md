@@ -47,13 +47,17 @@ and with C/C++ build and link mechanics generally.
 `tools/system_deps.bzl` implements a single repository rule, exposed as `@system_libs`, that
 branches on the host platform:
 
-- **ROOT** is located identically on every platform: by requiring `root-config` to already be
-  on `PATH`. This works whether ROOT came from Homebrew, a manually-extracted binary tarball, or
-  any other installation method, since `root-config` is ROOT's own official query tool and every
-  ROOT distribution ships one. The rule queries `root-config --incdir`, `--libdir`, and
-  `--libs`, and adds `-lGui -lSpectrum -lTMVA` on top of the base libraries, matching Katydid's
-  `find_package(ROOT 6.00 COMPONENTS Gui Spectrum TMVA)` in the original CMake build. `rootcling`
-  is located via `root-config --bindir` and exposed as `@system_libs//:rootcling`.
+- **ROOT** is fetched directly as a prebuilt binary from root.cern, one exact, baked-in URL per
+  supported platform (Ubuntu 24.04, AlmaLinux 9.x, macOS on arm64 - the three this repository's
+  own CI supports), pinned to one `_ROOT_VERSION`. Unlike Boost/FFTW/MatIO below, ROOT's own
+  prebuilt binaries are versioned per exact OS release and toolchain, not just "linux" or
+  "macos", so this reads `/etc/os-release`'s `ID` field on Linux rather than just checking which
+  package manager is on `PATH`. After extracting the tarball, the rule still queries the
+  now-locally-extracted `root-config --libs`/`--libdir` (rather than hardcoding the libs list),
+  and adds `-lGui -lSpectrum -lTMVA` on top, matching Katydid's own
+  `find_package(ROOT 6.00 COMPONENTS Gui Spectrum TMVA)` in the original CMake build.
+  `rootcling` is symlinked to the repository root and exposed as `@system_libs//:rootcling`.
+  No installation step, and no `root-config` needs to already be on `PATH` beforehand.
 - **Boost, FFTW, and MatIO** are located differently depending on the package manager:
   - On **macOS**, via Homebrew (`brew --prefix <formula>`), since Homebrew deliberately installs
     outside the compiler's default search paths.

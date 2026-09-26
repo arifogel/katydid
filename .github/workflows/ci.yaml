@@ -6,13 +6,6 @@ on:
   pull_request:
     branches: [main]
 
-env:
-  # The ROOT version used by the Ubuntu and AlmaLinux jobs below. Bump this (and nowhere else)
-  # to change it - both jobs' download URLs are built from this value. Confirm any new version
-  # is actually published for both platforms at https://root.cern/install/all_releases/ before
-  # bumping.
-  ROOT_VERSION: "6.40.04"
-
 jobs:
   build-and-test:
     name: Bazel Build (${{ matrix.os }}, ${{ matrix.compilation_mode }})
@@ -20,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, macos-14]
+        os: [ubuntu-24.04, macos-26]
         compilation_mode: [fastbuild]
         include:
           # dbg and opt get special-cased handling in the Bazel build (see .bazelrc's
@@ -40,8 +33,9 @@ jobs:
 
       # --- Linux: Boost, FFTW, and MatIO come from apt (which installs into locations the
       # compiler already searches by default, so no further configuration is needed - see
-      # tools/system_deps.bzl). ROOT comes from a prebuilt binary published by the ROOT team,
-      # since Ubuntu does not package a usable ROOT build.
+      # tools/system_deps.bzl). ROOT is fetched directly by tools/system_deps.bzl itself now
+      # (a prebuilt binary published by the ROOT team, since Ubuntu does not package a usable
+      # ROOT build), not by a separate CI step - Bazel's own repository cache covers it.
       #
       # libtbb12 and libblas3 are not Katydid's own dependencies - they are runtime
       # dependencies of ROOT's own prebuilt binaries and shared libraries (rootcling itself
@@ -71,7 +65,7 @@ jobs:
           path: /var/cache/apt/archives
           key: apt-archives-${{ hashFiles('.github/workflows/ci.yaml') }}
 
-      - name: Install Boost/FFTW/MatIO/ROOT runtime deps (Linux)
+      - name: Install Boost/FFTW/MatIO runtime deps (Linux)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
@@ -92,28 +86,10 @@ jobs:
           sudo rm -f /var/cache/apt/archives/lock
           sudo rm -rf /var/cache/apt/archives/partial
 
-      - name: Cache ROOT (Linux)
-        if: runner.os == 'Linux'
-        id: cache-root-linux
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
-        with:
-          path: /opt/root
-          key: root-linux-${{ env.ROOT_VERSION }}-ubuntu24.04-gcc13.3
-
-      - name: Download and extract ROOT (Linux)
-        if: runner.os == 'Linux' && steps.cache-root-linux.outputs.cache-hit != 'true'
-        run: |
-          ROOT_URL="https://root.cern/download/root_v${ROOT_VERSION}.Linux-ubuntu24.04-x86_64-gcc13.3.tar.gz"
-          wget -q -O /tmp/root.tar.gz "$ROOT_URL"
-          tar -xzf /tmp/root.tar.gz -C /opt/
-
-      - name: Add ROOT to PATH (Linux)
-        if: runner.os == 'Linux'
-        run: echo "/opt/root/bin" >> "$GITHUB_PATH"
-
-      # --- macOS: Homebrew is preinstalled on GitHub's runners, but ROOT, Boost, FFTW, and
-      # MatIO are not, and are large enough downloads to be worth caching across CI runs even
-      # though each run starts from a fresh virtual machine.
+      # --- macOS: Homebrew is preinstalled on GitHub's runners, but Boost, FFTW, and MatIO
+      # are not, and are large enough downloads to be worth caching across CI runs even
+      # though each run starts from a fresh virtual machine. ROOT is fetched directly by
+      # tools/system_deps.bzl itself now, not brew - Bazel's own repository cache covers it.
       - name: Cache Homebrew downloads (macOS)
         if: runner.os == 'macOS'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
@@ -123,9 +99,9 @@ jobs:
           restore-keys: |
             brew-cache-${{ runner.os }}
 
-      - name: Install Boost/FFTW/MatIO/ROOT (macOS)
+      - name: Install Boost/FFTW/MatIO (macOS)
         if: runner.os == 'macOS'
-        run: brew install boost fftw libmatio root
+        run: brew install boost fftw libmatio
 
       - name: Set up Bazel & Caching
         uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # 0.19.0
@@ -145,13 +121,11 @@ jobs:
         run: bazel build -c ${{ matrix.compilation_mode }} //...
 
       # Every cc_test binary here links ROOT's shared libraries transitively (even a target
-      # with no ROOT-specific code of its own, via katydid_utility). rootcling's own shared
-      # library dependencies are already checked above on the AlmaLinux job, but that only
-      # covers what's needed to *generate* a dictionary at build time - it says nothing about
-      # the separate set of ROOT shared libraries (libCore.so, libRIO.so, etc.) that actually
-      # get linked into every test binary and are needed at *test* runtime. A missing one here
-      # fails every single test uniformly with a bare "Exit 127", regardless of what that test
-      # actually depends on, which is easy to mistake for a real bug in the test itself.
+      # with no ROOT-specific code of its own, via katydid_utility) - the set of ROOT shared
+      # libraries (libCore.so, libRIO.so, etc.) actually linked into every test binary, needed
+      # at *test* runtime. A missing one here fails every single test uniformly with a bare
+      # "Exit 127", regardless of what that test actually depends on, which is easy to mistake
+      # for a real bug in the test itself.
       - name: Check a built test binary for missing shared libraries (Linux)
         if: runner.os == 'Linux'
         run: |
@@ -197,7 +171,9 @@ jobs:
       #
       # xxhash-devel and tbb-devel are, like libtbb12 in the Ubuntu job above, not Katydid
       # dependencies either - they are runtime dependencies of the prebuilt `rootcling` binary
-      # fetched below. freetype and gsl are the same category again, but for ROOT's own shared
+      # tools/system_deps.bzl fetches directly (not this step - Bazel's own repository cache
+      # covers it, so there's no separate CI download/extract/check step for ROOT here
+      # anymore). freetype and gsl are the same category again, but for ROOT's own shared
       # libraries rather than rootcling specifically: every test binary here links ROOT, which
       # needs both at runtime (font rendering and linear algebra, respectively). A missing one
       # here doesn't show up until every single test fails at runtime with a bare "Exit 127" -
@@ -206,7 +182,7 @@ jobs:
       # repository; boost-devel, fftw-devel, tbb-devel, freetype, and gsl are in AlmaLinux's own
       # default repository. CRB is enabled in case any future dependency needs it - enabling it
       # costs nothing if unused.
-      - name: Install build tools and Boost/FFTW/MatIO/ROOT runtime deps (dnf)
+      - name: Install build tools and Boost/FFTW/MatIO runtime deps (dnf)
         run: |
           dnf install -y epel-release
           dnf config-manager --set-enabled crb
@@ -222,39 +198,6 @@ jobs:
             xxhash-devel \
             freetype \
             gsl
-
-      - name: Cache ROOT
-        id: cache-root-almalinux
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
-        with:
-          path: /opt/root
-          key: root-almalinux9-${{ env.ROOT_VERSION }}-gcc11.5
-
-      - name: Download and extract ROOT
-        if: steps.cache-root-almalinux.outputs.cache-hit != 'true'
-        run: |
-          ROOT_URL="https://root.cern/download/root_v${ROOT_VERSION}.Linux-almalinux9.8-x86_64-gcc11.5.tar.gz"
-          wget -q -O /tmp/root.tar.gz "$ROOT_URL"
-          tar -xzf /tmp/root.tar.gz -C /opt/
-
-      # The prebuilt ROOT binary depends on a number of shared libraries that are not always
-      # present on a fresh container image; missing ones surface as a build failure much later,
-      # inside the actual Bazel build. This step catches all of them at once, right after
-      # extracting ROOT, by asking the dynamic linker (ldd) to resolve rootcling's complete
-      # dependency chain up front.
-      - name: Check ROOT binaries for missing shared libraries
-        run: |
-          ROOT_LIBDIR=$(/opt/root/bin/root-config --libdir)
-          MISSING=$(ldd /opt/root/bin/rootcling 2>&1 | grep "not found" || true)
-          if [ -n "$MISSING" ]; then
-            echo "Missing shared library dependencies for rootcling:"
-            echo "$MISSING"
-            echo "(ROOT lib directory: $ROOT_LIBDIR)"
-            exit 1
-          fi
-
-      - name: Add ROOT to PATH
-        run: echo "/opt/root/bin" >> "$GITHUB_PATH"
 
       # bazel-contrib/setup-bazel's usual automatic Bazel installation does not reliably work
       # inside this minimal container image, so Bazelisk (the tool that installs the correct
@@ -293,7 +236,7 @@ jobs:
         run: bazel build //...
 
       # See the equivalent step in the Ubuntu/macOS job above for why this checks a test
-      # binary specifically, separately from the rootcling check further up.
+      # binary specifically.
       - name: Check a built test binary for missing shared libraries
         run: |
           MISSING=$(ldd bazel-bin/Source/Executables/Validation/TestVector 2>&1 | grep "not found" || true)

@@ -1,23 +1,56 @@
 """Wraps system-provided libraries (Boost, FFTW, MatIO, ROOT) as cc_library targets - via
 Homebrew on macOS, via apt or dnf on Linux (whichever is actually on PATH - not a hardcoded
 distro list, so this doesn't need editing again for the next Linux flavor that shows up).
-ROOT is handled the same way on every OS: none of the three assume the package manager
-actually provides it (apt's/dnf's ROOT packaging is inconsistent-to-nonexistent across
-distros, and building ROOT from source is squarely "unreasonable to build from source"
-territory) - instead this just requires `root-config` to already be on PATH, however it got
-there (a Homebrew symlink, or a prebuilt tarball from root.cern extracted somewhere like
-/opt/root with its bin/ added to PATH - all work identically here, since root-config is
-ROOT's own official query tool regardless of how it was installed).
 
-This is a deliberate trade: none of this is built hermetically by Bazel, and the exact
-version you get depends on what's already on the machine. In exchange, there's no need to
-compile ROOT from source inside the Bazel graph (slow, and not something the Bazel
-ecosystem supports out of the box), and on Linux, apt/dnf-installed Boost/FFTW/MatIO need
-no explicit discovery at all - both install into the compiler/linker's default search
-paths, unlike Homebrew, which deliberately keeps things out of the way.
+ROOT is fetched directly as a prebuilt binary from root.cern, one exact URL per supported
+platform, rather than discovered via root-config on PATH: no distro packages a usable ROOT
+build, and building it from source is squarely "unreasonable to build from source" territory
+(a large, slow build with no existing hermetic Bazel toolchain to lean on). Only the three
+platforms this repo's own CI actually supports are covered - Ubuntu 24.04, AlmaLinux 9.x (any
+minor version; 9.x is ABI-compatible across the series), and macOS on arm64. ROOT's own
+prebuilt binaries are versioned per exact OS release and toolchain (not just "linux" or
+"macos"), so unlike Boost/FFTW/MatIO below, this needs to read /etc/os-release on Linux, not
+just check which package manager is on PATH.
+
+Boost/FFTW/MatIO are still discovered from what's already on the machine (Homebrew, apt, dnf)
+rather than fetched directly - this is a deliberate trade: none of this is built hermetically
+by Bazel, and the exact version you get depends on what's already on the machine. In exchange,
+there's no need to compile these from source inside the Bazel graph, and on Linux, apt/dnf-
+installed Boost/FFTW/MatIO need no explicit discovery at all - both install into the
+compiler/linker's default search paths, unlike Homebrew, which deliberately keeps things out
+of the way.
 
 Usage from a BUILD file: deps = ["@system_libs//:boost", "@system_libs//:fftw"]
 """
+
+# Bump this (and nowhere else) to change the ROOT version used everywhere - matches
+# ci.yaml's own ROOT_VERSION. Confirm any new version is actually published for every
+# platform below at https://root.cern/install/all_releases/ before bumping, and refresh the
+# sha256 for each (rules_python's own `uv` toolchain and this repo's own root_dictionary.bzl
+# both use the same download_and_extract mechanism, if a worked example is useful).
+_ROOT_VERSION = "6.40.04"
+
+# One exact, baked-in URL per supported platform - not a general "any version" table, since
+# only the platforms this repo's own CI supports need to work at all. sha256 is intentionally
+# blank: computing it requires actually downloading the file, which needs network access to
+# root.cern that isn't available in every environment that might edit this file. Bazel's
+# download_and_extract works without it (a warning, not an error), but fill these in from a
+# real download when possible - they also let Bazel skip re-downloading on a cache hit.
+_ROOT_DOWNLOADS = {
+    # (linux_distro_id, arch) for Linux; ("macos", arch) for macOS.
+    ("ubuntu", "x86_64"): {
+        "url": "https://root.cern/download/root_v{v}.Linux-ubuntu24.04-x86_64-gcc13.3.tar.gz",
+        "sha256": "",
+    },
+    ("almalinux", "x86_64"): {
+        "url": "https://root.cern/download/root_v{v}.Linux-almalinux9.8-x86_64-gcc11.5.tar.gz",
+        "sha256": "",
+    },
+    ("macos", "aarch64"): {
+        "url": "https://root.cern/download/root_v{v}.macos-26.6-arm64-clang210.tar.gz",
+        "sha256": "",
+    },
+}
 
 _MAC_FORMULAE = {
     "boost": {
@@ -113,6 +146,27 @@ _LINUX_HEADER_CHECK = {
 def _is_macos(repository_ctx):
     return repository_ctx.os.name.lower().startswith("mac")
 
+# Normalizes repository_ctx.os.arch ("amd64"/"arm64") to the names _ROOT_DOWNLOADS' own keys
+# use ("x86_64"/"aarch64"), matching root.cern's own naming convention. Same normalization
+# rocks_analysis_pipeline's own tools/uv/uv_toolchain.bzl uses for the same reason.
+def _normalized_arch(repository_ctx):
+    arch = repository_ctx.os.arch
+    if arch == "amd64":
+        return "x86_64"
+    if arch == "arm64":
+        return "aarch64"
+    return arch
+
+# Reads /etc/os-release's ID field directly (e.g. "ubuntu", "almalinux") - this is what ROOT's
+# own prebuilt binaries are actually versioned against (an exact OS release, not just "linux"),
+# unlike Boost/FFTW/MatIO below, which only need to know which package manager is on PATH.
+def _linux_distro_id(repository_ctx):
+    os_release = repository_ctx.read("/etc/os-release")
+    for line in os_release.splitlines():
+        if line.startswith("ID="):
+            return line[len("ID="):].strip('"')
+    return None
+
 # Distinguishes apt-based vs dnf-based Linux by which package manager binary is actually on
 # PATH, rather than parsing /etc/os-release or hardcoding a list of distro names - robust to
 # whatever distro shows up next without needing this file edited again.
@@ -135,16 +189,86 @@ def _check_header_or_fail(repository_ctx, formula, header, packages, install_hin
             hint = install_hint.format(pkgs = " ".join(packages)),
         ))
 
-def _root_config_not_found_error():
+def _root_download_key(repository_ctx):
+    if _is_macos(repository_ctx):
+        return ("macos", _normalized_arch(repository_ctx))
+    return (_linux_distro_id(repository_ctx), _normalized_arch(repository_ctx))
+
+def _root_unsupported_platform_error(key):
     return (
-        "`root-config` was not found on PATH. Install ROOT and make sure its bin/ directory " +
-        "is on PATH:\n" +
-        "  macOS:  `brew install root` (Homebrew symlinks root-config onto PATH automatically)\n" +
-        "  Linux:  download a prebuilt binary from https://root.cern/install/, extract it " +
-        "somewhere (e.g. /opt/root), and add its bin/ directory to PATH (building ROOT from " +
-        "source is not recommended - it's a large, slow build).\n" +
-        "Or adjust tools/system_deps.bzl if ROOT lives somewhere else."
+        "No prebuilt ROOT {v} binary is configured for {distro}/{arch} in " +
+        "tools/system_deps.bzl's own _ROOT_DOWNLOADS table. Supported: {supported}. " +
+        "Check https://root.cern/install/all_releases/ for a matching build and add an " +
+        "entry, or adjust the version pin if a newer release covers this platform."
+    ).format(
+        v = _ROOT_VERSION,
+        distro = key[0],
+        arch = key[1],
+        supported = ", ".join(["{}/{}".format(d, a) for d, a in _ROOT_DOWNLOADS.keys()]),
     )
+
+def _fetch_root(repository_ctx):
+    key = _root_download_key(repository_ctx)
+    download = _ROOT_DOWNLOADS.get(key)
+    if not download:
+        fail(_root_unsupported_platform_error(key))
+
+    # No stripPrefix: root.cern's own tarballs already extract with a top-level root/
+    # directory (confirmed directly against ci.yaml's own usage, which extracts to /opt/ and
+    # then references /opt/root/bin/rootcling) - this lands it at root/ directly inside this
+    # repository, matching what the cc_library below already expects.
+    repository_ctx.download_and_extract(
+        url = download["url"].format(v = _ROOT_VERSION),
+        sha256 = download["sha256"],
+    )
+
+    # root-config is part of the tarball just extracted, not something already on PATH -
+    # still the most reliable way to get the exact --libs list for this specific build,
+    # rather than hardcoding it and risking staleness across ROOT versions.
+    root_config = repository_ctx.path("root/bin/root-config")
+
+    # Base libs (Core, RIO, Net, Hist, Graf, Tree, ... ) from root-config, plus the extra
+    # COMPONENTS Katydid's CMakeLists.txt explicitly requests via
+    # find_package(ROOT 6.00 COMPONENTS Gui Spectrum TMVA) - root-config --libs alone doesn't
+    # include those, they have to be added by hand the same way CMake's find_package would.
+    root_base_libs_result = repository_ctx.execute([root_config, "--libs"])
+    if root_base_libs_result.return_code != 0:
+        fail("`root-config --libs` failed on the just-extracted ROOT build:\n" + root_base_libs_result.stderr)
+    root_extra_component_libs = ["-lGui", "-lSpectrum", "-lTMVA"]
+
+    root_libdir_result = repository_ctx.execute([root_config, "--libdir"])
+    if root_libdir_result.return_code != 0:
+        fail("`root-config --libdir` failed on the just-extracted ROOT build:\n" + root_libdir_result.stderr)
+    root_libdir = root_libdir_result.stdout.strip()
+
+    root_base_libs = [x for x in root_base_libs_result.stdout.strip().split(" ") if x]
+    root_linkopts = (
+        root_base_libs +
+        root_extra_component_libs +
+        ["-Wl,-rpath," + root_libdir]  # ROOT dlopens plugin libs at runtime; needs rpath, not just -L
+    )
+
+    build_file_part = """
+cc_library(
+    name = "root",
+    srcs = ["_empty.cc"],
+    hdrs = glob(["root/include/**"], allow_empty = True),
+    includes = ["root/include"],
+    # Propagates to every transitive dependent, same reasoning as FFTW_FOUND below - Katydid's
+    # code checks #ifdef ROOT_FOUND throughout, matching CMake's `add_definitions(-DROOT_FOUND)`.
+    defines = ["ROOT_FOUND"],
+    linkopts = {linkopts},
+)
+
+exports_files(["rootcling"])
+""".format(linkopts = repr(root_linkopts))
+
+    # Symlinked to the repository root, not referenced as root/bin/rootcling directly: keeps
+    # the label @system_libs//:rootcling unchanged, which tools/root_dictionary.bzl's own
+    # _rootcling attribute default already references directly.
+    repository_ctx.symlink("root/bin/rootcling", "rootcling")
+
+    return build_file_part
 
 def _system_libs_repo_impl(repository_ctx):
     is_macos = _is_macos(repository_ctx)
@@ -158,55 +282,7 @@ def _system_libs_repo_impl(repository_ctx):
     # srcs, so each gets this empty, inert source file as its own srcs.
     repository_ctx.file("_empty.cc", "")
 
-    # --- ROOT: OS-agnostic. Uses root-config, ROOT's own official query tool, rather than
-    # guessing an install layout (which differs between Homebrew's Cellar, a root.cern tarball
-    # extracted to /opt/root, LCG, conda...). Every ROOT install ships root-config for exactly
-    # this reason, regardless of how it got onto the machine.
-    root_config = repository_ctx.which("root-config")
-    if not root_config:
-        fail(_root_config_not_found_error())
-
-    root_incdir = repository_ctx.execute([root_config, "--incdir"]).stdout.strip()
-    root_libdir = repository_ctx.execute([root_config, "--libdir"]).stdout.strip()
-    root_bindir = repository_ctx.execute([root_config, "--bindir"]).stdout.strip()
-
-    # Base libs (Core, RIO, Net, Hist, Graf, Tree, ... ) from root-config, plus the extra
-    # COMPONENTS Katydid's CMakeLists.txt explicitly requests via
-    # find_package(ROOT 6.00 COMPONENTS Gui Spectrum TMVA) - root-config --libs alone doesn't
-    # include those, they have to be added by hand the same way CMake's find_package would.
-    root_base_libs_result = repository_ctx.execute([root_config, "--libs"])
-    if root_base_libs_result.return_code != 0:
-        fail("`root-config --libs` failed:\n" + root_base_libs_result.stderr)
-    root_extra_component_libs = ["-lGui", "-lSpectrum", "-lTMVA"]
-
-    repository_ctx.symlink(root_incdir, "root/include")
-
-    root_base_libs = [x for x in root_base_libs_result.stdout.strip().split(" ") if x]
-    root_linkopts = (
-        root_base_libs +
-        root_extra_component_libs +
-        ["-Wl,-rpath," + root_libdir]  # ROOT dlopens plugin libs at runtime; needs rpath, not just -L
-    )
-
-    build_file_parts.append("""
-cc_library(
-    name = "root",
-    srcs = ["_empty.cc"],
-    hdrs = glob(["root/include/**"], allow_empty = True),
-    includes = ["root/include"],
-    # Propagates to every transitive dependent, same reasoning as FFTW_FOUND below - Katydid's
-    # code checks #ifdef ROOT_FOUND throughout, matching CMake's `add_definitions(-DROOT_FOUND)`.
-    defines = ["ROOT_FOUND"],
-    linkopts = {linkopts},
-)
-""".format(linkopts = repr(root_linkopts)))
-
-    # rootcling lives in root-config's bindir; exposed as a plain file for root_dictionary.bzl
-    # to depend on as an executable.
-    repository_ctx.symlink(root_bindir + "/rootcling", "rootcling")
-    build_file_parts.append("""
-exports_files(["rootcling"])
-""")
+    build_file_parts.append(_fetch_root(repository_ctx))
 
     # --- Boost / FFTW / MatIO: genuinely different discovery per OS, not just a different
     # formula name. Homebrew deliberately keeps things out of default search paths (needs
