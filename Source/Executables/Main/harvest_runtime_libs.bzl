@@ -89,16 +89,18 @@ def _harvest_runtime_libs_impl(ctx):
                 else:
                     # --set-rpath, not --add-rpath: replaces this .so's Bazel-baked-in RPATH
                     # outright (see this file's docstring for why it's meaningless here)
-                    # rather than appending to it.
+                    # rather than appending to it. patchelf is built from source by the
+                    # @patchelf module (see MODULE.bazel), not assumed to be a preinstalled
+                    # system package.
                     command = (
                         "cp -f '{src}' '{out}' && chmod +w '{out}' && " +
-                        "patchelf --set-rpath '$ORIGIN/../lib:$ORIGIN/../root/lib' '{out}'"
-                    ).format(src = f.path, out = out.path)
+                        "'{patchelf}' --set-rpath '$ORIGIN/../lib:$ORIGIN/../root/lib' '{out}'"
+                    ).format(src = f.path, out = out.path, patchelf = ctx.executable._patchelf.path)
             else:
                 command = "cp -f '{}' '{}'".format(f.path, out.path)
             ctx.actions.run_shell(
                 outputs = [out],
-                inputs = [f],
+                inputs = [f] if is_macos else [f, ctx.executable._patchelf],
                 command = command,
                 mnemonic = "HarvestRuntimeLib",
                 progress_message = "Harvesting %s for the release archive" % f.basename,
@@ -116,6 +118,9 @@ harvest_runtime_libs = rule(
         # its implementation function - this constraint-value attribute is the standard way
         # around that).
         "_macos_constraint": attr.label(default = Label("@platforms//os:macos")),
+        # Only used on the Linux branch above; harmless to build unconditionally (see
+        # release_binary.bzl's own use of @patchelf for the equivalent, select()-scoped case).
+        "_patchelf": attr.label(default = Label("@patchelf//:patchelf"), executable = True, cfg = "exec"),
     },
     doc = "Collects every non-@root .so/.pcm file reachable from binaries' runfiles, flat.",
 )

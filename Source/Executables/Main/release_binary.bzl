@@ -57,6 +57,13 @@ def release_binary(name, real_bin_label, final_bin_name):
         name = patched_name + "_patchelf",
         srcs = [real_bin_label],
         outs = [patched_name],
+        # patchelf is built from source by the @patchelf module (see MODULE.bazel) rather than
+        # assumed to be a preinstalled system package - only needed on the default (Linux)
+        # branch below, but select() on `tools` works the same way it does on `cmd`.
+        tools = select({
+            "@platforms//os:macos": [],
+            "//conditions:default": ["@patchelf//:patchelf"],
+        }),
         cmd = select({
             "@platforms//os:macos": """
 cp $(location """ + real_bin_label + """) $@
@@ -88,7 +95,7 @@ codesign --sign - --force $@
             "//conditions:default": """
 cp $(location """ + real_bin_label + """) $@
 chmod +w $@
-patchelf --set-rpath '$$ORIGIN/../lib:$$ORIGIN/../root/lib' $@
+$(location @patchelf//:patchelf) --set-rpath '$$ORIGIN/../lib:$$ORIGIN/../root/lib' $@
 """,
         }),
     )
