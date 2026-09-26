@@ -10,13 +10,11 @@ load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
 package(default_visibility = ["//visibility:public"])
 
 # Headers plus everything a consumer's compilation needs to see (includes, defines) -- the
-# only target anything outside this package depends on for compile-time visibility.
-# cc_shared_library has no defines/includes/hdrs attribute, so these live here, not on
-# nymph_lib below.
+# only target anything outside this package depends on for compile-time visibility;
+# cc_shared_library has no such attribute, so these live here, not on nymph_lib below.
 #
-# Depends on @scarab//:scarab_headers, not @scarab: cc_shared_library provides no CcInfo, so
-# a plain cc_library can't depend on one directly -- only another cc_shared_library can, via
-# dynamic_deps, and only for the runtime link, not headers.
+# Depends on @scarab//:scarab_headers, not @scarab - see
+# //Source/Utility:katydid_utility_headers's comment for why.
 cc_library(
     name = "nymph_headers",
     hdrs = glob([

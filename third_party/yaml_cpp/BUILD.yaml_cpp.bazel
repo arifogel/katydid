@@ -7,8 +7,8 @@ load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
 package(default_visibility = ["//visibility:public"])
 
 # Headers plus everything a consumer's compilation needs to see -- the only target anything
-# outside this package depends on for compile-time visibility. cc_shared_library has no
-# hdrs/includes attribute, so these live here, not on yaml_cpp_lib below.
+# outside this package depends on for compile-time visibility; cc_shared_library has no such
+# attribute, so these live here, not on yaml_cpp_lib below.
 cc_library(
     name = "yaml_cpp_headers",
     hdrs = glob(["include/yaml-cpp/**/*.h"]),

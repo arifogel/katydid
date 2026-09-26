@@ -28,10 +28,10 @@ genrule(
 )
 
 # Headers plus everything a consumer's compilation needs to see (includes, defines) -- the
-# only target anything outside this package depends on for compile-time visibility.
-# cc_shared_library has no defines/includes/hdrs attribute, so these live here, not on
-# scarab_lib below: a consumer depends on this target (for headers) and :scarab (for the
-# runtime link), never on scarab_lib directly.
+# only target anything outside this package depends on for compile-time visibility;
+# cc_shared_library has no such attribute, so these live here, not on scarab_lib below: a
+# consumer depends on this target (for headers) and :scarab (for the runtime link), never on
+# scarab_lib directly.
 cc_library(
     name = "scarab_headers",
     hdrs = glob([
