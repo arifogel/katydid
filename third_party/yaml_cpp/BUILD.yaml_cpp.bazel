@@ -26,10 +26,6 @@ cc_library(
     deps = [":yaml_cpp_headers"],
 )
 
-# A real, standalone .so, matching the CMake reference build's libyaml-cpp.so.0.5 (per
-# readelf -d: a single, standalone .so, never statically linked into anything else). Keeps
-# the name yaml_cpp so existing consumers' deps entries for headers
-# (@yaml_cpp//:yaml_cpp_headers) are unaffected.
 cc_shared_library(
     name = "yaml_cpp",
     shared_lib_name = "libyaml-cpp.so",

@@ -81,10 +81,9 @@ cc_library(
     deps = [":scarab_headers"],
 )
 
-# A real, standalone .so, matching the CMake build's libScarab_Nymph_Katydid.so: the CMake
-# build never statically links this module into anything, so REGISTER_PARAM_INPUT_CODEC/
-# REGISTER_PARAM_OUTPUT_CODEC's static registrar constructors run exactly once, when this .so
-# loads. Keeps the name scarab so existing consumers need no deps change.
+# The CMake build never statically links this module into anything, so
+# REGISTER_PARAM_INPUT_CODEC/REGISTER_PARAM_OUTPUT_CODEC's static registrar constructors run
+# exactly once, when this .so loads.
 cc_shared_library(
     name = "scarab",
     dynamic_deps = ["@yaml_cpp"],

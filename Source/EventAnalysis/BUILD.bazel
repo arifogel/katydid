@@ -74,9 +74,6 @@ cc_library(
     deps = [":katydid_event_analysis_headers"],
 )
 
-# A real, standalone .so, matching the CMake build's libKatydidEventAnalysis.so. Keeps the
-# name katydid_event_analysis so existing consumers' headers deps
-# (//Source/EventAnalysis:katydid_event_analysis_headers) stay valid.
 cc_shared_library(
     name = "katydid_event_analysis",
     dynamic_deps = [

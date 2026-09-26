@@ -124,8 +124,6 @@ cc_library(
     deps = [":katydid_io_headers"],
 )
 
-# A real, standalone .so, matching the CMake build's libKatydidIO.so. Keeps the name
-# katydid_io so existing consumers' headers deps (//Source/IO:katydid_io_headers) stay valid.
 cc_shared_library(
     name = "katydid_io",
     dynamic_deps = [

@@ -82,10 +82,8 @@ cc_library(
     deps = [":cicada_headers"],
 )
 
-# A real, standalone .so, matching the CMake build's libCicada_Katydid.so. Keeps the name
-# cicada so existing consumers' deps entries for headers (@cicada//:cicada_headers) are
-# unaffected. No dynamic_deps: per readelf -d, libCicada_Katydid.so needs no other
-# Katydid-native or Scarab .so at runtime (see the top comment).
+# No dynamic_deps: per readelf -d, libCicada_Katydid.so needs no other Katydid-native or
+# Scarab .so at runtime (see the top comment).
 cc_shared_library(
     name = "cicada",
     shared_lib_name = "libCicada_Katydid.so",

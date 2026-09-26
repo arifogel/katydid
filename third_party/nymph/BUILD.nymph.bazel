@@ -67,9 +67,6 @@ cc_library(
     deps = [":nymph_headers"],
 )
 
-# A real, standalone .so, matching the CMake build's libNymph_Katydid.so. Keeps the name
-# nymph so existing consumers' deps entries for headers (@nymph//:nymph_headers) are
-# unaffected.
 cc_shared_library(
     name = "nymph",
     dynamic_deps = ["@scarab"],

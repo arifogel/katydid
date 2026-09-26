@@ -57,9 +57,6 @@ cc_library(
     deps = [":katydid_utility_headers"],
 )
 
-# A real, standalone .so, matching the CMake build's libKatydidUtility.so. Keeps the name
-# katydid_utility so existing consumers' headers deps
-# (//Source/Utility:katydid_utility_headers) stay valid.
 cc_shared_library(
     name = "katydid_utility",
     dynamic_deps = [

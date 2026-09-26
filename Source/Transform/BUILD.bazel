@@ -36,9 +36,6 @@ cc_library(
     deps = [":katydid_transform_headers"],
 )
 
-# A real, standalone .so, matching the CMake build's libKatydidTransform.so. Keeps the name
-# katydid_transform so existing consumers' headers deps
-# (//Source/Transform:katydid_transform_headers) stay valid.
 cc_shared_library(
     name = "katydid_transform",
     dynamic_deps = [

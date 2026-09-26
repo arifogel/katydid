@@ -54,9 +54,6 @@ cc_library(
     deps = [":katydid_spectrum_analysis_headers"],
 )
 
-# A real, standalone .so, matching the CMake build's libKatydidSpectrumAnalysis.so. Keeps the
-# name katydid_spectrum_analysis so existing consumers' headers deps
-# (//Source/SpectrumAnalysis:katydid_spectrum_analysis_headers) stay valid.
 cc_shared_library(
     name = "katydid_spectrum_analysis",
     dynamic_deps = [

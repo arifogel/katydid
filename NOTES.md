@@ -44,6 +44,11 @@ and with C/C++ build and link mechanics generally.
 - `vendor/*/BUILD.bazel` — build files for the small libraries already vendored directly into
   the Katydid tree (`nanoflann`, `RapidXML`).
 
+Each Katydid/Nymph/Scarab/Cicada/yaml-cpp module is built as its own real, standalone
+`cc_shared_library` (e.g. `libKatydidData.so`), keeping the same name and one-library-per-module
+structure the original CMake build produces with `BUILD_SHARED_LIBS ON` - so existing consumers'
+linking assumptions carry over unchanged.
+
 ## How ROOT, Boost, FFTW, and MatIO are located
 
 `tools/system_deps.bzl` implements a single repository rule, exposed as `@system_libs`, that
