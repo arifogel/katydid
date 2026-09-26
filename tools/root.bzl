@@ -100,6 +100,30 @@ def _root_unsupported_platform_error(key):
         supported = ", ".join(["{}/{}".format(d, a) for d, a in _ROOT_DOWNLOADS.keys()]),
     )
 
+# Reads a .so's own DT_NEEDED entries via readelf -d, returning each as a bare filename (e.g.
+# "libROOTNTupleBrowse.so"). Used below to expand root_lib_names into the transitive closure of
+# ROOT-internal dependencies - readelf is standard binutils, expected present on every
+# supported Linux platform (not needed at all on macOS, where the .so-splitting problem this
+# solves doesn't arise the same way - see the comment where this is called).
+def _so_needed_names(repository_ctx, so_path):
+    result = repository_ctx.execute(["readelf", "-d", str(so_path)])
+    if result.return_code != 0:
+        # Not fatal: if readelf isn't available or the file can't be read for some reason, this
+        # .so's own transitive dependencies just don't get discovered - the explicit allowlist
+        # entries (root_lib_names, from root-config --libs) still work regardless.
+        return []
+    needed = []
+    for line in result.stdout.splitlines():
+        if "(NEEDED)" not in line:
+            continue
+
+        # e.g. ' 0x0000000000000001 (NEEDED)             Shared library: [libGui.so]'
+        start = line.find("[")
+        end = line.find("]")
+        if start != -1 and end != -1 and end > start:
+            needed.append(line[start + 1:end])
+    return needed
+
 def _root_repo_impl(repository_ctx):
     key = _root_download_key(repository_ctx)
     download = _ROOT_DOWNLOADS.get(key)
@@ -151,6 +175,61 @@ def _root_repo_impl(repository_ctx):
     all_root_libs_tokens = root_base_libs_result.stdout.strip().split(" ") + root_extra_component_libs
     root_lib_names = [x[2:] for x in all_root_libs_tokens if x.startswith("-l")]
     root_other_linkopts = [x for x in all_root_libs_tokens if x and not x.startswith("-l") and not x.startswith("-L")]
+
+    # Expand root_lib_names into the transitive closure of ROOT-internal dependencies before
+    # computing srcs below. root-config --libs + the hand-added Gui/Spectrum/TMVA components
+    # only names libraries Katydid calls into *directly* - it misses libraries that are purely
+    # internal, transitive dependencies of those (confirmed directly via readelf -d: libGui.so
+    # itself has a genuine NEEDED entry on libROOTNTupleBrowse.so, which never shows up in
+    # root-config --libs since nothing outside ROOT itself ever names it directly - likewise
+    # libMinuit.so/libMLP.so/libXMLIO.so). Bazel's own cc_library(srcs = [...]) puts every file
+    # listed here into one shared solib directory at runtime, and each .so's own baked-in
+    # RUNPATH ($ORIGIN/.) only finds a sibling that's genuinely present in srcs - so a missing
+    # transitive dependency here is a real, silent runtime failure ("cannot open shared object
+    # file"), not caught by analysis or compilation, only by actually running the binary.
+    #
+    # Reading each selected .so's own NEEDED entries and repeating until the set stops growing
+    # finds every one of these automatically, without hand-maintaining a second list - and
+    # without pulling in libCPyCppyy.so (ROOT's Python bindings, needing an unbundled
+    # libpythonX.so at *link* time - the original problem that made a hand-picked allowlist
+    # necessary in the first place, instead of a blanket glob(root/lib/*.so)), since nothing
+    # this closure actually needs depends on it.
+    #
+    # readelf-based only, so Linux-only: not needed on macOS, where these libraries are linked
+    # by real (not RPATH-relative) install-name references resolved via Homebrew's own linked
+    # library layout, not Bazel's solib scattering - this closure-expansion step is skipped
+    # there and root_lib_names is used as-is.
+    if not _is_macos(repository_ctx):
+        selected = {name: True for name in root_lib_names}
+        frontier = list(root_lib_names)
+
+        # Starlark has no while loop - bounded for loop instead, breaking early once the
+        # closure stops growing. 50 is far more than ROOT's own internal dependency graph
+        # could ever need (it's nowhere near 50 libraries deep); this bound exists only so the
+        # loop is expressible in Starlark at all, not because 50 is a meaningful limit here.
+        for _ in range(50):
+            if not frontier:
+                break
+            next_frontier = []
+            for lib_name in frontier:
+                so_file = repository_ctx.path("root/lib/lib{}.so".format(lib_name))
+                if not so_file.exists:
+                    continue
+                for needed_so in _so_needed_names(repository_ctx, so_file):
+                    if not needed_so.startswith("lib") or not needed_so.endswith(".so"):
+                        continue
+                    needed_name = needed_so[len("lib"):-len(".so")]
+                    if needed_name in selected:
+                        continue
+                    if not repository_ctx.path("root/lib/lib{}.so".format(needed_name)).exists:
+                        # Not part of the ROOT tarball itself (e.g. a system lib already
+                        # resolved via linkopts, or something with a versioned .so name that
+                        # never matches this bare lib<name>.so pattern) - nothing to add.
+                        continue
+                    selected[needed_name] = True
+                    next_frontier.append(needed_name)
+            frontier = next_frontier
+        root_lib_names = sorted(selected.keys())
 
     root_srcs = [
         "root/lib/lib{}.so".format(lib_name)
