@@ -1,127 +1,21 @@
-# Ports the "Utility tests" tier of Source/Executables/Validation/CMakeLists.txt (the programs
-# listed there as needing only KatydidUtility, not ROOT/FFTW/Monarch) to real Bazel cc_test
-# targets, so they participate in `bazel test //...` with correct per-target pass/fail tracking.
+# Ports Source/Executables/Validation/CMakeLists.txt's various test programs to real Bazel
+# cc_test/cc_binary targets, so they participate in `bazel test //...` with correct per-target
+# pass/fail tracking.
 #
 # These are small, pre-existing validation programs, not a rigorous test suite: most exercise a
 # class and log its behavior without checking the result against a known-correct value (a
 # genuine smoke test, not a regression test), and only some (TestAxisProperties, TestCutableArray,
-# TestCutIterator) check for an internal error condition and exit non-zero on failure. None of
-# that behavior is being added or changed here - this only gives Bazel's test runner visibility
-# into pass/fail signals that already exist in the program logic, in place of the original CMake
-# build's CI/test.sh, which ran several of these as a plain, unchecked shell script (no `set -e`,
-# so an earlier failure did not actually fail the CI job).
+# TestCutIterator, TestCorrelator, TestSpectrumDiscriminator, TestTrackProcessing) check for an
+# internal error condition and exit non-zero on failure. None of that behavior is being added or
+# changed here - this only gives Bazel's test runner visibility into pass/fail signals that
+# already exist in the program logic, in place of the original CMake build's CI/test.sh, which ran
+# several of these as a plain, unchecked shell script (no `set -e`, so an earlier failure did not
+# actually fail the CI job).
 #
 # TestAxisProperties and TestDBSCAN include ROOT headers directly, despite CMake's own "does NOT
-# require ROOT" categorization for this tier - both guard that usage with #ifdef ROOT_FOUND
-# (confirmed by inspection), the same pattern used throughout the rest of the codebase, so this
-# is safe given ROOT_FOUND is always defined in this build.
-#
-# TestDBSCAN also needs a header (KTDistanceMatrix.hh) that is header-only and, despite this
-# tier's "Utility only" categorization, actually lives in Source/EventAnalysis, not
-# Source/Utility - confirmed by inspection, not an error in this file. Depending on the full
-# katydid_event_analysis library is heavier than strictly needed just for one header, but is the
-# correct and simplest way to make it visible, and costs nothing meaningful for a test target.
-#
-# Every cc_test/cc_binary below lists two kinds of dependency: `deps` on each module's own
-# `_headers` target, for compile-time visibility of whatever the test's own .cc file
-# #includes, and `dynamic_deps` on each module's own cc_shared_library target, for the actual
-# runtime link -- cc_shared_library provides no CcInfo at all, so headers and the runtime link
-# have to be reached through two separate targets. See //Source/Utility:katydid_utility_headers'
-# own comment for the full reasoning.
-
-load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
-load("@rules_cc//cc:cc_test.bzl", "cc_test")
-
-_UTILITY_TEST_HEADERS = ["//Source/Utility:katydid_utility_headers"]
-
-_UTILITY_TEST_LIBS = ["//Source/Utility:katydid_utility"]
-
-# Cling's runtime autoloader looks up dictionary headers by bare basename (see
-# tools/root_dictionary.bzl) in the directory next to the running binary. @cicada's own `data`
-# isn't enough; this needs to physically sit in this package's own bazel-out bin/ directory.
-# Without it, autoloading fails with "Missing FileEntry for _CROOTData.hh" -- non-fatal, but
-# affects every test that touches @cicada, directly or transitively.
-genrule(
-    name = "CicadaDict_header_local_copy",
-    srcs = ["@cicada//:Library/_CROOTData.hh"],
-    outs = ["_CROOTData.hh"],
-    cmd = "cp $< $@",
-)
-
-_CICADA_HEADER_DATA = [":CicadaDict_header_local_copy"]
-
-cc_test(
-    name = "ObjectSize",
-    srcs = ["ObjectSize.cc"],
-    dynamic_deps = _UTILITY_TEST_LIBS,
-    deps = _UTILITY_TEST_HEADERS,
-)
-
-cc_test(
-    name = "TestAxisProperties",
-    srcs = ["TestAxisProperties.cc"],
-    dynamic_deps = _UTILITY_TEST_LIBS,
-    deps = _UTILITY_TEST_HEADERS,
-)
-
-cc_test(
-    name = "TestComplexPolar",
-    srcs = ["TestComplexPolar.cc"],
-    dynamic_deps = _UTILITY_TEST_LIBS,
-    deps = _UTILITY_TEST_HEADERS,
-)
-
-cc_test(
-    name = "TestCutableArray",
-    srcs = ["TestCutableArray.cc"],
-    dynamic_deps = _UTILITY_TEST_LIBS,
-    deps = _UTILITY_TEST_HEADERS,
-)
-
-cc_test(
-    name = "TestCutIterator",
-    srcs = ["TestCutIterator.cc"],
-    dynamic_deps = _UTILITY_TEST_LIBS,
-    deps = _UTILITY_TEST_HEADERS,
-)
-
-cc_test(
-    name = "TestDBSCAN",
-    srcs = ["TestDBSCAN.cc"],
-    data = _CICADA_HEADER_DATA,
-    dynamic_deps = _UTILITY_TEST_LIBS + ["//Source/EventAnalysis:katydid_event_analysis"],
-    deps = _UTILITY_TEST_HEADERS + ["//Source/EventAnalysis:katydid_event_analysis_headers"],
-)
-
-cc_test(
-    name = "TestMinMaxBin",
-    srcs = ["TestMinMaxBin.cc"],
-    dynamic_deps = _UTILITY_TEST_LIBS,
-    deps = _UTILITY_TEST_HEADERS,
-)
-
-cc_test(
-    name = "TestNanoflann",
-    srcs = ["TestNanoflann.cc"],
-    dynamic_deps = _UTILITY_TEST_LIBS,
-    deps = _UTILITY_TEST_HEADERS + ["//vendor/nanoflann"],
-)
-
-cc_test(
-    name = "TestRandom",
-    srcs = ["TestRandom.cc"],
-    dynamic_deps = _UTILITY_TEST_LIBS,
-    deps = _UTILITY_TEST_HEADERS,
-)
-
-cc_test(
-    name = "TestVector",
-    srcs = ["TestVector.cc"],
-    dynamic_deps = _UTILITY_TEST_LIBS,
-    deps = _UTILITY_TEST_HEADERS,
-)
-
-# --- "Data & IO tests" tier ---------------------------------------------------------------
+# require ROOT" categorization for the tier they originally came from - both guard that usage
+# with #ifdef ROOT_FOUND (confirmed by inspection), the same pattern used throughout the rest of
+# the codebase, so this is safe given ROOT_FOUND is always defined in this build.
 #
 # TestDataDisplay is deliberately NOT ported here, as either a cc_test or a cc_binary: reading
 # its source shows it opens real ROOT GUI windows (TCanvas) and blocks twice on `cin >> resp`
@@ -137,219 +31,315 @@ cc_test(
 # pass every time without checking anything, which would be actively misleading. As a cc_binary
 # it's still compile-checked by `bazel build //...`, just not claimed as a real automated test.
 #
-# TestJSONWriter, TestKDTree, TestKDTreeData, and TestSmoothing are smoke tests only (like most
-# of the Utility tier above) - none contain an assertion or comparison against a known-correct
-# value, they construct/exercise a class and log the result. TestJSONWriter and TestSmoothing
-# write scratch files (test_writer.json, TestSmoothing.root respectively) to their own working
-# directory, which Bazel's test sandbox allows without any special configuration.
-
-_DATA_IO_TEST_HEADERS = [
-    "//Source/Data:katydid_data_headers",
-    "//Source/IO:katydid_io_headers",
-    "//Source/Utility:katydid_utility_headers",
-]
-
-_DATA_IO_TEST_LIBS = [
-    "//Source/Data:katydid_data",
-    "//Source/IO:katydid_io",
-    "//Source/Utility:katydid_utility",
-]
-
-cc_binary(
-    name = "TestDPTReader",
-    srcs = ["TestDPTReader.cc"],
-    data = _CICADA_HEADER_DATA,
-    dynamic_deps = _DATA_IO_TEST_LIBS,
-    deps = _DATA_IO_TEST_HEADERS,
-)
-
-cc_test(
-    name = "TestJSONWriter",
-    srcs = ["TestJSONWriter.cc"],
-    data = _CICADA_HEADER_DATA,
-    dynamic_deps = _DATA_IO_TEST_LIBS,
-    deps = _DATA_IO_TEST_HEADERS,
-)
-
-cc_test(
-    name = "TestKDTree",
-    srcs = ["TestKDTree.cc"],
-    data = _CICADA_HEADER_DATA,
-    dynamic_deps = _DATA_IO_TEST_LIBS,
-    deps = _DATA_IO_TEST_HEADERS + ["//vendor/nanoflann"],
-)
-
-cc_test(
-    name = "TestKDTreeData",
-    srcs = ["TestKDTreeData.cc"],
-    data = _CICADA_HEADER_DATA,
-    dynamic_deps = _DATA_IO_TEST_LIBS,
-    deps = _DATA_IO_TEST_HEADERS,
-)
-
-cc_test(
-    name = "TestSmoothing",
-    srcs = ["TestSmoothing.cc"],
-    data = _CICADA_HEADER_DATA,
-    dynamic_deps = _DATA_IO_TEST_LIBS,
-    deps = _DATA_IO_TEST_HEADERS,
-)
-
-# --- "executables that DO require FFTW" tier ----------------------------------------------
-#
-# Straightforward this time - every header these four use lives exactly where the original
-# CMakeLists.txt's own module categorization implies (Data/Transform/SpectrumAnalysis), unlike
-# every earlier tier, each of which had at least one header living somewhere unexpected.
-#
-# The original CMakeLists.txt declares one shared LIB_DEPENDENCIES list (including
-# KatydidSpectrumAnalysis) for this whole batch of four programs, but TestComboFFTW,
-# TestForwardFFTW, and TestReverseFFTW don't actually include anything from SpectrumAnalysis -
-# only TestWignerVille does. Each target below depends on only what it actually #includes,
-# matching every earlier tier, rather than the batch-wide CMake list.
-#
-# All four are smoke tests only, like most of the rest of this file: no assertions, they write
-# a ROOT output file and log the result. Writing to their own working directory is fine in
-# Bazel's test sandbox, same as TestJSONWriter/TestSmoothing above.
-
-cc_test(
-    name = "TestComboFFTW",
-    srcs = ["TestComboFFTW.cc"],
-    data = _CICADA_HEADER_DATA,
-    dynamic_deps = ["//Source/Transform:katydid_transform"],
-    deps = ["//Source/Transform:katydid_transform_headers"],
-)
-
-cc_test(
-    name = "TestForwardFFTW",
-    srcs = ["TestForwardFFTW.cc"],
-    data = _CICADA_HEADER_DATA,
-    dynamic_deps = ["//Source/Transform:katydid_transform"],
-    deps = ["//Source/Transform:katydid_transform_headers"],
-)
-
-cc_test(
-    name = "TestReverseFFTW",
-    srcs = ["TestReverseFFTW.cc"],
-    data = _CICADA_HEADER_DATA,
-    dynamic_deps = ["//Source/Transform:katydid_transform"],
-    deps = ["//Source/Transform:katydid_transform_headers"],
-)
-
-cc_test(
-    name = "TestWignerVille",
-    srcs = ["TestWignerVille.cc"],
-    data = _CICADA_HEADER_DATA,
-    dynamic_deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis"],
-    deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis_headers"],
-)
-
-# --- "Time, Transform, SpectrumAnalysis & EventAnalysis" tier -----------------------------
-#
-# The original CMakeLists.txt declares one shared LIB_DEPENDENCIES list (including
-# KatydidTime) for this whole batch of programs, but none of them actually need Source/Time -
-# that entire module is excluded from this build (it's Monarch-only, and Monarch defaults off).
-# The "Time" headers these programs DO need (KTSliceHeader, KTTimeSeriesReal, etc.) live under
-# Source/Data/Time, a completely different thing already covered by katydid_data. Each target
-# below depends on only what it actually #includes, same as every earlier tier.
-#
-# katydid_spectrum_analysis and katydid_event_analysis do not depend on each other (both
-# independently depend on Data/IO/Utility), so any test needing headers from both modules lists
-# both explicitly.
-#
 # Test2DDiscrim is NOT ported here: it directly constructs a KTSpline object
 # (`new KTSpline(xVals, yVals, 3)`), and that constructor's only definition is in
 # Source/Utility/KTSpline.cc, which is excluded from the build (see NOTES.md - KTSpline.cc's
 # Implement() signature doesn't match its own header). This would fail to link, not because of
 # anything in this port, but because of that pre-existing exclusion.
 #
-# All of these are smoke tests only, like most of the rest of this file, except
-# TestCorrelator, TestSpectrumDiscriminator, and TestTrackProcessing, which do check for an
-# internal error condition and exit non-zero on failure.
+# Every cc_test/cc_binary below lists two kinds of dependency: `deps` on every module's own
+# `_headers` target, for compile-time visibility of whatever the test's own .cc file
+# #includes, and `dynamic_deps` on every module's own cc_shared_library target, for the actual
+# runtime link -- cc_shared_library provides no CcInfo at all, so headers and the runtime link
+# have to be reached through two separate targets. See //Source/Utility:katydid_utility_headers'
+# own comment for the full reasoning.
+#
+# Every test below (other than TestROOTDictionary) is given the FULL set of Katydid module
+# .so's via dynamic_deps, not just whichever module its own .cc file most directly concerns -
+# deliberately, not out of laziness. dynamic_deps is transitive only for deciding which
+# cc_librarys should NOT be statically duplicated (bazel's own documented behavior) - it does
+# NOT cause a final cc_binary/cc_test's own link command to include every transitively-nested
+# .so as well. So a test that dynamic_deps's only on, say, katydid_spectrum_analysis, but whose
+# own .cc file (or a header it includes) directly references a Nymph::KTLogger or
+# scarab::logger symbol - true of nearly every Katydid header, via a pervasive logging macro -
+# fails to link with "undefined reference", even though katydid_spectrum_analysis itself
+# genuinely does depend on Nymph/Scarab at runtime: that dependency is real but only visible to
+# katydid_spectrum_analysis.so's own DT_NEEDED, not consulted by the linker when resolving the
+# separate, final test binary's own undefined symbols (confirmed empirically: this file
+# originally scoped dynamic_deps per-tier, matching only the most directly relevant module, and
+# the vast majority of targets built that way failed exactly this way). This is the same
+# "link everything, let the linker sort it out" approach already used successfully for
+# Source/Executables/Main's own Katydid_bin/Truncate_bin (see that file's own
+# _ALL_KATYDID_LIBS/_ALL_KATYDID_HEADERS) and, separately, for ROOT's own libraries in
+# tools/system_deps.bzl - matching the reference CMake build's own approach directly, which
+# links its own full external+internal library set into every executable the same way.
+#
+# TestROOTDictionary is the one exception, kept deliberately narrow: it depends on @cicada and
+# @nymph only, nothing else, specifically to test dictionary registration in as close to
+# isolation as this codebase allows.
+
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
+
+_ALL_KATYDID_HEADERS = [
+    "//Source/Data:katydid_data_headers",
+    "//Source/EventAnalysis:katydid_event_analysis_headers",
+    "//Source/IO:katydid_io_headers",
+    "//Source/SpectrumAnalysis:katydid_spectrum_analysis_headers",
+    "//Source/Transform:katydid_transform_headers",
+    "//Source/Utility:katydid_utility_headers",
+    "@cicada//:cicada_headers",
+]
+
+# The actual .so's: for the runtime link. See this file's own top comment for why every test
+# gets the full set, not just whichever module it most directly concerns.
+_ALL_KATYDID_LIBS = [
+    "//Source/Data:katydid_data",
+    "//Source/EventAnalysis:katydid_event_analysis",
+    "//Source/IO:katydid_io",
+    "//Source/SpectrumAnalysis:katydid_spectrum_analysis",
+    "//Source/Transform:katydid_transform",
+    "//Source/Utility:katydid_utility",
+    "@cicada",
+    "@nymph",
+    "@scarab",
+]
+
+# Cling's runtime autoloader looks up dictionary headers by bare basename (see
+# tools/root_dictionary.bzl) in the directory next to the running binary. @cicada's own `data`
+# isn't enough; this needs to physically sit in this package's own bazel-out bin/ directory.
+# Without it, autoloading fails with "Missing FileEntry for _CROOTData.hh" -- non-fatal, but
+# affects every test that touches @cicada, directly or transitively - which, given every test
+# below now depends on @cicada via _ALL_KATYDID_LIBS/_ALL_KATYDID_HEADERS, means all of them.
+genrule(
+    name = "CicadaDict_header_local_copy",
+    srcs = ["@cicada//:Library/_CROOTData.hh"],
+    outs = ["_CROOTData.hh"],
+    cmd = "cp $< $@",
+)
+
+_CICADA_HEADER_DATA = [":CicadaDict_header_local_copy"]
+
+cc_test(
+    name = "ObjectSize",
+    srcs = ["ObjectSize.cc"],
+    data = _CICADA_HEADER_DATA,
+    dynamic_deps = _ALL_KATYDID_LIBS,
+    deps = _ALL_KATYDID_HEADERS,
+)
+
+cc_test(
+    name = "TestAxisProperties",
+    srcs = ["TestAxisProperties.cc"],
+    data = _CICADA_HEADER_DATA,
+    dynamic_deps = _ALL_KATYDID_LIBS,
+    deps = _ALL_KATYDID_HEADERS,
+)
+
+cc_test(
+    name = "TestComplexPolar",
+    srcs = ["TestComplexPolar.cc"],
+    data = _CICADA_HEADER_DATA,
+    dynamic_deps = _ALL_KATYDID_LIBS,
+    deps = _ALL_KATYDID_HEADERS,
+)
+
+cc_test(
+    name = "TestCutableArray",
+    srcs = ["TestCutableArray.cc"],
+    data = _CICADA_HEADER_DATA,
+    dynamic_deps = _ALL_KATYDID_LIBS,
+    deps = _ALL_KATYDID_HEADERS,
+)
+
+cc_test(
+    name = "TestCutIterator",
+    srcs = ["TestCutIterator.cc"],
+    data = _CICADA_HEADER_DATA,
+    dynamic_deps = _ALL_KATYDID_LIBS,
+    deps = _ALL_KATYDID_HEADERS,
+)
+
+cc_test(
+    name = "TestDBSCAN",
+    srcs = ["TestDBSCAN.cc"],
+    data = _CICADA_HEADER_DATA,
+    dynamic_deps = _ALL_KATYDID_LIBS,
+    deps = _ALL_KATYDID_HEADERS,
+)
+
+cc_test(
+    name = "TestMinMaxBin",
+    srcs = ["TestMinMaxBin.cc"],
+    data = _CICADA_HEADER_DATA,
+    dynamic_deps = _ALL_KATYDID_LIBS,
+    deps = _ALL_KATYDID_HEADERS,
+)
+
+cc_test(
+    name = "TestNanoflann",
+    srcs = ["TestNanoflann.cc"],
+    data = _CICADA_HEADER_DATA,
+    dynamic_deps = _ALL_KATYDID_LIBS,
+    deps = _ALL_KATYDID_HEADERS + ["//vendor/nanoflann"],
+)
+
+cc_test(
+    name = "TestRandom",
+    srcs = ["TestRandom.cc"],
+    data = _CICADA_HEADER_DATA,
+    dynamic_deps = _ALL_KATYDID_LIBS,
+    deps = _ALL_KATYDID_HEADERS,
+)
+
+cc_test(
+    name = "TestVector",
+    srcs = ["TestVector.cc"],
+    data = _CICADA_HEADER_DATA,
+    dynamic_deps = _ALL_KATYDID_LIBS,
+    deps = _ALL_KATYDID_HEADERS,
+)
+
+cc_binary(
+    name = "TestDPTReader",
+    srcs = ["TestDPTReader.cc"],
+    data = _CICADA_HEADER_DATA,
+    dynamic_deps = _ALL_KATYDID_LIBS,
+    deps = _ALL_KATYDID_HEADERS,
+)
+
+cc_test(
+    name = "TestJSONWriter",
+    srcs = ["TestJSONWriter.cc"],
+    data = _CICADA_HEADER_DATA,
+    dynamic_deps = _ALL_KATYDID_LIBS,
+    deps = _ALL_KATYDID_HEADERS,
+)
+
+cc_test(
+    name = "TestKDTree",
+    srcs = ["TestKDTree.cc"],
+    data = _CICADA_HEADER_DATA,
+    dynamic_deps = _ALL_KATYDID_LIBS,
+    deps = _ALL_KATYDID_HEADERS + ["//vendor/nanoflann"],
+)
+
+cc_test(
+    name = "TestKDTreeData",
+    srcs = ["TestKDTreeData.cc"],
+    data = _CICADA_HEADER_DATA,
+    dynamic_deps = _ALL_KATYDID_LIBS,
+    deps = _ALL_KATYDID_HEADERS,
+)
+
+cc_test(
+    name = "TestSmoothing",
+    srcs = ["TestSmoothing.cc"],
+    data = _CICADA_HEADER_DATA,
+    dynamic_deps = _ALL_KATYDID_LIBS,
+    deps = _ALL_KATYDID_HEADERS,
+)
+
+cc_test(
+    name = "TestComboFFTW",
+    srcs = ["TestComboFFTW.cc"],
+    data = _CICADA_HEADER_DATA,
+    dynamic_deps = _ALL_KATYDID_LIBS,
+    deps = _ALL_KATYDID_HEADERS,
+)
+
+cc_test(
+    name = "TestForwardFFTW",
+    srcs = ["TestForwardFFTW.cc"],
+    data = _CICADA_HEADER_DATA,
+    dynamic_deps = _ALL_KATYDID_LIBS,
+    deps = _ALL_KATYDID_HEADERS,
+)
+
+cc_test(
+    name = "TestReverseFFTW",
+    srcs = ["TestReverseFFTW.cc"],
+    data = _CICADA_HEADER_DATA,
+    dynamic_deps = _ALL_KATYDID_LIBS,
+    deps = _ALL_KATYDID_HEADERS,
+)
+
+cc_test(
+    name = "TestWignerVille",
+    srcs = ["TestWignerVille.cc"],
+    data = _CICADA_HEADER_DATA,
+    dynamic_deps = _ALL_KATYDID_LIBS,
+    deps = _ALL_KATYDID_HEADERS,
+)
 
 cc_test(
     name = "TestChannelAggregator",
     srcs = ["TestChannelAggregator.cc"],
     data = _CICADA_HEADER_DATA,
-    dynamic_deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis"],
-    deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis_headers"],
+    dynamic_deps = _ALL_KATYDID_LIBS,
+    deps = _ALL_KATYDID_HEADERS,
 )
 
 cc_test(
     name = "TestConsensusThresholding",
     srcs = ["TestConsensusThresholding.cc"],
     data = _CICADA_HEADER_DATA,
-    dynamic_deps = [
-        "//Source/EventAnalysis:katydid_event_analysis",
-        "//Source/SpectrumAnalysis:katydid_spectrum_analysis",
-    ],
-    deps = [
-        "//Source/EventAnalysis:katydid_event_analysis_headers",
-        "//Source/SpectrumAnalysis:katydid_spectrum_analysis_headers",
-    ],
+    dynamic_deps = _ALL_KATYDID_LIBS,
+    deps = _ALL_KATYDID_HEADERS,
 )
 
 cc_test(
     name = "TestConvolution1D",
     srcs = ["TestConvolution1D.cc"],
     data = ["//Examples/CustomApplications:GaussianKernel.json"] + _CICADA_HEADER_DATA,
-    dynamic_deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis"],
-    deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis_headers"],
+    dynamic_deps = _ALL_KATYDID_LIBS,
+    deps = _ALL_KATYDID_HEADERS,
 )
 
 cc_test(
     name = "TestCorrelator",
     srcs = ["TestCorrelator.cc"],
     data = _CICADA_HEADER_DATA,
-    dynamic_deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis"],
-    deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis_headers"],
+    dynamic_deps = _ALL_KATYDID_LIBS,
+    deps = _ALL_KATYDID_HEADERS,
 )
 
 cc_test(
     name = "TestDataAccumulator",
     srcs = ["TestDataAccumulator.cc"],
     data = _CICADA_HEADER_DATA,
-    dynamic_deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis"],
-    deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis_headers"],
+    dynamic_deps = _ALL_KATYDID_LIBS,
+    deps = _ALL_KATYDID_HEADERS,
 )
 
 cc_test(
     name = "TestDBSCANNoiseFiltering",
     srcs = ["TestDBSCANNoiseFiltering.cc"],
     data = _CICADA_HEADER_DATA,
-    dynamic_deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis"],
-    deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis_headers"],
+    dynamic_deps = _ALL_KATYDID_LIBS,
+    deps = _ALL_KATYDID_HEADERS,
 )
 
 cc_test(
     name = "TestDBSCANTrackClustering",
     srcs = ["TestDBSCANTrackClustering.cc"],
     data = _CICADA_HEADER_DATA,
-    dynamic_deps = ["//Source/EventAnalysis:katydid_event_analysis"],
-    deps = ["//Source/EventAnalysis:katydid_event_analysis_headers"],
+    dynamic_deps = _ALL_KATYDID_LIBS,
+    deps = _ALL_KATYDID_HEADERS,
 )
 
 cc_test(
     name = "TestGainNormalization",
     srcs = ["TestGainNormalization.cc"],
     data = _CICADA_HEADER_DATA,
-    dynamic_deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis"],
-    deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis_headers"],
+    dynamic_deps = _ALL_KATYDID_LIBS,
+    deps = _ALL_KATYDID_HEADERS,
 )
 
 cc_test(
     name = "TestGainVariationProcessor",
     srcs = ["TestGainVariationProcessor.cc"],
     data = _CICADA_HEADER_DATA,
-    dynamic_deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis"],
-    deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis_headers"],
+    dynamic_deps = _ALL_KATYDID_LIBS,
+    deps = _ALL_KATYDID_HEADERS,
 )
 
 cc_test(
     name = "TestNTracksNPointsNUPCut",
     srcs = ["TestNTracksNPointsNUPCut.cc"],
     data = _CICADA_HEADER_DATA,
-    dynamic_deps = ["//Source/EventAnalysis:katydid_event_analysis"],
-    deps = ["//Source/EventAnalysis:katydid_event_analysis_headers"],
+    dynamic_deps = _ALL_KATYDID_LIBS,
+    deps = _ALL_KATYDID_HEADERS,
 )
 
 cc_test(
@@ -359,46 +349,40 @@ cc_test(
         ":CicadaDict_pcm_local_copy",
         ":IODict_pcm_local_copy",
     ] + _CICADA_HEADER_DATA,
-    dynamic_deps = [
-        "//Source/EventAnalysis:katydid_event_analysis",
-        "//Source/SpectrumAnalysis:katydid_spectrum_analysis",
-    ],
-    deps = [
-        "//Source/EventAnalysis:katydid_event_analysis_headers",
-        "//Source/SpectrumAnalysis:katydid_spectrum_analysis_headers",
-    ],
+    dynamic_deps = _ALL_KATYDID_LIBS,
+    deps = _ALL_KATYDID_HEADERS,
 )
 
 cc_test(
     name = "TestSpectrogramCollector",
     srcs = ["TestSpectrogramCollector.cc"],
     data = _CICADA_HEADER_DATA,
-    dynamic_deps = ["//Source/EventAnalysis:katydid_event_analysis"],
-    deps = ["//Source/EventAnalysis:katydid_event_analysis_headers"],
+    dynamic_deps = _ALL_KATYDID_LIBS,
+    deps = _ALL_KATYDID_HEADERS,
 )
 
 cc_test(
     name = "TestSpectrogramStriper",
     srcs = ["TestSpectrogramStriper.cc"],
     data = _CICADA_HEADER_DATA,
-    dynamic_deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis"],
-    deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis_headers"],
+    dynamic_deps = _ALL_KATYDID_LIBS,
+    deps = _ALL_KATYDID_HEADERS,
 )
 
 cc_test(
     name = "TestSpectrogramStriperSwaps",
     srcs = ["TestSpectrogramStriperSwaps.cc"],
     data = _CICADA_HEADER_DATA,
-    dynamic_deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis"],
-    deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis_headers"],
+    dynamic_deps = _ALL_KATYDID_LIBS,
+    deps = _ALL_KATYDID_HEADERS,
 )
 
 cc_test(
     name = "TestSpectrumDiscriminator",
     srcs = ["TestSpectrumDiscriminator.cc"],
     data = _CICADA_HEADER_DATA,
-    dynamic_deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis"],
-    deps = ["//Source/SpectrumAnalysis:katydid_spectrum_analysis_headers"],
+    dynamic_deps = _ALL_KATYDID_LIBS,
+    deps = _ALL_KATYDID_HEADERS,
 )
 
 cc_test(
@@ -408,8 +392,8 @@ cc_test(
         ":CicadaDict_pcm_local_copy",
         ":IODict_pcm_local_copy",
     ] + _CICADA_HEADER_DATA,
-    dynamic_deps = ["//Source/EventAnalysis:katydid_event_analysis"],
-    deps = ["//Source/EventAnalysis:katydid_event_analysis_headers"],
+    dynamic_deps = _ALL_KATYDID_LIBS,
+    deps = _ALL_KATYDID_HEADERS,
 )
 
 # ROOT's Cling interpreter looks for a dictionary's _rdict.pcm file directly alongside the
@@ -444,43 +428,24 @@ cc_test(
     name = "TestWindowFunction",
     srcs = ["TestWindowFunction.cc"],
     data = _CICADA_HEADER_DATA,
-    dynamic_deps = ["//Source/Transform:katydid_transform"],
-    deps = ["//Source/Transform:katydid_transform_headers"],
+    dynamic_deps = _ALL_KATYDID_LIBS,
+    deps = _ALL_KATYDID_HEADERS,
 )
-
-# --- ROOT-required tier -------------------------------------------------------------------
-#
-# TestROOTDictionary and TestROOTTreeWritingViaCicada both touch classes used via TClonesArray
-# (Cicada::TProcessedTrackData/TMultiTrackEventData), so both carry the CicadaDict PCM copy
-# genrule defined above, for the same reason TestTrackProcessing and TestSequentialTrackFinder
-# needed it - see that genrule's own comment for the full mechanism. TestROOTDictionary's own
-# lookup uses TClass::GetClass(name, false), which skips ROOT's autoload/autoparse fallback
-# entirely, so it likely doesn't strictly need the PCM - it's included anyway since it costs
-# nothing and keeps this consistent with every other target that references these classes.
-#
-# TestROOTDictionary needs @cicada directly rather than katydid_io: it includes CROOTData.hh
-# itself, with no Katydid-specific wrapping around Cicada's classes.
 
 cc_test(
     name = "TestBackgroundFlattening",
     srcs = ["TestBackgroundFlattening.cc"],
     data = _CICADA_HEADER_DATA,
-    dynamic_deps = [
-        "//Source/IO:katydid_io",
-        "//Source/SpectrumAnalysis:katydid_spectrum_analysis",
-    ],
-    deps = [
-        "//Source/IO:katydid_io_headers",
-        "//Source/SpectrumAnalysis:katydid_spectrum_analysis_headers",
-    ],
+    dynamic_deps = _ALL_KATYDID_LIBS,
+    deps = _ALL_KATYDID_HEADERS,
 )
 
 cc_test(
     name = "TestBasicROOTFileWriter",
     srcs = ["TestBasicROOTFileWriter.cc"],
     data = _CICADA_HEADER_DATA,
-    dynamic_deps = ["//Source/IO:katydid_io"],
-    deps = ["//Source/IO:katydid_io_headers"],
+    dynamic_deps = _ALL_KATYDID_LIBS,
+    deps = _ALL_KATYDID_HEADERS,
 )
 
 cc_test(
@@ -494,7 +459,9 @@ cc_test(
     # @cicada does not depend on @nymph (see its own BUILD file's top comment) - this is the
     # only test here whose deps are just @cicada, with nothing that transitively provides
     # Nymph's KTLogger.hh, which this test also includes directly. Every other test gets
-    # KTLogger.hh for free through one of the katydid_* libraries, which all depend on @nymph.
+    # KTLogger.hh for free through one of the katydid_* libraries for *headers* (all depend on
+    # @nymph), but every test below still needs @nymph and @scarab as direct dynamic_deps too,
+    # for the runtime link - see this file's own top comment.
     deps = [
         "@cicada//:cicada_headers",
         "@nymph//:nymph_headers",
@@ -508,14 +475,14 @@ cc_test(
         ":CicadaDict_pcm_local_copy",
         ":IODict_pcm_local_copy",
     ] + _CICADA_HEADER_DATA,
-    dynamic_deps = ["//Source/IO:katydid_io"],
-    deps = ["//Source/IO:katydid_io_headers"],
+    dynamic_deps = _ALL_KATYDID_LIBS,
+    deps = _ALL_KATYDID_HEADERS,
 )
 
 cc_test(
     name = "TestROOTWriterFileManager",
     srcs = ["TestROOTWriterFileManager.cc"],
     data = _CICADA_HEADER_DATA,
-    dynamic_deps = ["//Source/IO:katydid_io"],
-    deps = ["//Source/IO:katydid_io_headers"],
+    dynamic_deps = _ALL_KATYDID_LIBS,
+    deps = _ALL_KATYDID_HEADERS,
 )
