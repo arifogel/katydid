@@ -19,9 +19,19 @@ load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
 
 package(default_visibility = ["//visibility:public"])
 
-# Referenced directly by label from //Source/Executables/Main, to copy this header alongside
-# the Katydid/Truncate binaries for Cling's runtime autoloader (see the comment there).
-exports_files(["Library/_CROOTData.hh"])
+# Referenced directly by label from Source/Executables/Main/root_include_path_launcher.bzl, so
+# Cling's autoparse of the dictionary payload (embedded via -inlineInputHeader) can resolve
+# every #include the payload itself contains -- not just _CROOTData.hh's own FileEntry lookup
+# (autoloading), but CMemberVariables.hh and friends too (autoparsing the payload text itself).
+# Every entry here matches root_dictionary's own "headers" list below exactly.
+exports_files([
+    "Library/_CROOTData.hh",
+    "Library/CClassifierResultsData.hh",
+    "Library/CMemberVariables.hh",
+    "Library/CMTEWithClassifierResultsData.hh",
+    "Library/CProcessedMPTData.hh",
+    "Library/CROOTData.hh",
+])
 
 # Headers plus everything a consumer's own compilation needs to see (includes, defines) -- the
 # only target anything outside this package actually depends on for compile-time visibility.

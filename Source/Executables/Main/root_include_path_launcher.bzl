@@ -13,6 +13,44 @@ _DEFAULT_PCM_DATA = [
     ":UtilityDict_pcm_local_copy",
 ]
 
+# Every header CicadaDict's own dictionary payload #includes (see
+# third_party/cicada/BUILD.cicada.bazel's own root_dictionary() call for the authoritative
+# list) -- not just _CROOTData.hh. Cling's autoload only needs _CROOTData.hh's own FileEntry,
+# but when that lookup falls back to the embedded payload text (which it always does here,
+# non-fatally), that text's own #include "CMemberVariables.hh" (and the payload's other
+# #includes) still need to resolve through the ordinary compiler include-path mechanism
+# ROOT_INCLUDE_PATH feeds. Declaring only _CROOTData.hh as data leaves it alone in the
+# runfiles tree's copy of Cicada's Library/ directory -- Bazel only materializes files
+# explicitly declared as data/srcs, not a whole directory just because one file in it is
+# referenced -- so every one of these needs to be listed explicitly for autoparse to find them
+# all in that same directory.
+_CICADA_DICT_HEADERS = [
+    "@cicada//:Library/_CROOTData.hh",
+    "@cicada//:Library/CClassifierResultsData.hh",
+    "@cicada//:Library/CMemberVariables.hh",
+    "@cicada//:Library/CMTEWithClassifierResultsData.hh",
+    "@cicada//:Library/CProcessedMPTData.hh",
+    "@cicada//:Library/CROOTData.hh",
+]
+
+# The very first thing Cling does for each dictionary at process start is TCling::LoadPCM,
+# which checks a single, specific path baked into the compiled dictionary at rootcling
+# generation time: wherever that dictionary's own _rdict.pcm target would land in bazel-out,
+# in ITS OWN declaring package -- not wherever the eventually-consuming binary lives, and not
+# the separate, differently-named "local copy" genrules below (those exist for a completely
+# different lookup: Cling checking next to the running binary's own bazel-out directory,
+# consulted only if this first one fails). Bazel only materializes a file on disk if something
+# in the current build graph actually depends on it; nothing depended on these dictionaries'
+# own, original PCM targets directly until now, so this first lookup always reported "file
+# does not exist" (harmless on its own -- Cling falls back further -- but needless noise, and
+# a source of doubt about what's actually broken here vs. not). Declaring them as data forces
+# Bazel to build and place each one at exactly the path this first lookup checks.
+_RAW_PCM_TARGETS = [
+    "@cicada//:CicadaDict_pcm",
+    "//Source/IO:IODict_pcm",
+    "//Source/Utility:UtilityDict_pcm",
+]
+
 def _root_include_path_wrapper(name, real_bin_label, pcm_data, wrapper_rule, testonly):
     """Shared implementation behind root_include_path_launcher/root_include_path_test_launcher.
 
@@ -85,18 +123,18 @@ chmod +x $@
     )
 
     # data is needed here so these files are part of this target's own runfiles: Cling looks
-    # for them directly alongside the running binary.
+    # for the headers via ROOT_INCLUDE_PATH (set above) and the PCMs directly alongside the
+    # running binary.
     #
-    # @cicada//:Library/_CROOTData.hh, not a local copy: ROOT_INCLUDE_PATH (set above) is a
-    # general search path, not tied to any directory, so the original file works.
+    # Original files, not local copies, for _CICADA_DICT_HEADERS: ROOT_INCLUDE_PATH is a
+    # general search path, not tied to any one directory, so the originals work as-is.
     wrapper_rule(
         name = name,
         testonly = testonly,
         srcs = [":" + genrule_name],
         data = [
             real_bin_label,
-            "@cicada//:Library/_CROOTData.hh",
-        ] + pcm_data,
+        ] + _CICADA_DICT_HEADERS + _RAW_PCM_TARGETS + pcm_data,
         use_bash_launcher = True,
         deps = ["@rules_shell//shell/runfiles"],
     )
