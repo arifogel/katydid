@@ -12,8 +12,19 @@
 # dlopen()-load libCling.so by its own internal search logic, so it gets its own, intact
 # subtree rather than being flattened in with everything else.
 #
-# Boost/FFTW (currently resolved via plain system linker paths, not bundled) and Katydid's own
-# flattened include/ headers are deliberately deferred - see NOTES.md for status.
+# include/ is deliberately narrow for now: just the six Cicada headers
+# (third_party/cicada/BUILD.cicada.bazel's own root_dictionary() call names the authoritative
+# list) that CicadaDict's own dictionary payload #includes by bare filename - the specific gap
+# that made Cling's autoparse fail outright (fatal "CMemberVariables.hh file not found", not
+# just the harmless "Missing FileEntry for _CROOTData.hh" autoload warning) whenever the
+# release binary actually exercises a TClonesArray-backed class
+# (Cicada::TProcessedTrackData/TMultiTrackEventData), confirmed directly by the same crash
+# TestROOTTreeWritingViaCicada hit before ROOT_INCLUDE_PATH's own header set was fixed. Every
+# other Katydid/Nymph/Scarab header, flattened for a downstream consumer to build against the
+# way CMake's own install does, is a separate, still-deferred concern - see NOTES.md.
+#
+# Boost/FFTW (currently resolved via plain system linker paths, not bundled) are also
+# deliberately deferred - see NOTES.md for status.
 
 load("@rules_pkg//pkg:mappings.bzl", "pkg_attributes", "pkg_files", "strip_prefix")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
@@ -89,10 +100,30 @@ pkg_files(
     strip_prefix = strip_prefix.from_pkg("root"),
 )
 
+# include/ - see this file's own top comment for why this is narrow (just CicadaDict's own
+# dictionary headers) rather than every Katydid/Nymph/Scarab header. strip_prefix removes
+# Cicada's own "Library/" directory name (Library/_CROOTData.hh -> _CROOTData.hh) before
+# prefix re-adds include/, giving flat paths like include/_CROOTData.hh - matching how the
+# dictionary payload itself #includes them, by bare filename with no subdirectory.
+pkg_files(
+    name = "katydid_release_include",
+    srcs = [
+        "@cicada//:Library/CClassifierResultsData.hh",
+        "@cicada//:Library/CMTEWithClassifierResultsData.hh",
+        "@cicada//:Library/CMemberVariables.hh",
+        "@cicada//:Library/CProcessedMPTData.hh",
+        "@cicada//:Library/CROOTData.hh",
+        "@cicada//:Library/_CROOTData.hh",
+    ],
+    prefix = "include",
+    strip_prefix = strip_prefix.from_pkg("Library"),
+)
+
 pkg_tar(
     name = "katydid_release",
     srcs = [
         ":katydid_release_bin",
+        ":katydid_release_include",
         ":katydid_release_lib",
         ":katydid_release_notices",
         ":katydid_release_root",
