@@ -18,15 +18,15 @@ lib/ itself, so one RPATH is correct in both places.
 
 load("@system_libs//:lib_dirs.bzl", "MAC_LIB_DIRS")
 
-# Resolved via this file's repo mapping rather than hardcoded against Bazel's internal,
-# version-specific canonical-name mangling (e.g. the "+root_deps+root"-style names visible in
+# The real workspace name, from this file's repo mapping (not Bazel's internal,
+# version-specific canonical-name mangling, e.g. the "+root_deps+root"-style names visible in
 # solib directory paths).
 _ROOT_WORKSPACE_NAME = Label("@root//:BUILD.bazel").workspace_name
 
 # @system_libs (Boost/FFTW/MatIO) is excluded from harvesting the same way @root is: on every
 # OS, the release archive relies on these already being present on the machine it runs on
-# (Homebrew on macOS, apt/dnf's own default search paths on Linux - see tools/system_deps.bzl),
-# so there is nothing to bundle here. This also sidesteps a real RHEL-family packaging quirk:
+# (Homebrew on macOS, apt/dnf's default search paths on Linux - see tools/system_deps.bzl), so
+# there is nothing to bundle here. This also sidesteps a real RHEL-family packaging quirk:
 # AlmaLinux's boost-devel ships at least one unversioned name (libboost_thread.so) as a plain
 # linker script, not a real ELF file, which patchelf below correctly refuses to touch.
 _SYSTEM_LIBS_WORKSPACE_NAME = Label("@system_libs//:BUILD.bazel").workspace_name
@@ -55,20 +55,17 @@ def _harvest_runtime_libs_impl(ctx):
             if not (f.basename.endswith(".so") or f.basename.endswith(".pcm")):
                 continue
             if f.basename in seen_basenames:
-                # Two different runfiles resolving to the same basename shouldn't happen for a
-                # real set of distinct shared libraries/PCMs - keep the first found rather
-                # than fail outright, since a harmless coincidence (e.g. the same library
-                # reachable from more than one binary) is more likely than a genuine collision
-                # worth hard-failing the build over.
+                # Same basename from two different runfiles shouldn't happen for a real set of
+                # distinct shared libraries/PCMs; keeping the first found covers the harmless
+                # case (the same library reachable from more than one binary).
                 continue
             seen_basenames[f.basename] = True
 
             out = ctx.actions.declare_file(ctx.label.name + "/" + f.basename)
             if f.basename.endswith(".so"):
                 if is_macos:
-                    # See release_binary.bzl's docstring for why each of these three steps is
-                    # needed on macOS specifically (unlike Linux's single patchelf
-                    # --set-rpath call, with no dependency-reference or signature concerns).
+                    # See release_binary.bzl's docstring for why these three steps are needed
+                    # on macOS.
                     command = (
                         "cp -f '{src}' '{out}' && chmod +w '{out}' && " +
                         "install_name_tool -id '@rpath/{base}' '{out}' && " +
@@ -83,10 +80,9 @@ def _harvest_runtime_libs_impl(ctx):
                         "codesign --sign - --force '{out}'"
                     ).format(src = f.path, out = out.path, base = f.basename, extra = _MAC_EXTRA_RPATH_FLAGS)
                 else:
-                    # --set-rpath, not --add-rpath: replaces this .so's Bazel-baked-in RPATH
-                    # outright (see this file's docstring for why it's meaningless here)
-                    # rather than appending to it. patchelf is built from source by the
-                    # @patchelf module (see MODULE.bazel), not assumed to be a preinstalled
+                    # --set-rpath replaces this .so's Bazel-baked-in RPATH outright (see this
+                    # file's docstring for why it's meaningless here). patchelf is built from
+                    # source by the @patchelf module (see MODULE.bazel), not a preinstalled
                     # system package.
                     command = (
                         "cp -f '{src}' '{out}' && chmod +w '{out}' && " +
@@ -109,13 +105,9 @@ harvest_runtime_libs = rule(
     implementation = _harvest_runtime_libs_impl,
     attrs = {
         "binaries": attr.label_list(mandatory = True, doc = "cc_binarys to harvest runtime .so/.pcm files from."),
-        # Private, not user-facing: lets the rule implementation branch on target OS (a plain
-        # rule, unlike release_binary.bzl's genrule-based macro, can't use select() directly in
-        # its implementation function - this constraint-value attribute is the standard way
-        # around that).
+        # Private, not user-facing: lets the rule implementation branch on target OS.
         "_macos_constraint": attr.label(default = Label("@platforms//os:macos")),
-        # Only used on the Linux branch above; harmless to build unconditionally (contrast
-        # release_binary.bzl's select()-scoped @patchelf tools dep for the genrule case).
+        # Only used on the Linux branch above; harmless to build unconditionally.
         "_patchelf": attr.label(default = Label("@patchelf//:patchelf"), executable = True, cfg = "exec"),
     },
     doc = "Collects every .so/.pcm file reachable from binaries' runfiles, flat, excluding @root and @system_libs (see this file's docstring).",
