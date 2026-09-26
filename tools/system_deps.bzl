@@ -314,6 +314,11 @@ def _root_repo_impl(repository_ctx):
     root_lib_names = [x[2:] for x in all_root_libs_tokens if x.startswith("-l")]
     root_other_linkopts = [x for x in all_root_libs_tokens if x and not x.startswith("-l") and not x.startswith("-L")]
 
+    root_srcs = [
+        "root/lib/lib{}.so".format(lib_name)
+        for lib_name in root_lib_names
+        if repository_ctx.path("root/lib/lib{}.so".format(lib_name)).exists
+    ]
     root_linkopts = root_other_linkopts + [
         "-l" + lib_name
         for lib_name in root_lib_names
@@ -330,12 +335,12 @@ cc_library(
     hdrs = glob(["root/include/**"], allow_empty = True),
     includes = ["root/include"],
     defines = ["ROOT_FOUND"],
-    srcs = glob(["root/lib/*.so"]),
+    srcs = {srcs},
     linkopts = {linkopts},
 )
 
 exports_files(["rootcling"])
-""".format(linkopts = repr(root_linkopts)))
+""".format(srcs = repr(root_srcs), linkopts = repr(root_linkopts)))
 
     # Symlinked to the repository root, not referenced as root/bin/rootcling directly: keeps
     # the label @root//:rootcling short - tools/root_dictionary.bzl's own _rootcling attribute
