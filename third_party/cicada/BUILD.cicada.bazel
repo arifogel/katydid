@@ -44,8 +44,8 @@ cc_library(
     defines = ["USE_CPP11"],
     includes = ["Library"],
     deps = [
+        "@root",
         "@scarab//:scarab_headers",
-        "@system_libs//:root",
     ],
 )
 

@@ -35,14 +35,14 @@ prebuilt binaries are versioned per exact OS release and toolchain (not just "li
 just check which package manager is on PATH.
 
 ROOT is deliberately its own, separate repository (@root), not folded into @system_libs
-alongside Boost/FFTW/MatIO, even though @system_libs//:root and @system_libs//:rootcling
-remain valid labels (aliased to @root's own targets, so nothing elsewhere in this repo needs
-to change). @system_libs needs local = True to re-run on every build, so a brew upgrade/apt
-install since the last build is picked up - but ROOT's own version here is a fixed pin in
-this file, not host state, so it should only be re-fetched when this file itself changes.
-Folding ROOT's own fetch into the same, always-local rule was a real, confirmed bug: it
-silently defeated download_and_extract's own cache and re-downloaded the ~300MB tarball on
-every single build, regardless of whether anything had actually changed.
+alongside Boost/FFTW/MatIO: @system_libs needs local = True to re-run on every build, so a
+brew upgrade/apt install since the last build is picked up - but ROOT's own version here is a
+fixed pin in this file, not host state, so it should only be re-fetched when this file itself
+changes. Folding ROOT's own fetch into the same, always-local rule was a real, confirmed bug:
+it silently defeated download_and_extract's own cache and re-downloaded the ~300MB tarball on
+every single build, regardless of whether anything had actually changed. Every consumer
+references @root directly (e.g. deps = ["@root"]) - there is no @system_libs//:root alias, to
+avoid exactly the confusion a same-named alias into a different repository invites.
 
 Boost/FFTW/MatIO are still discovered from what's already on the machine (Homebrew, apt, dnf)
 rather than fetched directly - this is a deliberate trade: none of this is built hermetically
@@ -403,9 +403,8 @@ exports_files(["rootcling"])
     ))
 
     # Symlinked to the repository root, not referenced as root/bin/rootcling directly: keeps
-    # the label @root//:rootcling short, matching what @system_libs//:rootcling aliases to
-    # below - tools/root_dictionary.bzl's own _rootcling attribute default references the
-    # latter directly.
+    # the label @root//:rootcling short - tools/root_dictionary.bzl's own _rootcling attribute
+    # default references it directly.
     repository_ctx.symlink("root/bin/rootcling", "rootcling")
 
 # No local = True, unlike _system_libs_repo below: ROOT's own version is a fixed pin in this
@@ -426,24 +425,6 @@ def _system_libs_repo_impl(repository_ctx):
         'load("@rules_cc//cc:cc_library.bzl", "cc_library")',
     ]
     build_file_parts.append('package(default_visibility = ["//visibility:public"])')
-
-    # Aliases, not a real cc_library defined here: ROOT itself is fetched by the separate
-    # @root repository above, specifically so its own fixed-version download doesn't get
-    # bundled into this repository's own local = True (always re-run) behavior. These keep
-    # @system_libs//:root and @system_libs//:rootcling as valid labels unchanged, so nothing
-    # elsewhere in this repo (or tools/root_dictionary.bzl's own _rootcling attribute default)
-    # needs to be updated to point at @root directly instead.
-    build_file_parts.append("""
-alias(
-    name = "root",
-    actual = "@root//:root",
-)
-
-alias(
-    name = "rootcling",
-    actual = "@root//:rootcling",
-)
-""")
 
     # cc_shared_library silently drops linkopts from a cc_library with no srcs
     # (bazelbuild/bazel#21884/#27247, a still-open upstream bug; the attempted fix, #24017,

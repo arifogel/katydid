@@ -28,10 +28,10 @@ cc_library(
     includes = ["."],
     deps = [
         "@nymph//:nymph_headers",
+        "@root",
         "@scarab//:scarab_headers",
         "@system_libs//:boost",
         "@system_libs//:fftw",
-        "@system_libs//:root",
     ],
 )
 
