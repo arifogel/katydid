@@ -6,34 +6,37 @@ ROOT's own fetch/discovery lives in tools/root.bzl, fully independent of this fi
 module extension (root_deps) registers @root on its own, and this file's own system_deps
 extension knows nothing about it.
 
-On Linux, Boost/FFTW/MatIO are exposed as real cc_import targets pointing directly at the
-actual, already-installed .so file for each library component (located via known apt/dnf
-paths, not a bare -l linker search hint) - not a cc_library with a fake, empty placeholder
-source file. These libraries' own compiled implementation already exists on the machine and
-was never something Bazel compiles; cc_import represents that directly. This also resolves
-cc_shared_library's own "linked statically but not exported" error for a library reachable
-from more than one cc_shared_library's own deps (e.g. Boost, needed by both katydid_utility
-and nymph) - confirmed directly, empirically: converting these from a cc_library (which does
-hit that error, even a header-only one with zero srcs - bazelbuild/bazel#19920) to cc_import
-made the error stop naming them at all, with no LINKABLE_MORE_THAN_ONCE tag needed anywhere.
-Exactly why cc_import is exempt isn't confirmed from Bazel's own source - the fragments of
-_separate_static_and_dynamic_link_libraries examined while investigating this suggested every
-deps-reachable node is treated identically regardless of kind, which the actual, observed
-build result directly contradicts - but the empirical result itself is solid. If a future
-Bazel version's behavior here ever changes, tags = ["LINKABLE_MORE_THAN_ONCE"] on the
-per-component cc_import targets below is the fallback, and is genuinely appropriate should it
-ever be needed: a cc_import wrapping an already-existing system .so has no compiled code of
-its own to duplicate at all, unlike a library actually compiled from source (e.g. @yaml_cpp,
-which needs the real fix - a genuine cc_shared_library of its own - since that one does
-compile real source and a tag would actually paper over duplicated code there).
+On every OS, Boost/FFTW/MatIO are exposed as real cc_import targets pointing directly at the
+actual, already-installed .so/.dylib file for each library component (located via known
+apt/dnf paths on Linux, via `brew --prefix` on macOS - not a bare -l linker search hint) - not
+a cc_library with a fake, empty placeholder source file. These libraries' own compiled
+implementation already exists on the machine and was never something Bazel compiles; cc_import
+represents that directly. This also resolves cc_shared_library's own "linked statically but
+not exported" error for a library reachable from more than one cc_shared_library's own deps
+(e.g. Boost, needed by both katydid_utility and nymph) - confirmed directly, empirically:
+converting these from a cc_library (which does hit that error, even a header-only one with
+zero srcs - bazelbuild/bazel#19920) to cc_import made the error stop naming them at all, with
+no LINKABLE_MORE_THAN_ONCE tag needed anywhere. Exactly why cc_import is exempt isn't confirmed
+from Bazel's own source - the fragments of _separate_static_and_dynamic_link_libraries examined
+while investigating this suggested every deps-reachable node is treated identically regardless
+of kind, which the actual, observed build result directly contradicts - but the empirical
+result itself is solid. If a future Bazel version's behavior here ever changes, tags =
+["LINKABLE_MORE_THAN_ONCE"] on the per-component cc_import targets below is the fallback, and
+is genuinely appropriate should it ever be needed: a cc_import wrapping an already-existing
+system .so/.dylib has no compiled code of its own to duplicate at all, unlike a library
+actually compiled from source (e.g. @yaml_cpp, which needs the real fix - a genuine
+cc_shared_library of its own, already in place - since that one does compile real source and a
+tag would actually paper over duplicated code there).
 
 Boost/FFTW/MatIO are still discovered from what's already on the machine (Homebrew, apt, dnf)
 rather than fetched directly - this is a deliberate trade: none of this is built hermetically
 by Bazel, and the exact version you get depends on what's already on the machine. In exchange,
-there's no need to compile these from source inside the Bazel graph, and on Linux, apt/dnf-
-installed Boost/FFTW/MatIO need no explicit discovery at all - both install into the
-compiler/linker's default search paths, unlike Homebrew, which deliberately keeps things out
-of the way.
+there's no need to compile these from source inside the Bazel graph. The two OSes now differ
+only in *how the library is located*, not in what kind of target represents it once found:
+apt/dnf-installed Boost/FFTW/MatIO need no explicit -I at all (their headers land on the
+compiler's default system include path), while Homebrew deliberately keeps things out of the
+way, so macOS still needs `brew --prefix` plus explicit hdrs/includes on the aggregating
+cc_import below.
 
 Usage from a BUILD file: deps = ["@system_libs//:boost", "@system_libs//:fftw"]
 """
@@ -177,20 +180,26 @@ def _find_shared_lib_or_fail(repository_ctx, libname, packages, install_hint):
         ),
     )
 
+# Locates the real, already-installed .dylib file for a library under a formula's own
+# `brew --prefix` - unlike Linux's apt/dnf, where the same library can land in one of several
+# distro-specific paths, Homebrew always puts it at exactly one place relative to the formula's
+# own prefix, so there's a single candidate to check rather than a list.
+def _find_mac_dylib_or_fail(repository_ctx, prefix, libname, brew_formula):
+    path = "{}/lib/lib{}.dylib".format(prefix, libname)
+    if repository_ctx.path(path).exists:
+        return path
+    fail(
+        "Could not find {path} - looks like `brew install {f}` didn't provide it, or " +
+        "Homebrew's layout for this formula has changed.".format(path = path, f = brew_formula),
+    )
+
 def _system_libs_repo_impl(repository_ctx):
     is_macos = _is_macos(repository_ctx)
 
     build_file_parts = [
         'load("@rules_cc//cc:cc_import.bzl", "cc_import")',
-        'load("@rules_cc//cc:cc_library.bzl", "cc_library")',
     ]
     build_file_parts.append('package(default_visibility = ["//visibility:public"])')
-
-    # cc_shared_library silently drops linkopts from a cc_library with no srcs
-    # (bazelbuild/bazel#21884/#27247, a still-open upstream bug; the attempted fix, #24017,
-    # was itself reverted). Every cc_library below (boost/fftw/matio on macOS) has linkopts
-    # and no srcs, so each gets this empty, inert source file as its own srcs.
-    repository_ctx.file("_empty.cc", "")
 
     # --- Boost / FFTW / MatIO: genuinely different discovery per OS, not just a different
     # formula name. Homebrew deliberately keeps things out of default search paths (needs
@@ -221,18 +230,43 @@ def _system_libs_repo_impl(repository_ctx):
             # it directly.
             repository_ctx.symlink(prefix + "/include", formula + "/include")
 
-            linkopts = ["-L" + prefix + "/lib"] + ["-l" + lib for lib in info["libs"]]
+            # Real cc_import per library component, matching Linux (see this file's top
+            # comment): Homebrew's own compiled implementation already exists as a real
+            # .dylib, and was never ours to compile - cc_import(shared_library = ...)
+            # represents that directly, rather than a cc_library + linkopts, which does hit
+            # cc_shared_library's "linked statically but not exported" ODR check.
+            component_import_labels = []
+            for lib in info["libs"]:
+                dylib_path = _find_mac_dylib_or_fail(repository_ctx, prefix, lib, brew_formula)
+                symlink_name = "{formula}/lib{lib}.dylib".format(formula = formula, lib = lib)
+                repository_ctx.symlink(dylib_path, symlink_name)
 
+                import_name = "_{formula}_{lib}_import".format(formula = formula, lib = lib)
+                component_import_labels.append(":" + import_name)
+                build_file_parts.append("""
+cc_import(
+    name = "{import_name}",
+    shared_library = "{symlink_name}",
+)
+""".format(import_name = import_name, symlink_name = symlink_name))
+
+            # hdrs/includes live on this aggregating target, unlike Linux's (where apt/dnf
+            # already put the headers on the compiler's default system include path):
+            # Homebrew deliberately keeps its own include/ out of the way, and the symlink
+            # above is what gives `glob(...)` real files to see at all.
             build_file_parts.append("""
-cc_library(
+cc_import(
     name = "{formula}",
-    srcs = ["_empty.cc"],
     hdrs = glob(["{formula}/include/**"], allow_empty = True),
     includes = ["{formula}/include"],
     defines = {defines},
-    linkopts = {linkopts},
+    deps = {component_import_labels},
 )
-""".format(formula = formula, defines = repr(info.get("defines", [])), linkopts = repr(linkopts)))
+""".format(
+                formula = formula,
+                defines = repr(info.get("defines", [])),
+                component_import_labels = repr(component_import_labels),
+            ))
 
     else:
         pkg_manager, linux_libs = _linux_pkg_manager(repository_ctx)
