@@ -1,20 +1,28 @@
-"""Wraps system-provided libraries (Boost, FFTW, MatIO, ROOT) as Bazel targets - via Homebrew
-on macOS, via apt or dnf on Linux (whichever is actually on PATH - not a hardcoded distro
-list, so this doesn't need editing again for the next Linux flavor that shows up).
+"""Wraps system-provided libraries (Boost, FFTW, MatIO) and fetches ROOT, exposed as
+@system_libs and @root respectively - via Homebrew on macOS, via apt or dnf on Linux for
+Boost/FFTW/MatIO (whichever is actually on PATH - not a hardcoded distro list, so this doesn't
+need editing again for the next Linux flavor that shows up).
 
 On Linux, Boost/FFTW/MatIO are exposed as real cc_import targets pointing directly at the
 actual, already-installed .so file for each library component (located via known apt/dnf
 paths, not a bare -l linker search hint) - not a cc_library with a fake, empty placeholder
 source file. These libraries' own compiled implementation already exists on the machine and
-was never something Bazel compiles; cc_import represents that directly. Whether this also
-resolves cc_shared_library's own "linked statically but not exported" error for a library
-reachable from more than one cc_shared_library's own deps (e.g. Boost, needed by both
-katydid_utility and nymph) is what this specific structure is testing empirically - not yet
-confirmed either way. If it turns out cc_import does not exempt a node from that check any
-more than a plain cc_library does, the next thing to try is tags = ["LINKABLE_MORE_THAN_ONCE"]
-on the per-component cc_import targets above - genuinely appropriate here specifically,
-since a cc_import wrapping an already-existing system .so has no compiled code of its own to
-duplicate at all, unlike a library actually compiled from source (e.g. @yaml_cpp).
+was never something Bazel compiles; cc_import represents that directly. This also resolves
+cc_shared_library's own "linked statically but not exported" error for a library reachable
+from more than one cc_shared_library's own deps (e.g. Boost, needed by both katydid_utility
+and nymph) - confirmed directly, empirically: converting these from a cc_library (which does
+hit that error, even a header-only one with zero srcs - bazelbuild/bazel#19920) to cc_import
+made the error stop naming them at all, with no LINKABLE_MORE_THAN_ONCE tag needed anywhere.
+Exactly why cc_import is exempt isn't confirmed from Bazel's own source - the fragments of
+_separate_static_and_dynamic_link_libraries examined while investigating this suggested every
+deps-reachable node is treated identically regardless of kind, which the actual, observed
+build result directly contradicts - but the empirical result itself is solid. If a future
+Bazel version's behavior here ever changes, tags = ["LINKABLE_MORE_THAN_ONCE"] on the
+per-component cc_import targets below is the fallback, and is genuinely appropriate should it
+ever be needed: a cc_import wrapping an already-existing system .so has no compiled code of
+its own to duplicate at all, unlike a library actually compiled from source (e.g. @yaml_cpp,
+which needs the real fix - a genuine cc_shared_library of its own - since that one does
+compile real source and a tag would actually paper over duplicated code there).
 
 ROOT is fetched directly as a prebuilt binary from root.cern, one exact URL per supported
 platform, rather than discovered via root-config on PATH: no distro packages a usable ROOT
@@ -25,6 +33,16 @@ minor version; 9.x is ABI-compatible across the series), and macOS on arm64. ROO
 prebuilt binaries are versioned per exact OS release and toolchain (not just "linux" or
 "macos"), so unlike Boost/FFTW/MatIO below, this needs to read /etc/os-release on Linux, not
 just check which package manager is on PATH.
+
+ROOT is deliberately its own, separate repository (@root), not folded into @system_libs
+alongside Boost/FFTW/MatIO, even though @system_libs//:root and @system_libs//:rootcling
+remain valid labels (aliased to @root's own targets, so nothing elsewhere in this repo needs
+to change). @system_libs needs local = True to re-run on every build, so a brew upgrade/apt
+install since the last build is picked up - but ROOT's own version here is a fixed pin in
+this file, not host state, so it should only be re-fetched when this file itself changes.
+Folding ROOT's own fetch into the same, always-local rule was a real, confirmed bug: it
+silently defeated download_and_extract's own cache and re-downloaded the ~300MB tarball on
+every single build, regardless of whether anything had actually changed.
 
 Boost/FFTW/MatIO are still discovered from what's already on the machine (Homebrew, apt, dnf)
 rather than fetched directly - this is a deliberate trade: none of this is built hermetically
@@ -244,7 +262,7 @@ def _root_unsupported_platform_error(key):
         supported = ", ".join(["{}/{}".format(d, a) for d, a in _ROOT_DOWNLOADS.keys()]),
     )
 
-def _fetch_root(repository_ctx):
+def _root_repo_impl(repository_ctx):
     key = _root_download_key(repository_ctx)
     download = _ROOT_DOWNLOADS.get(key)
     if not download:
@@ -285,7 +303,11 @@ def _fetch_root(repository_ctx):
         ["-Wl,-rpath," + root_libdir]  # ROOT dlopens plugin libs at runtime; needs rpath, not just -L
     )
 
-    build_file_part = """
+    repository_ctx.file("BUILD.bazel", """
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
 cc_library(
     name = "root",
     srcs = ["_empty.cc"],
@@ -298,14 +320,29 @@ cc_library(
 )
 
 exports_files(["rootcling"])
-""".format(linkopts = repr(root_linkopts))
+""".format(linkopts = repr(root_linkopts)))
+
+    # cc_shared_library silently drops linkopts from a cc_library with no srcs
+    # (bazelbuild/bazel#21884/#27247, a still-open upstream bug; the attempted fix, #24017,
+    # was itself reverted). The cc_library above has linkopts and no srcs, so it gets this
+    # empty, inert source file as its own srcs.
+    repository_ctx.file("_empty.cc", "")
 
     # Symlinked to the repository root, not referenced as root/bin/rootcling directly: keeps
-    # the label @system_libs//:rootcling unchanged, which tools/root_dictionary.bzl's own
-    # _rootcling attribute default already references directly.
+    # the label @root//:rootcling short, matching what @system_libs//:rootcling aliases to
+    # below - tools/root_dictionary.bzl's own _rootcling attribute default references the
+    # latter directly.
     repository_ctx.symlink("root/bin/rootcling", "rootcling")
 
-    return build_file_part
+# No local = True, unlike _system_libs_repo below: ROOT's own version is a fixed pin in this
+# file, not host state (a brew/apt package version) that can change between builds without
+# this file itself changing - Bazel only needs to re-run this when the file changes. Split
+# into its own repository specifically so this stays true regardless of what
+# _system_libs_repo's own local = True (needed for Boost/FFTW/MatIO's host discovery) does -
+# folding ROOT's fetch into that same, always-re-run rule was a real bug: it silently
+# defeated download_and_extract's own cache and re-downloaded the ~300MB tarball on every
+# single build, confirmed directly, not assumed.
+_root_repo = repository_rule(implementation = _root_repo_impl)
 
 def _system_libs_repo_impl(repository_ctx):
     is_macos = _is_macos(repository_ctx)
@@ -316,13 +353,29 @@ def _system_libs_repo_impl(repository_ctx):
     ]
     build_file_parts.append('package(default_visibility = ["//visibility:public"])')
 
+    # Aliases, not a real cc_library defined here: ROOT itself is fetched by the separate
+    # @root repository above, specifically so its own fixed-version download doesn't get
+    # bundled into this repository's own local = True (always re-run) behavior. These keep
+    # @system_libs//:root and @system_libs//:rootcling as valid labels unchanged, so nothing
+    # elsewhere in this repo (or tools/root_dictionary.bzl's own _rootcling attribute default)
+    # needs to be updated to point at @root directly instead.
+    build_file_parts.append("""
+alias(
+    name = "root",
+    actual = "@root//:root",
+)
+
+alias(
+    name = "rootcling",
+    actual = "@root//:rootcling",
+)
+""")
+
     # cc_shared_library silently drops linkopts from a cc_library with no srcs
     # (bazelbuild/bazel#21884/#27247, a still-open upstream bug; the attempted fix, #24017,
-    # was itself reverted). Every cc_library below (root/boost/fftw/matio) has linkopts and no
-    # srcs, so each gets this empty, inert source file as its own srcs.
+    # was itself reverted). Every cc_library below (boost/fftw/matio on macOS) has linkopts
+    # and no srcs, so each gets this empty, inert source file as its own srcs.
     repository_ctx.file("_empty.cc", "")
-
-    build_file_parts.append(_fetch_root(repository_ctx))
 
     # --- Boost / FFTW / MatIO: genuinely different discovery per OS, not just a different
     # formula name. Homebrew deliberately keeps things out of default search paths (needs
@@ -434,6 +487,7 @@ _system_libs_repo = repository_rule(
 )
 
 def _system_deps_impl(_module_ctx):
+    _root_repo(name = "root")
     _system_libs_repo(name = "system_libs")
 
 system_deps = module_extension(implementation = _system_deps_impl)

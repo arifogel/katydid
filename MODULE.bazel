@@ -25,4 +25,4 @@ use_repo(non_bazel_deps, "cicada", "nymph", "rapidjson", "scarab", "yaml_cpp")
 # what needs to be installed on each platform before building.
 
 system_deps = use_extension("//tools:system_deps.bzl", "system_deps")
-use_repo(system_deps, "system_libs")
+use_repo(system_deps, "root", "system_libs")

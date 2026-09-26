@@ -58,7 +58,7 @@ cc_library(
     deps = [
         "@rapidjson",
         "@system_libs//:boost",
-        "@yaml_cpp",
+        "@yaml_cpp//:yaml_cpp_headers",
     ],
 )
 
@@ -99,6 +99,7 @@ cc_library(
 # change.
 cc_shared_library(
     name = "scarab",
+    dynamic_deps = ["@yaml_cpp"],
     shared_lib_name = "libscarab.so",
     deps = [":scarab_lib"],
 )
