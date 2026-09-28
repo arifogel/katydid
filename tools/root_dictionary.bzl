@@ -73,9 +73,10 @@ _root_dictionary_gen = rule(
 )
 
 def root_dictionary(name, headers, linkdef, deps):
-    """Generates a ROOT dictionary from headers and a LinkDef, as two targets: <name>_cxx (the
-    generated .cxx, to add to the owning cc_library's srcs) and <name>_pcm (the generated .pcm,
-    to depend on wherever it's needed as data).
+    """Generates a ROOT dictionary from headers and a LinkDef.
+
+    Produces two targets: <name>_cxx (the generated .cxx, to add to the owning cc_library's
+    srcs) and <name>_pcm (the generated .pcm, to depend on wherever it's needed as data).
     """
     _root_dictionary_gen(
         name = name + "_gen",
