@@ -215,10 +215,10 @@ def check_is_elf_or_fail(repository_ctx, path, pkg_name, source_path):
         ).format(source = source_path, pkg = pkg_name))
 
 def cc_import_snippet(name, so_names, hdrs_glob = [], includes = [], defines = []):
-    """Builds one cc_import's worth of BUILD.bazel text: the aggregating target plus one
-    component cc_import per .so.
+    """Builds one cc_import's worth of BUILD.bazel text.
 
-    A standalone helper rather than a closure, since Starlark disallows nested defs.
+    The aggregating target plus one component cc_import per .so, as a standalone helper rather
+    than a closure, since Starlark disallows nested defs.
 
     Args:
         name: the aggregating cc_import's target name.
