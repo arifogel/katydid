@@ -11,13 +11,6 @@
 # (bin/, lib/, etc/, include/) to find things like etc/gitinfo.txt and dlopen()-load
 # libCling.so.
 #
-# include/ is just the headers needed at runtime; see root_include_path_launcher.bzl's
-# _CICADA_DICT_HEADERS for which ones and why.
-#
-# It's not a full install layout downstream code could build against as in the cmake
-# reference install layout - every other Katydid/Nymph/Scarab header is still missing. See
-# NOTES.md's "Known limitations" section.
-#
 # Boost/FFTW (currently resolved via plain system linker paths, not bundled) are also
 # deliberately deferred - see NOTES.md for status.
 
@@ -52,8 +45,7 @@ pkg_files(
 # bin/Katydid, bin/Katydid_bin, bin/Truncate, bin/Truncate_bin - renamed from their build
 # target names (Katydid_release/Katydid_release_bin/etc.) since Katydid/Katydid_bin were
 # already taken by the bazel run/bazel test variants in the same package (see
-# //Source/Executables/Main:BUILD.bazel's comment on release_binary()). Explicit mode:
-# genrule outputs don't reliably keep the executable bit through tar packaging otherwise.
+# //Source/Executables/Main:BUILD.bazel's comment on release_binary()).
 pkg_files(
     name = "katydid_release_bin",
     srcs = [
@@ -73,9 +65,7 @@ pkg_files(
 )
 
 # lib/*.so, lib/*.pcm - flat, harvested automatically (see the harvest_runtime_libs target's
-# docstring for why this isn't a hand-maintained list). strip_prefix removes the harvest
-# rule's output-directory nesting (release_libs/libX.so -> libX.so) before prefix re-adds
-# lib/.
+# docstring for why this isn't a hand-maintained list).
 pkg_files(
     name = "katydid_release_lib",
     srcs = ["//Source/Executables/Main:release_libs"],
@@ -84,10 +74,7 @@ pkg_files(
 )
 
 # root/ - ROOT's tarball, wholesale and unfiltered (see this file's top comment for why it
-# isn't merged into lib/ above). strip_prefix removes the tarball's top-level "root/"
-# directory name (root/lib/libCore.so -> lib/libCore.so, within this rule's output) before
-# prefix re-adds it as this archive's root/ (giving root/lib/libCore.so in the final archive -
-# root/root/lib/libCore.so would be wrong).
+# isn't merged into lib/ above).
 pkg_files(
     name = "katydid_release_root",
     srcs = ["@root//:all_files"],
@@ -95,11 +82,12 @@ pkg_files(
     strip_prefix = strip_prefix.from_pkg("root"),
 )
 
-# include/ - see this file's top comment for why this is narrow (just CicadaDict's
-# dictionary headers) rather than every Katydid/Nymph/Scarab header. strip_prefix removes
-# Cicada's "Library/" directory name (Library/_CROOTData.hh -> _CROOTData.hh) before prefix
-# re-adds include/, giving flat paths like include/_CROOTData.hh - matching how the
-# dictionary payload #includes them, by bare filename with no subdirectory.
+# include/ is just the headers needed at runtime; see root_include_path_launcher.bzl's
+# _CICADA_DICT_HEADERS for which ones and why.
+#
+# It's not a full install layout downstream code could build against as in the cmake
+# reference install layout - every other Katydid/Nymph/Scarab header is still missing. See
+# NOTES.md's "Known limitations" section.
 pkg_files(
     name = "katydid_release_include",
     srcs = [
