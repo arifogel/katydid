@@ -15,13 +15,13 @@ against them - nothing here ever #includes their headers - so only the compiled 
 extracted, exposed as a plain filegroup rather than a cc_import (nothing `deps` on it; a
 release archive bundles it directly).
 
-Every one of these packages ships its compiled library under an unversioned or
-partially-versioned filename (e.g. plain "libboost_filesystem.so", or "libxxhash.so.0" beside
-the fuller "libxxhash.so.0.8.2"), which does not always match the exact SONAME a consumer
-actually looks up at runtime (confirmed via `ldd` against a real build: e.g. Katydid needs
-"libboost_filesystem.so.1.75.0", not the bare "libboost_filesystem.so" this package ships) -
-_EXTRACTED_LIBS below records the source path inside each package next to the runtime filename
-it needs to be bundled as.
+Some of these packages ship their compiled library under an unversioned or
+partially-versioned filename (e.g. FFTW's plain "libfftw3.so", or xxhash's "libxxhash.so.0"
+beside the fuller "libxxhash.so.0.8.2"), which does not always match the exact SONAME a
+consumer actually looks up at runtime (confirmed via `ldd` against a real build: e.g. Katydid
+needs "libfftw3.so.3", not the bare "libfftw3.so" fftw-devel ships) - _EXTRACTED_LIBS below
+records the source path inside each package next to the runtime filename it needs to be
+bundled as.
 
 Usage from a BUILD file: deps = ["@rpm_deps//:boost", "@rpm_deps//:fftw"]
 """
@@ -37,10 +37,32 @@ _ALMALINUX_VAULT_RELEASE = "9.7"
 
 # One exact {repo, filename, sha256} per package.
 _RPM_DOWNLOADS = {
+    # Headers only - see the comment on _EXTRACTED_LIBS below for why the compiled libraries
+    # come from four separate packages instead.
     "boost-devel": {
         "repo": "AppStream",
         "filename": "boost-devel-1.75.0-13.el9_7.x86_64.rpm",
         "sha256": "cae425f56361d9b186ec680493693badc8cca3d42455d3e7af816acf2cbd63a2",
+    },
+    "boost-filesystem": {
+        "repo": "AppStream",
+        "filename": "boost-filesystem-1.75.0-13.el9_7.x86_64.rpm",
+        "sha256": "352d84855b2c39aff986b1a0340002a87e8490d800e2d4d36175f53c9f77be2a",
+    },
+    "boost-thread": {
+        "repo": "AppStream",
+        "filename": "boost-thread-1.75.0-13.el9_7.x86_64.rpm",
+        "sha256": "1d23bf11df5e93d6e2d68fc3f5f2e0eb2d79b57e367c894d4ea43d0ac906b827",
+    },
+    "boost-date-time": {
+        "repo": "AppStream",
+        "filename": "boost-date-time-1.75.0-13.el9_7.x86_64.rpm",
+        "sha256": "e88363f3aecfa295014c4ac95a49b0ecd538b556e42272a9f73673154c5dd035",
+    },
+    "boost-program-options": {
+        "repo": "AppStream",
+        "filename": "boost-program-options-1.75.0-13.el9_7.x86_64.rpm",
+        "sha256": "709ac7193b267de7a8ca29f91d80d456db19e87527d244d54cf9719fe3f92956",
     },
     "fftw-devel": {
         "repo": "AppStream",
@@ -71,11 +93,18 @@ _RPM_DOWNLOADS = {
 
 # Every compiled library this repository exposes: (package, path inside the package, runtime
 # filename to bundle it as - see this file's docstring for why the two filenames differ).
+#
+# Boost's compiled libraries come from four separate per-component packages, not boost-devel:
+# boost-devel's own usr/lib64/libboost_*.so entries are unversioned convenience symlinks (an
+# RPM dependency on the matching runtime package, e.g. boost-filesystem, is what normally makes
+# them resolve) - confirmed broken when boost-devel is unpacked on its own, via `file` reporting
+# "broken symbolic link to libboost_filesystem.so.1.75.0" for a target this package doesn't
+# contain.
 _EXTRACTED_LIBS = [
-    ("boost-devel", "usr/lib64/libboost_filesystem.so", "libboost_filesystem.so.1.75.0"),
-    ("boost-devel", "usr/lib64/libboost_thread.so", "libboost_thread.so.1.75.0"),
-    ("boost-devel", "usr/lib64/libboost_date_time.so", "libboost_date_time.so.1.75.0"),
-    ("boost-devel", "usr/lib64/libboost_program_options.so", "libboost_program_options.so.1.75.0"),
+    ("boost-filesystem", "usr/lib64/libboost_filesystem.so.1.75.0", "libboost_filesystem.so.1.75.0"),
+    ("boost-thread", "usr/lib64/libboost_thread.so.1.75.0", "libboost_thread.so.1.75.0"),
+    ("boost-date-time", "usr/lib64/libboost_date_time.so.1.75.0", "libboost_date_time.so.1.75.0"),
+    ("boost-program-options", "usr/lib64/libboost_program_options.so.1.75.0", "libboost_program_options.so.1.75.0"),
     ("fftw-devel", "usr/lib64/libfftw3.so", "libfftw3.so.3"),
     ("tbb-devel", "usr/lib64/libtbb.so", "libtbb.so.2"),
     ("xxhash-libs", "usr/lib64/libxxhash.so.0.8.2", "libxxhash.so.0"),
