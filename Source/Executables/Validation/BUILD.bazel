@@ -79,7 +79,7 @@
 
 load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 load("//Source/Executables/Main:root_include_path_launcher.bzl", "root_include_path_launcher")
-load(":validation_test.bzl", "katydid_cc_test")
+load(":katydid_cc_test.bzl", "katydid_cc_test")
 
 _ALL_KATYDID_HEADERS = [
     "//Source/Data:katydid_data_headers",
@@ -132,7 +132,7 @@ genrule(
     cmd = "cp $< $@",
 )
 
-# Duplicated from validation_test.bzl's _PCM_DATA, which is private and so not loadable here:
+# Duplicated from katydid_cc_test.bzl's _PCM_DATA, which is private and so not loadable here:
 # TestDPTReader has no sh_test wrapper, so it goes through root_include_path_launcher directly
 # instead of the katydid_cc_test macro.
 _PCM_DATA = [
