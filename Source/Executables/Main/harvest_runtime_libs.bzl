@@ -18,6 +18,23 @@ lib/ itself, so one RPATH is correct in both places.
 
 load("@binary_deps//:lib_dirs.bzl", "LIB_DIRS")
 
+# True for "libfoo.so" as well as any real-world SONAME-versioned name derived from it
+# ("libfoo.so.3", "libfoo.so.1.75.0", ...) - the form AlmaLinux's actual RPM-provided
+# Boost/FFTW/MatIO shared libraries use (see tools/almalinux_libs.bzl's EXTRACTED_LIBS), unlike
+# every other .so harvested here, which Bazel itself names as a plain "libfoo.so". A bare
+# f.basename.endswith(".so") check misses these entirely - they'd be silently skipped by the
+# walk below, never harvested into the release archive at all.
+def _is_shared_library(basename):
+    idx = basename.find(".so")
+    if idx == -1:
+        return False
+    suffix = basename[idx + len(".so"):]
+    if suffix == "":
+        return True
+    if not suffix.startswith("."):
+        return False
+    return all([part.isdigit() for part in suffix[1:].split(".")])
+
 # The real workspace name, from this file's repo mapping (not Bazel's internal,
 # version-specific canonical-name mangling, e.g. the "+root_deps+root"-style names visible in
 # solib directory paths).
@@ -59,7 +76,7 @@ def _harvest_runtime_libs_impl(ctx):
             # is deliberately not excluded - see the same comment.
             if f.owner != None and f.owner.workspace_name in (_ROOT_WORKSPACE_NAME, _MACOS_LIBS_WORKSPACE_NAME, _UBUNTU_LIBS_WORKSPACE_NAME):
                 continue
-            if not (f.basename.endswith(".so") or f.basename.endswith(".pcm")):
+            if not (_is_shared_library(f.basename) or f.basename.endswith(".pcm")):
                 continue
             if f.basename in seen_basenames:
                 # Same basename from two different runfiles shouldn't happen for a real set of
@@ -69,7 +86,7 @@ def _harvest_runtime_libs_impl(ctx):
             seen_basenames[f.basename] = True
 
             out = ctx.actions.declare_file(ctx.label.name + "/" + f.basename)
-            if f.basename.endswith(".so"):
+            if _is_shared_library(f.basename):
                 if is_macos:
                     # See release_binary.bzl's docstring for why these three steps are needed
                     # on macOS.
