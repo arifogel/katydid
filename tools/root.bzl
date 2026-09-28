@@ -14,6 +14,7 @@ ROOT's version here is a fixed pin in this file, so it should only be re-fetched
 changes.
 """
 
+load(":almalinux_libs.bzl", "ROOT_RUNTIME_EXTRA_LIBS")
 load(":repo_utils.bzl", "is_macos", "linux_distro_id")
 
 # Bump this (and nowhere else) to change the ROOT version used everywhere. Confirm any new
@@ -232,6 +233,27 @@ exports_files(["rootcling"])
     # the label @root//:rootcling short - tools/root_dictionary.bzl's _rootcling attribute
     # default references it directly.
     repository_ctx.symlink("root/bin/rootcling", "rootcling")
+
+    # On AlmaLinux, root/bin/rootcling and some of root/lib/*.so themselves dynamically need
+    # TBB/xxhash/FreeType/GSL (see tools/almalinux_libs.bzl's ROOT_RUNTIME_EXTRA_LIBS docstring)
+    # - libraries root.cern's own tarball doesn't bundle. rootcling is invoked directly as a
+    # build-time tool (tools/root_dictionary.bzl), outside Bazel's cc_library solib scattering
+    # entirely, so it resolves shared libraries the same way any plain ELF binary does: via its
+    # own baked-in RUNPATH, which for root.cern's official Linux binaries is $ORIGIN/../lib
+    # (bin/rootcling -> ../lib) - the same directory-relative pattern root/lib/*.so's own
+    # $ORIGIN RUNPATH already relies on (see the comment on root_srcs above). Symlinking these
+    # extra libs directly into root/lib/ here - not an environment variable, and not something
+    # every consumer has to remember to set - lets that existing RUNPATH find them for free,
+    # for rootcling, for `bazel run`/`bazel test`, and for the packaged release binaries alike
+    # (release_binary.bzl's own RPATH already includes .../root/lib).
+    #
+    # If this assumption about rootcling's RUNPATH turns out wrong on some future ROOT release,
+    # `readelf -d root/bin/rootcling | grep RUNPATH` (or RPATH) from inside root/'s extracted
+    # tarball confirms it directly - fix would be patchelf'ing rootcling itself instead, the
+    # same as harvest_runtime_libs.bzl/release_binary.bzl already do for Katydid's own binaries.
+    if key[0] == "almalinux":
+        for lib_name in ROOT_RUNTIME_EXTRA_LIBS:
+            repository_ctx.symlink(Label("@almalinux_libs//:" + lib_name), "root/lib/" + lib_name)
 
 # No local = True, unlike macos_libs.bzl's/ubuntu_libs.bzl's repository rules: ROOT's version
 # is a fixed pin in this file, not host state that can change between builds without the file
