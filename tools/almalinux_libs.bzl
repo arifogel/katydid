@@ -117,13 +117,13 @@ RPM_DOWNLOADS = {
     # and paste the sha256 it prints in below.
     "matio-devel": {
         "url": "https://dl.fedoraproject.org/pub/archive/epel/9.7/Everything/x86_64/Packages/m/matio-devel-1.5.27-1.el9.x86_64.rpm",
-        "sha256": "TODO_RUN_tools/pin_rpm.sh",
+        "sha256": "e76e256d0cd2214c3baee90ae90875d323c52fe0e4c9a1b088b07b29b52bfeaf",
     },
     # TODO(you): same as matio-devel above - run:
     #   tools/pin_rpm.sh matio https://dl.fedoraproject.org/pub/archive/epel/9.7/Everything/x86_64/Packages/m/matio-1.5.27-1.el9.x86_64.rpm
     "matio": {
         "url": "https://dl.fedoraproject.org/pub/archive/epel/9.7/Everything/x86_64/Packages/m/matio-1.5.27-1.el9.x86_64.rpm",
-        "sha256": "TODO_RUN_tools/pin_rpm.sh",
+        "sha256": "32f354c5dd66c5d9afddf987742b0b88593f0da61d7afced1ee31684d524d623",
     },
     # tbb-devel's own usr/lib64/libtbb.so is the same kind of broken unversioned symlink
     # boost-devel/fftw-devel have - and unlike Boost/FFTW, nothing here needs TBB's headers at
