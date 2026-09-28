@@ -21,16 +21,9 @@ cc_library(
         "@nymph//:nymph_headers",
         "@root",
         "@scarab//:scarab_headers",
-    ] + select({
-        "//tools:is_almalinux": [
-            "@rpm_deps//:boost",
-            "@rpm_deps//:fftw",
-        ],
-        "//conditions:default": [
-            "@system_libs//:boost",
-            "@system_libs//:fftw",
-        ],
-    }),
+        "@system_libs//:boost",
+        "@system_libs//:fftw",
+    ],
 )
 
 root_dictionary(

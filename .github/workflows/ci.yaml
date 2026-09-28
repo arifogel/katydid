@@ -152,8 +152,8 @@ jobs:
       # minimal container image by default. cpio is needed to unpack the .rpm packages
       # tools/rpm_deps.bzl fetches (rpm2cpio itself ships with the base image already, as part
       # of the `rpm` package dnf depends on). Boost/FFTW/TBB/xxhash/FreeType/GSL are not
-      # installed here at all - --config=almalinux below fetches those hermetically instead
-      # (see tools/rpm_deps.bzl).
+      # installed here at all - tools/system_deps.bzl detects AlmaLinux itself and fetches
+      # those hermetically instead (see tools/rpm_deps.bzl), the same as every other build here.
       #
       # matio-devel requires the EPEL repository. CRB is enabled in case any future dependency
       # needs it - enabling it costs nothing if unused.
@@ -203,7 +203,7 @@ jobs:
           cache-version: almalinux9
 
       - name: Verify MODULE.bazel.lock is up to date and build everything
-        run: bazel build --config=almalinux //...
+        run: bazel build //...
 
       - name: Check a built test binary for missing shared libraries
         run: |
@@ -215,7 +215,7 @@ jobs:
           fi
 
       - name: Test everything
-        run: bazel test --config=almalinux //...
+        run: bazel test //...
 
   lint-and-format:
     runs-on: ubuntu-latest

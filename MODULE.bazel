@@ -34,11 +34,3 @@ use_repo(root_deps, "root")
 
 system_deps = use_extension("//tools:system_deps.bzl", "system_deps")
 use_repo(system_deps, "system_libs")
-
-# --- Boost/FFTW/TBB/xxhash/FreeType/GSL, fetched hermetically on AlmaLinux 9 ----------------
-# Pinned .rpm packages, unpacked by Bazel itself - see tools/rpm_deps.bzl. Not yet used by any
-# BUILD file; @system_libs above is still what Ubuntu/macOS and AlmaLinux's own build both use
-# today (see NOTES.md's Known limitations).
-
-rpm_deps = use_extension("//tools:rpm_deps.bzl", "rpm_deps")
-use_repo(rpm_deps, "rpm_deps")
