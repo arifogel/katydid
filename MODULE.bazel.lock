@@ -203,7 +203,7 @@
   "moduleExtensions": {
     "//tools:almalinux_libs.bzl%almalinux_libs": {
       "general": {
-        "bzlTransitiveDigest": "8gQ+V56ZR4/bqKRufF32gmEtFPhkr/FkknXLaWV7UHw=",
+        "bzlTransitiveDigest": "xtgnqfONIpVjNLrqLqV0+cqUJ9p25Lc86eq9gTc5JUw=",
         "usagesDigest": "izPNCe08JGGhSqmIlisQ/bT3VbXJXxIB4T5NyA1Sofg=",
         "recordedInputs": [],
         "generatedRepoSpecs": {
@@ -216,7 +216,7 @@
     },
     "//tools:binary_deps.bzl%binary_deps": {
       "general": {
-        "bzlTransitiveDigest": "nK4XR0CH5OQQLh9m/oZf6MHbZVxyd8mizxiFdOhmal0=",
+        "bzlTransitiveDigest": "esLj5lSaips1KRGJNQ3kAP6CNtbBf8PLvTGOoSndhbE=",
         "usagesDigest": "cjeE10oWKLza5/IXJyhKNqdJbxwW3r6FZRsWqukzJRA=",
         "recordedInputs": [],
         "generatedRepoSpecs": {
@@ -229,7 +229,7 @@
     },
     "//tools:macos_libs.bzl%macos_libs": {
       "general": {
-        "bzlTransitiveDigest": "VEudNXPZ0Ge8vApwSI26Lgh/iz4iHOYsuaBGIRJgk4Q=",
+        "bzlTransitiveDigest": "/SnUfHVFNdqRLmmdMnIWoKU9z/H4J09Hi3XbD5IqI5k=",
         "usagesDigest": "BL7stWEDSLn9yHzVi4O36xd1VXHyRAy1bzUoWSk9h2Y=",
         "recordedInputs": [],
         "generatedRepoSpecs": {
@@ -300,7 +300,7 @@
     },
     "//tools:root.bzl%root_deps": {
       "general": {
-        "bzlTransitiveDigest": "Y/2qNFwp8uoZJq0igrLuoieXezkM1i8BbslHK0+2nUE=",
+        "bzlTransitiveDigest": "HE8ecMs9yTMTY+YHaGEFrlG/ChPD04aYFZXY39hh7HM=",
         "usagesDigest": "sDSkyOP5sRLOjjGmJ18eUF59tYieCxZ7/7JCTOMg6bE=",
         "recordedInputs": [],
         "generatedRepoSpecs": {
@@ -313,7 +313,7 @@
     },
     "//tools:ubuntu_libs.bzl%ubuntu_libs": {
       "general": {
-        "bzlTransitiveDigest": "s6BiN0KhLWDZgQX0jmFO9EBZ819qjKwOLtN03L5vQ70=",
+        "bzlTransitiveDigest": "3BkCHhX0t76inwNYoT4bHzSj/9/qrLh6REGNB2gR5Ow=",
         "usagesDigest": "xHs9MgNmsU+70YOC0XRX3Gc/rjrCMb1xVMp+Lg6TZv0=",
         "recordedInputs": [],
         "generatedRepoSpecs": {
