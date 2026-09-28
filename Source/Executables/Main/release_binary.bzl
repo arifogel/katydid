@@ -67,8 +67,8 @@ cp $(location """ + real_bin_label + """) $@
 chmod +w $@
 # Rewrites every non-system dependency reference to @rpath/<basename> (see this file's
 # docstring for the Mach-O-specific reason this step is needed).
-# $$ below is a literal shell $$: genrule's cmd expands a bare $ even inside a shell comment,
-# so it must be escaped like any other shell $ here - $@ is the one exception (Bazel's own
+# $$ below is a literal shell $$: genrule's cmd expands a bare $$ even inside a shell comment,
+# so it must be escaped like any other shell $$ here - $@ is the one exception (Bazel's own
 # genrule output-file variable).
 otool -L $@ | tail -n +2 | awk '{print $$1}' | while read -r dep; do
   case "$$dep" in
