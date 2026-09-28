@@ -11,16 +11,12 @@
 # (bin/, lib/, etc/, include/) to find things like etc/gitinfo.txt and dlopen()-load
 # libCling.so.
 #
-# include/ is deliberately narrow for now: just the six Cicada headers
-# (third_party/cicada/BUILD.cicada.bazel's root_dictionary() call names the authoritative
-# list) that CicadaDict's dictionary payload #includes by bare filename - the specific gap
-# that made Cling's autoparse fail outright (fatal "CMemberVariables.hh file not found", not
-# just the harmless "Missing FileEntry for _CROOTData.hh" autoload warning) whenever the
-# release binary exercises a TClonesArray-backed class
-# (Cicada::TProcessedTrackData/TMultiTrackEventData), confirmed directly by the same crash
-# TestROOTTreeWritingViaCicada hit before ROOT_INCLUDE_PATH's header set was fixed. Every
-# other Katydid/Nymph/Scarab header, flattened for a downstream consumer to build against the
-# way CMake's install does, is a separate, still-deferred concern - see NOTES.md.
+# include/ is just the headers needed at runtime; see root_include_path_launcher.bzl's
+# _CICADA_DICT_HEADERS for which ones and why.
+#
+# It's not a full install layout downstream code could build against as in the cmake
+# reference install layout - every other Katydid/Nymph/Scarab header is still missing. See
+# NOTES.md's "Known limitations" section.
 #
 # Boost/FFTW (currently resolved via plain system linker paths, not bundled) are also
 # deliberately deferred - see NOTES.md for status.
