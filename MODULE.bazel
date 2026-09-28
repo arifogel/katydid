@@ -34,3 +34,19 @@ use_repo(root_deps, "root")
 
 system_deps = use_extension("//tools:system_deps.bzl", "system_deps")
 use_repo(system_deps, "system_libs")
+
+# --- Boost/FFTW/TBB/xxhash/FreeType/GSL, fetched hermetically on AlmaLinux 9 ----------------
+# Pinned .rpm packages, unpacked by Bazel itself - see tools/rpm_deps.bzl. Selected instead of
+# @system_libs above only on AlmaLinux (see tools/host_platform.bzl and Source/Utility/
+# BUILD.bazel's select()).
+
+rpm_deps = use_extension("//tools:rpm_deps.bzl", "rpm_deps")
+use_repo(rpm_deps, "rpm_deps")
+
+# --- Host platform detection (Linux distro) ------------------------------------------------
+# Extends Bazel's auto-detected host platform with an AlmaLinux constraint_value, so the
+# select() above needs no --config/--define flag - see tools/host_platform.bzl and .bazelrc's
+# --platforms default.
+
+host_platform = use_extension("//tools:host_platform.bzl", "host_platform")
+use_repo(host_platform, "host_platform")

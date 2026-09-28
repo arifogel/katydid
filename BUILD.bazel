@@ -14,10 +14,8 @@
 # On AlmaLinux, Boost/FFTW/TBB/xxhash/FreeType/GSL are all bundled into lib/ too (Boost/FFTW
 # via the harvest above, since they're a real Bazel dependency there; the other four - never
 # anything's dependency, just ROOT's own runtime need - via katydid_release_root_runtime_extra_libs
-# below, which @system_libs//:root_runtime_extra_libs is empty everywhere except AlmaLinux (see
-# tools/system_deps.bzl), so this needs no platform-specific select() of its own). Elsewhere,
-# Boost/FFTW are still resolved via plain system linker paths, not bundled - see NOTES.md for
-# status.
+# below). Elsewhere, Boost/FFTW are still resolved via plain system linker paths, not bundled -
+# see NOTES.md for status.
 
 load("@rules_pkg//pkg:mappings.bzl", "pkg_attributes", "pkg_files", "strip_prefix")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
@@ -110,10 +108,13 @@ pkg_files(
 # lib/ extras: TBB/xxhash/FreeType/GSL, needed only because ROOT's own prebuilt binaries link
 # against them - ROOT's own tarball above doesn't bundle them (see tools/rpm_deps.bzl). Nothing
 # in this build `deps` on these, so harvest_runtime_libs.bzl's runfiles walk never finds them;
-# listed here directly instead. Empty except on AlmaLinux (see tools/system_deps.bzl).
+# listed here directly instead. AlmaLinux only for now - see //tools:is_almalinux.
 pkg_files(
     name = "katydid_release_root_runtime_extra_libs",
-    srcs = ["@system_libs//:root_runtime_extra_libs"],
+    srcs = select({
+        "//tools:is_almalinux": ["@rpm_deps//:root_runtime_extra_libs"],
+        "//conditions:default": [],
+    }),
     prefix = "lib",
 )
 

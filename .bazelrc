@@ -26,3 +26,12 @@ build --curses=yes
 # other, instead of silently proceeding against a stale lockfile. Run
 # `bazel mod deps --lockfile_mode=update` to regenerate the lockfile after changing MODULE.bazel.
 common --lockfile_mode=error
+
+# Points the default target platform at @host_platform//:auto instead of Bazel's own
+# @local_config_platform//:host, so //tools:is_almalinux's select() (see Source/Utility/
+# BUILD.bazel) can see a Linux-distro constraint @platforms doesn't otherwise model - see
+# tools/host_platform.bzl. @host_platform//:auto inherits everything else (os, cpu, ...)
+# unchanged from @local_config_platform//:host, so this doesn't affect toolchain/platform
+# resolution for anything that isn't asking about Linux distro specifically. Applies to every
+# invocation unconditionally - no --config or --define flag needed at the command line.
+build --platforms=@host_platform//:auto
