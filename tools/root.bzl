@@ -202,8 +202,10 @@ def _root_repo_impl(repository_ctx):
     ]
 
     # On AlmaLinux, root/lib/*.so (and root/bin/rootcling) themselves dynamically need
-    # TBB/xxhash/FreeType/GSL (see tools/almalinux_libs.bzl's ROOT_RUNTIME_EXTRA_LIBS
-    # docstring) - libraries root.cern's own tarball doesn't bundle. Symlinked into root/lib/
+    # TBB/xxhash/FreeType/GSL/brotli/harfbuzz/libpng/graphite2 (see tools/almalinux_libs.bzl's
+    # ROOT_RUNTIME_EXTRA_LIBS docstring, and its RPM_DOWNLOADS entries for how each was
+    # confirmed via a proper `ldd -L` scan scoped to Katydid_bin's real runfiles tree) -
+    # libraries root.cern's own tarball doesn't bundle. Symlinked into root/lib/
     # here (via a dynamic Label("@almalinux_libs//:...") reference, only on AlmaLinux, so
     # laziness on macOS/Ubuntu is untouched) and added to root_srcs alongside ROOT's own libs,
     # not just placed on disk: root/bin/rootcling is invoked directly as a build-time tool

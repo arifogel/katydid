@@ -1,13 +1,14 @@
-"""Provides Boost, FFTW, MatIO, TBB, xxhash, FreeType, and GSL for AlmaLinux 9, exposed as
-@almalinux_libs - all fetched hermetically from pinned, permalinked package snapshots, rather
-than discovered from whatever dnf currently has installed.
+"""Provides Boost, FFTW, MatIO, TBB, xxhash, FreeType, GSL, brotli, harfbuzz, libpng, and
+graphite2 for AlmaLinux 9, exposed as @almalinux_libs - all fetched hermetically from pinned,
+permalinked package snapshots, rather than discovered from whatever dnf currently has installed.
 
 Host discovery (the approach tools/ubuntu_libs.bzl/tools/macos_libs.bzl use) isn't reproducible
 on AlmaLinux the way it is on Ubuntu/macOS: AlmaLinux's live dnf repos (repo.almalinux.org) are
 rolling and prune a package once a newer build supersedes it, so a rebuild months later can fail
 outright, not just resolve a different version. Every package here instead comes from a frozen,
 permalinked snapshot: vault.almalinux.org for packages AlmaLinux itself ships (Boost, FFTW, TBB,
-xxhash, FreeType, GSL), and dl.fedoraproject.org's EPEL archive for MatIO, which comes from the
+xxhash, FreeType, GSL, brotli, harfbuzz, libpng, graphite2), and dl.fedoraproject.org's EPEL
+archive for MatIO, which comes from the
 separate EPEL project, not AlmaLinux's own repos - EPEL has its own equivalent frozen mirror at
 dl.fedoraproject.org/pub/archive/epel/ (as opposed to the live, rolling dl.fedoraproject.org/pub/
 epel/), used for exactly the same reason.
@@ -21,11 +22,15 @@ Three of these (Boost, FFTW, MatIO) are Katydid's own direct build dependency, s
 headers and compiled libraries are extracted and exposed as a cc_import with hdrs - the exact
 same @almalinux_libs//:boost / :fftw / :matio shape tools/ubuntu_libs.bzl and
 tools/macos_libs.bzl expose, so tools/binary_deps.bzl's alias() can point at whichever one
-matches the host with no BUILD file needing to know or care which was used. The other four
-(TBB, xxhash, FreeType, GSL/GSLCBLAS) are needed only because ROOT's own prebuilt binaries link
-against them - nothing here ever #includes their headers - so only the compiled library is
-extracted, exposed as a plain filegroup rather than a cc_import (nothing `deps` on it; a
-release archive bundles it directly).
+matches the host with no BUILD file needing to know or care which was used. The rest (TBB,
+xxhash, FreeType, GSL/GSLCBLAS, brotli, harfbuzz, libpng, graphite2) are needed only because
+ROOT's own prebuilt binaries link against them - nothing here ever #includes their headers - so
+only the compiled library is extracted, exposed as a plain filegroup rather than a cc_import
+(nothing `deps` on it; a release archive bundles it directly). See ROOT_RUNTIME_EXTRA_LIBS below
+for exactly which of these were found missing via a proper `ldd -L` scan scoped to Katydid_bin's
+actual runfiles tree (as opposed to ROOT's whole raw tarball, which over-reports libraries only
+needed by ROOT plugins Katydid never loads, such as R bindings, XRootD, cfitsio, ftgl, gl2ps,
+pythia8, and unuran - those have no AlmaLinux/EPEL package at all, and rightly don't need one).
 
 Some of these packages ship their compiled library under a filename that doesn't match the
 exact SONAME a consumer actually looks up at runtime - e.g. xxhash's real payload is
@@ -144,6 +149,33 @@ RPM_DOWNLOADS = {
         "filename": "gsl-2.6-7.el9.x86_64.rpm",
         "sha256": "3442eafbd2a62482e38be1b7932075b476d4d0651d24a14c91421fa4951c9af2",
     },
+    # ROOT's Gpad/Graf/Gui/... libraries (and everything under Katydid_bin's real runfiles tree
+    # - confirmed via a proper `ldd -L` scan scoped to Katydid_bin.runfiles, not the whole raw
+    # ROOT tarball) need libbrotlidec, libharfbuzz, libpng16, and libharfbuzz's own further
+    # dependency on libgraphite2 (freetype is already covered above). libbrotlidec.so.1 itself
+    # needs libbrotlicommon.so.1, which ships in the same "libbrotli" package (see
+    # EXTRACTED_LIBS) - confirmed via `ldd` against each package's own extracted .so files
+    # before wiring any of this in.
+    "libbrotli": {
+        "repo": "BaseOS",
+        "filename": "libbrotli-1.0.9-9.el9_7.x86_64.rpm",
+        "sha256": "3d24c430a1edb4d196bbec70cd59e3580421f91c8ad0c25451b9cc7130cfe66a",
+    },
+    "harfbuzz": {
+        "repo": "BaseOS",
+        "filename": "harfbuzz-2.7.4-10.el9.x86_64.rpm",
+        "sha256": "1f81073019abe4176d4496723a89b55a349c31f507e96397a0b3efa7cea0ff61",
+    },
+    "libpng": {
+        "repo": "BaseOS",
+        "filename": "libpng-1.6.37-15.el9_8.2.x86_64.rpm",
+        "sha256": "b50c9af737a243e6a3c644ecb26f9f2c2a0d214385b0b06102858fea68ae760e",
+    },
+    "graphite2": {
+        "repo": "BaseOS",
+        "filename": "graphite2-1.3.14-9.el9.x86_64.rpm",
+        "sha256": "1b8a5d4ebbeaa60dadefdb7b4c386809d349304dd658e57158f0fff36868e5e9",
+    },
 }
 
 # Every compiled library this repository exposes: (package, path inside the package, runtime
@@ -172,6 +204,11 @@ EXTRACTED_LIBS = [
     ("freetype", "usr/lib64/libfreetype.so.6.17.4", "libfreetype.so.6"),
     ("gsl", "usr/lib64/libgsl.so.25.0.0", "libgsl.so.25"),
     ("gsl", "usr/lib64/libgslcblas.so.0.0.0", "libgslcblas.so.0"),
+    ("libbrotli", "usr/lib64/libbrotlicommon.so.1.0.9", "libbrotlicommon.so.1"),
+    ("libbrotli", "usr/lib64/libbrotlidec.so.1.0.9", "libbrotlidec.so.1"),
+    ("harfbuzz", "usr/lib64/libharfbuzz.so.0.20704.0", "libharfbuzz.so.0"),
+    ("libpng", "usr/lib64/libpng16.so.16.37.0", "libpng16.so.16"),
+    ("graphite2", "usr/lib64/libgraphite2.so.3.2.1", "libgraphite2.so.3"),
 ]
 
 def _rpm_url(info):
@@ -246,10 +283,25 @@ cc_import(
     ))
     return parts
 
-# TBB/xxhash/FreeType/GSL's runtime filenames - the four EXTRACTED_LIBS entries not covered by
-# boost/fftw/matio's own cc_import below. Exposed as a plain filegroup (see module docstring
-# for why), consumed by tools/binary_deps.bzl to build @binary_deps//:root_runtime_extra_libs.
-ROOT_RUNTIME_EXTRA_LIBS = ["libtbb.so.2", "libxxhash.so.0", "libfreetype.so.6", "libgsl.so.25", "libgslcblas.so.0"]
+# TBB/xxhash/FreeType/GSL/brotli/harfbuzz/libpng/graphite2's runtime filenames - the
+# EXTRACTED_LIBS entries not covered by boost/fftw/matio's own cc_import below. Exposed as a
+# plain filegroup (see module docstring for why), consumed by tools/binary_deps.bzl to build
+# @binary_deps//:root_runtime_extra_libs. libbrotlidec/libharfbuzz/libpng16/libgraphite2 were
+# found missing (and freetype/graphite2's dependency on each other resolved) via a proper `ldd
+# -L` scan scoped to Katydid_bin's actual runfiles tree, not ROOT's whole raw tarball - see the
+# comment on the "libbrotli"/"harfbuzz"/"libpng"/"graphite2" entries in RPM_DOWNLOADS above.
+ROOT_RUNTIME_EXTRA_LIBS = [
+    "libtbb.so.2",
+    "libxxhash.so.0",
+    "libfreetype.so.6",
+    "libgsl.so.25",
+    "libgslcblas.so.0",
+    "libbrotlicommon.so.1",
+    "libbrotlidec.so.1",
+    "libharfbuzz.so.0",
+    "libpng16.so.16",
+    "libgraphite2.so.3",
+]
 
 def _almalinux_libs_repo_impl(repository_ctx):
     for pkg_name in RPM_DOWNLOADS:
