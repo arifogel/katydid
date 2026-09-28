@@ -24,6 +24,8 @@ macOS needs `brew --prefix` plus explicit hdrs/includes on the aggregating cc_im
 Usage from a BUILD file: deps = ["@system_libs//:boost", "@system_libs//:fftw"]
 """
 
+load(":repo_utils.bzl", "is_macos")
+
 _MAC_FORMULAE = {
     "boost": {
         # Nymph/Scarab/Katydid link these specific components, not just Boost's header-only
@@ -108,9 +110,6 @@ _LINUX_HEADER_CHECK = {
     "matio": "usr/include/matio.h",
 }
 
-def _is_macos(repository_ctx):
-    return repository_ctx.os.name.lower().startswith("mac")
-
 # Distinguishes apt vs dnf by which package manager binary is on PATH rather than parsing
 # /etc/os-release or hardcoding distro names, so a new Linux flavor needs no edit here.
 def _linux_pkg_manager(repository_ctx):
@@ -164,7 +163,7 @@ def _find_mac_dylib_or_fail(repository_ctx, prefix, libname, brew_formula):
     )
 
 def _system_libs_repo_impl(repository_ctx):
-    is_macos = _is_macos(repository_ctx)
+    on_macos = is_macos(repository_ctx)
 
     build_file_parts = [
         'load("@rules_cc//cc:cc_import.bzl", "cc_import")',
@@ -178,7 +177,7 @@ def _system_libs_repo_impl(repository_ctx):
 
     # Homebrew keeps headers out of the default include path (needs explicit hdrs/includes,
     # found via `brew --prefix`); apt puts them on it (needs neither).
-    if is_macos:
+    if on_macos:
         brew = repository_ctx.which("brew")
         if not brew:
             fail(

@@ -12,6 +12,8 @@ local = True so a brew/apt upgrade is picked up on the next build, but ROOT's ve
 a fixed pin in this file, so it should only be re-fetched when the file changes.
 """
 
+load(":repo_utils.bzl", "is_macos", "linux_distro_id")
+
 # Bump this (and nowhere else) to change the ROOT version used everywhere. Confirm any new
 # version is published for every platform below at https://root.cern/install/all_releases/
 # before bumping, and refresh the sha256 for each.
@@ -38,11 +40,6 @@ _ROOT_DOWNLOADS = {
     },
 }
 
-# Duplicated from tools/system_deps.bzl's _is_macos rather than shared via load() - not worth
-# making that symbol public just to share a two-line helper.
-def _is_macos(repository_ctx):
-    return repository_ctx.os.name.lower().startswith("mac")
-
 # Normalizes repository_ctx.os.arch ("amd64"/"arm64") to the names _ROOT_DOWNLOADS' keys use
 # ("x86_64"/"aarch64"), matching root.cern's naming convention.
 def _normalized_arch(repository_ctx):
@@ -53,20 +50,10 @@ def _normalized_arch(repository_ctx):
         return "aarch64"
     return arch
 
-# Reads /etc/os-release's ID field (e.g. "ubuntu", "almalinux") - this is what ROOT's
-# prebuilt binaries are versioned against, unlike Boost/FFTW/MatIO which only need to know
-# which package manager is on PATH.
-def _linux_distro_id(repository_ctx):
-    os_release = repository_ctx.read("/etc/os-release")
-    for line in os_release.splitlines():
-        if line.startswith("ID="):
-            return line[len("ID="):].strip('"')
-    return None
-
 def _root_download_key(repository_ctx):
-    if _is_macos(repository_ctx):
+    if is_macos(repository_ctx):
         return ("macos", _normalized_arch(repository_ctx))
-    return (_linux_distro_id(repository_ctx), _normalized_arch(repository_ctx))
+    return (linux_distro_id(repository_ctx), _normalized_arch(repository_ctx))
 
 def _root_unsupported_platform_error(key):
     return (
@@ -170,7 +157,7 @@ def _root_repo_impl(repository_ctx):
     # RPATH-relative) install-name references resolved via Homebrew's linked library layout,
     # not Bazel's solib scattering, so this closure-expansion step is skipped there and
     # root_lib_names is used as-is.
-    if not _is_macos(repository_ctx):
+    if not is_macos(repository_ctx):
         selected = {name: True for name in root_lib_names}
         frontier = list(root_lib_names)
 
