@@ -49,8 +49,8 @@ thing.
 ## 2. Install the system libraries Katydid needs
 
 Bazel fetches Katydid's own bundled dependencies (Nymph, Scarab, Cicada, and a few small
-libraries) automatically, and - on the three platforms above - ROOT too, as a prebuilt binary
-downloaded directly by Bazel the first time you build.
+libraries) automatically, and ROOT too, as a prebuilt binary downloaded directly by Bazel the
+first time you build.
 
 Boost, FFTW, and MatIO are still installed the normal way for your operating system.
 
