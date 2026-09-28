@@ -88,8 +88,7 @@ def _harvest_runtime_libs_impl(ctx):
                     ).format(src = f.path, out = out.path, base = f.basename, extra = _MAC_EXTRA_RPATH_FLAGS)
                 else:
                     # --set-rpath replaces this .so's Bazel-baked-in RPATH outright (see this
-                    # file's docstring for why it's meaningless here). patchelf is built from
-                    # source by the @patchelf module, not a preinstalled system package.
+                    # file's docstring for why it's meaningless here).
                     command = (
                         "cp -f '{src}' '{out}' && chmod +w '{out}' && " +
                         "'{patchelf}' --set-rpath '$ORIGIN/../lib:$ORIGIN/../root/lib' '{out}'"
