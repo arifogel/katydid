@@ -216,7 +216,7 @@
     },
     "//tools:binary_deps.bzl%binary_deps": {
       "general": {
-        "bzlTransitiveDigest": "Dc7T84+AgHv1d2Z/iJrJ/pLVP80jwcXDbnPKtVPL5+0=",
+        "bzlTransitiveDigest": "WxZxtD/OQ4D/OxE+rNer9iEnvsywoTwrXbR2aId2V78=",
         "usagesDigest": "cjeE10oWKLza5/IXJyhKNqdJbxwW3r6FZRsWqukzJRA=",
         "recordedInputs": [],
         "generatedRepoSpecs": {
@@ -229,7 +229,7 @@
     },
     "//tools:macos_libs.bzl%macos_libs": {
       "general": {
-        "bzlTransitiveDigest": "UMnaJZZR/3o20T1As7JRnumrfmNka0ncC1WDg0tnrVE=",
+        "bzlTransitiveDigest": "cGCGd3QN8iTqiA1ww5WrMamGJKvabJTqCh5vED92dw0=",
         "usagesDigest": "BL7stWEDSLn9yHzVi4O36xd1VXHyRAy1bzUoWSk9h2Y=",
         "recordedInputs": [],
         "generatedRepoSpecs": {
