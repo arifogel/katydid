@@ -1,0 +1,5 @@
+# Marks tools/ as a Bazel package, so its .bzl files (non_bazel_deps.bzl, root.bzl,
+# macos_libs.bzl, ubuntu_libs.bzl, almalinux_libs.bzl, binary_deps.bzl, ...) can be loaded via
+# //tools:foo.bzl labels from MODULE.bazel's module extensions and elsewhere. No targets of its
+# own - this repo's Boost/FFTW/MatIO host-selection logic lives entirely inside repository
+# rules now (see tools/binary_deps.bzl), not in a config_setting/select() here.

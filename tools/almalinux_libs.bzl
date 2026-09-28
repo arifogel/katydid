@@ -108,19 +108,14 @@ RPM_DOWNLOADS = {
     #
     # dl.fedoraproject.org/pub/archive/epel/ is NOT indexed by a bare major version ("9") the
     # way vault.almalinux.org is - it's dated/point snapshots (9.0, 9.1, ...). Pinned to 9.7 to
-    # match _ALMALINUX_VAULT_RELEASE above (confirmed present there via tools/find_epel_snapshot.sh,
-    # run from a machine that can actually reach dl.fedoraproject.org - this repo's sandbox
-    # can't).
-    #
-    # TODO(you): sha256 not yet verified from a real download - run:
-    #   tools/pin_rpm.sh matio-devel https://dl.fedoraproject.org/pub/archive/epel/9.7/Everything/x86_64/Packages/m/matio-devel-1.5.27-1.el9.x86_64.rpm
-    # and paste the sha256 it prints in below.
+    # match _ALMALINUX_VAULT_RELEASE above (confirmed present there via
+    # tools/find_epel_snapshot.sh, run from a machine that can actually reach
+    # dl.fedoraproject.org - this repo's sandbox can't). sha256 verified the same way, via
+    # tools/pin_rpm.sh.
     "matio-devel": {
         "url": "https://dl.fedoraproject.org/pub/archive/epel/9.7/Everything/x86_64/Packages/m/matio-devel-1.5.27-1.el9.x86_64.rpm",
         "sha256": "e76e256d0cd2214c3baee90ae90875d323c52fe0e4c9a1b088b07b29b52bfeaf",
     },
-    # TODO(you): same as matio-devel above - run:
-    #   tools/pin_rpm.sh matio https://dl.fedoraproject.org/pub/archive/epel/9.7/Everything/x86_64/Packages/m/matio-1.5.27-1.el9.x86_64.rpm
     "matio": {
         "url": "https://dl.fedoraproject.org/pub/archive/epel/9.7/Everything/x86_64/Packages/m/matio-1.5.27-1.el9.x86_64.rpm",
         "sha256": "32f354c5dd66c5d9afddf987742b0b88593f0da61d7afced1ee31684d524d623",
