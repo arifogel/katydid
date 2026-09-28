@@ -81,6 +81,8 @@ load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 load("//Source/Executables/Main:root_include_path_launcher.bzl", "root_include_path_launcher")
 load(":katydid_cc_test.bzl", "katydid_cc_test")
 
+package(default_visibility = ["//visibility:private"])
+
 _ALL_KATYDID_HEADERS = [
     "//Source/Data:katydid_data_headers",
     "//Source/EventAnalysis:katydid_event_analysis_headers",

@@ -10,7 +10,7 @@ load(":harvest_runtime_libs.bzl", "harvest_runtime_libs")
 load(":release_binary.bzl", "release_binary")
 load(":root_include_path_launcher.bzl", "root_include_path_launcher")
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = ["//visibility:private"])
 
 # Referenced by //:katydid_release.
 exports_files(["NOTICE.txt"])
@@ -98,11 +98,13 @@ cc_binary(
 root_include_path_launcher(
     name = "Katydid",
     real_bin_label = ":Katydid_bin",
+    visibility = ["//visibility:public"],
 )
 
 root_include_path_launcher(
     name = "Truncate",
     real_bin_label = ":Truncate_bin",
+    visibility = ["//visibility:public"],
 )
 
 # Separate from :Katydid/:Truncate above (those are wired to Bazel's runfiles tree via
@@ -113,12 +115,14 @@ release_binary(
     name = "Katydid_release",
     final_bin_name = "Katydid_bin",
     real_bin_label = ":Katydid_bin",
+    visibility = ["//:__pkg__"],
 )
 
 release_binary(
     name = "Truncate_release",
     final_bin_name = "Truncate_bin",
     real_bin_label = ":Truncate_bin",
+    visibility = ["//:__pkg__"],
 )
 
 # Every non-@root .so/.pcm either binary needs at runtime, harvested from Bazel's dependency
@@ -131,6 +135,7 @@ harvest_runtime_libs(
         ":Katydid_bin",
         ":Truncate_bin",
     ],
+    visibility = ["//:__pkg__"],
 )
 
 # Verifies Katydid's --help output contains neither of the two known-bad stderr messages

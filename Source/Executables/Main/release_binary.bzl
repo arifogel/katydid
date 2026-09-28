@@ -20,7 +20,7 @@ final step.
 
 load("@binary_deps//:lib_dirs.bzl", "MAC_EXTRA_RPATH_FLAGS")
 
-def release_binary(name, real_bin_label, final_bin_name):
+def release_binary(name, real_bin_label, final_bin_name, visibility = None):
     """Defines <name>_bin (RPATH-patched copy of real_bin_label) and <name> (wrapper script).
 
     Both are meant to be packaged into //:katydid_release's bin/ prefix, renamed to
@@ -35,6 +35,7 @@ def release_binary(name, real_bin_label, final_bin_name):
             into the wrapper script's exec line. Passed explicitly rather than derived from
             name, since the packaging step renames name + "_bin" to final_bin_name after this
             script is generated.
+        visibility: applied to both <name>_bin and <name>.
     """
     patched_name = name + "_bin"
 
@@ -46,6 +47,7 @@ def release_binary(name, real_bin_label, final_bin_name):
         name = patched_name + "_patchelf",
         srcs = [real_bin_label],
         outs = [patched_name],
+        visibility = visibility,
         # patchelf is only needed on the Linux branch below.
         tools = select({
             "@platforms//os:macos": [],
@@ -90,6 +92,7 @@ $(location @patchelf//:patchelf) --set-rpath '$$ORIGIN/../lib:$$ORIGIN/../root/l
     native.genrule(
         name = name + "_wrapper_gen",
         outs = [name],
+        visibility = visibility,
         cmd = """cat > $@ << 'WRAPPER_EOF'
 #!/usr/bin/env bash
 set -euo pipefail
