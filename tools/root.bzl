@@ -9,16 +9,7 @@ than just checking which package manager is on PATH.
 
 ROOT is its own repository (@root), not folded into @system_libs: @system_libs uses
 local = True so a brew/apt upgrade is picked up on the next build, but ROOT's version here is
-a fixed pin in this file, so it should only be re-fetched when the file changes. Folding
-ROOT's fetch into that always-local rule defeated download_and_extract's cache and
-re-downloaded the ~300MB tarball on every build regardless of whether anything had changed.
-Every consumer references @root directly (deps = ["@root"]); there is no
-@system_libs//:root alias, to avoid the confusion a same-named alias into a different
-repository would invite.
-
-root_repo (the repository_rule below) is registered by this file's own module extension
-(root_deps, at the bottom), independent of system_deps.bzl's system_deps extension, which
-registers @system_libs and knows nothing about @root.
+a fixed pin in this file, so it should only be re-fetched when the file changes.
 """
 
 # Bump this (and nowhere else) to change the ROOT version used everywhere. Confirm any new
