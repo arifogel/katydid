@@ -1,5 +1,13 @@
-"""Fetches Boost, FFTW, TBB, xxhash, FreeType, and GSL from pinned AlmaLinux 9 .rpm packages,
-exposed as @rpm_deps.
+"""Helpers for fetching Boost, FFTW, TBB, xxhash, FreeType, and GSL from pinned AlmaLinux 9
+.rpm packages.
+
+This file has no repository rule or module extension of its own - it's a library of helpers
+that tools/system_deps.bzl's @system_libs repository rule calls directly, from a branch it
+takes only when linux_distro_id(repository_ctx) == "almalinux" (see that file). AlmaLinux's
+own dnf repos are rolling and prune a package once a newer build supersedes it, so - unlike
+apt or Homebrew - dnf-based host discovery there isn't reproducible; a hermetic fetch of
+pinned packages is used instead, while still exposing the exact same @system_libs//:boost and
+@system_libs//:fftw labels every other platform uses.
 
 Each package is downloaded from a frozen vault.almalinux.org snapshot (not the rolling
 repo.almalinux.org, which prunes a package once a newer build supersedes it) and unpacked with
@@ -18,16 +26,14 @@ release archive bundles it directly).
 Some of these packages ship their compiled library under a filename that doesn't match the
 exact SONAME a consumer actually looks up at runtime - e.g. xxhash's real payload is
 "libxxhash.so.0.8.2", with "libxxhash.so.0" (what Katydid actually needs, confirmed via `ldd`
-against a real build) as a symlink beside it - so _EXTRACTED_LIBS below records the source path
+against a real build) as a symlink beside it - so EXTRACTED_LIBS below records the source path
 inside each package next to the runtime filename it needs to be bundled as.
 
 A `-devel` package's own unversioned convenience symlinks (e.g. boost-devel's
 usr/lib64/libboost_filesystem.so) are a different problem, not just a naming mismatch: their
 target isn't in the package at all, only resolving once the matching separate runtime package
 (e.g. boost-filesystem, or fftw-libs-double for fftw-devel) is installed alongside it - see the
-comment on _EXTRACTED_LIBS.
-
-Usage from a BUILD file: deps = ["@rpm_deps//:boost", "@rpm_deps//:fftw"]
+comment on EXTRACTED_LIBS.
 """
 
 # Bump this (and nowhere else) to change the AlmaLinux vault snapshot every package below is
@@ -40,8 +46,8 @@ Usage from a BUILD file: deps = ["@rpm_deps//:boost", "@rpm_deps//:fftw"]
 _ALMALINUX_VAULT_RELEASE = "9.7"
 
 # One exact {repo, filename, sha256} per package.
-_RPM_DOWNLOADS = {
-    # Headers only - see the comment on _EXTRACTED_LIBS below for why the compiled libraries
+RPM_DOWNLOADS = {
+    # Headers only - see the comment on EXTRACTED_LIBS below for why the compiled libraries
     # come from four separate packages instead.
     "boost-devel": {
         "repo": "AppStream",
@@ -116,7 +122,7 @@ _RPM_DOWNLOADS = {
 # boost-filesystem, or fftw-libs-double - is what normally makes it resolve) - confirmed broken
 # when each -devel package is unpacked on its own, via `file` reporting e.g. "broken symbolic
 # link to libboost_filesystem.so.1.75.0" for a target the -devel package doesn't contain.
-_EXTRACTED_LIBS = [
+EXTRACTED_LIBS = [
     ("boost-filesystem", "usr/lib64/libboost_filesystem.so.1.75.0", "libboost_filesystem.so.1.75.0"),
     ("boost-thread", "usr/lib64/libboost_thread.so.1.75.0", "libboost_thread.so.1.75.0"),
     ("boost-date-time", "usr/lib64/libboost_date_time.so.1.75.0", "libboost_date_time.so.1.75.0"),
@@ -129,8 +135,8 @@ _EXTRACTED_LIBS = [
     ("gsl", "usr/lib64/libgslcblas.so.0.0.0", "libgslcblas.so.0"),
 ]
 
-def _download_and_extract_rpm(repository_ctx, pkg_name):
-    info = _RPM_DOWNLOADS[pkg_name]
+def download_and_extract_rpm(repository_ctx, pkg_name):
+    info = RPM_DOWNLOADS[pkg_name]
     url = "https://vault.almalinux.org/{release}/{repo}/x86_64/os/Packages/{filename}".format(
         release = _ALMALINUX_VAULT_RELEASE,
         repo = info["repo"],
@@ -150,24 +156,24 @@ def _download_and_extract_rpm(repository_ctx, pkg_name):
         fail("Failed to extract {}: {}".format(pkg_name, result.stderr))
 
 # A real .so starts with the 4-byte ELF magic number; anything else here (most likely a GNU ld
-# linker script, plain text) can't be used as-is and needs this file's _EXTRACTED_LIBS entry
+# linker script, plain text) can't be used as-is and needs this file's EXTRACTED_LIBS entry
 # fixed to point at whatever real file that script resolves to instead. Shells out to od/head
 # (plain coreutils, always present) rather than repository_ctx.read(), which assumes text
 # content and isn't reliable on arbitrary binary bytes.
-def _check_is_elf_or_fail(repository_ctx, path, pkg_name, source_path):
+def check_is_elf_or_fail(repository_ctx, path, pkg_name, source_path):
     result = repository_ctx.execute(["sh", "-c", "head -c4 '{}' | od -An -tx1".format(path)])
     magic = result.stdout.strip().replace(" ", "")
     if magic != "7f454c46":
         fail((
             "{source} (from the {pkg} package) is not a real ELF shared library - probably a " +
-            "GNU ld linker script. tools/rpm_deps.bzl's _EXTRACTED_LIBS needs updating to " +
+            "GNU ld linker script. tools/rpm_deps.bzl's EXTRACTED_LIBS needs updating to " +
             "point at whatever real file it resolves to."
         ).format(source = source_path, pkg = pkg_name))
 
 # Starlark disallows nested defs, so this builds one cc_import's worth of BUILD.bazel text
 # (the aggregating target plus one component cc_import per .so) as a standalone helper rather
-# than a closure inside _rpm_deps_repo_impl.
-def _cc_import_snippet(name, so_names, hdrs_glob = [], includes = []):
+# than a closure inside tools/system_deps.bzl's repository rule impl.
+def cc_import_snippet(name, so_names, hdrs_glob = [], includes = []):
     parts = []
     component_labels = []
     for so_name in so_names:
@@ -194,52 +200,7 @@ cc_import(
     ))
     return parts
 
-def _rpm_deps_repo_impl(repository_ctx):
-    for pkg_name in _RPM_DOWNLOADS:
-        _download_and_extract_rpm(repository_ctx, pkg_name)
-
-    build_file_parts = [
-        'load("@rules_cc//cc:cc_import.bzl", "cc_import")',
-        'package(default_visibility = ["//visibility:public"])',
-    ]
-
-    for pkg_name, source_path, runtime_name in _EXTRACTED_LIBS:
-        src = "{}_extracted/{}".format(pkg_name, source_path)
-        _check_is_elf_or_fail(repository_ctx, src, pkg_name, source_path)
-        repository_ctx.symlink(src, runtime_name)
-
-    build_file_parts.extend(_cc_import_snippet(
-        name = "boost",
-        so_names = [
-            "libboost_filesystem.so.1.75.0",
-            "libboost_thread.so.1.75.0",
-            "libboost_date_time.so.1.75.0",
-            "libboost_program_options.so.1.75.0",
-        ],
-        hdrs_glob = ["boost-devel_extracted/usr/include/boost/**"],
-        includes = ["boost-devel_extracted/usr/include"],
-    ))
-    build_file_parts.extend(_cc_import_snippet(
-        name = "fftw",
-        so_names = ["libfftw3.so.3"],
-        hdrs_glob = ["fftw-devel_extracted/usr/include/fftw3.h"],
-        includes = ["fftw-devel_extracted/usr/include"],
-    ))
-
-    # TBB/xxhash/FreeType/GSL: no cc_import, no hdrs - nothing here builds against these,
-    # ROOT's own prebuilt binaries just need the plain .so present alongside them at runtime.
-    build_file_parts.append("""
-filegroup(
-    name = "root_runtime_extra_libs",
-    srcs = ["libtbb.so.2", "libxxhash.so.0", "libfreetype.so.6", "libgsl.so.25", "libgslcblas.so.0"],
-)
-""")
-
-    repository_ctx.file("BUILD.bazel", "\n".join(build_file_parts))
-
-_rpm_deps_repo = repository_rule(implementation = _rpm_deps_repo_impl)
-
-def _rpm_deps_impl(_module_ctx):
-    _rpm_deps_repo(name = "rpm_deps")
-
-rpm_deps = module_extension(implementation = _rpm_deps_impl)
+# The four AlmaLinux-only formula/runtime-file names not covered by boost/fftw's own
+# cc_import above - see this file's docstring for why these four are a bare filegroup rather
+# than a cc_import. Read by tools/system_deps.bzl to build @system_libs//:root_runtime_extra_libs.
+ROOT_RUNTIME_EXTRA_LIBS = ["libtbb.so.2", "libxxhash.so.0", "libfreetype.so.6", "libgsl.so.25", "libgslcblas.so.0"]

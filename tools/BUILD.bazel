@@ -1,9 +1,0 @@
-# Distinguishes AlmaLinux from Ubuntu/macOS at build time so Source/Utility/BUILD.bazel's
-# Boost/FFTW select() can choose between tools/rpm_deps.bzl's hermetic fetch (AlmaLinux) and
-# tools/system_deps.bzl's host discovery (everywhere else). Backed by a constraint_value on
-# the auto-detected host platform (see tools/host_platform.bzl and .bazelrc's --platforms
-# default) rather than a --define flag, so this resolves with no command-line argument needed.
-config_setting(
-    name = "is_almalinux",
-    constraint_values = ["@host_platform//:almalinux"],
-)

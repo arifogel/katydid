@@ -21,17 +21,29 @@ how the library is located: apt/dnf-installed Boost/FFTW/MatIO need no explicit 
 land on the compiler's default system include path); Homebrew keeps things out of the way, so
 macOS needs `brew --prefix` plus explicit hdrs/includes on the aggregating cc_import below.
 
-One exception: on AlmaLinux, Boost and FFTW are not discovered here at all (host discovery
-there isn't reproducible - AlmaLinux's dnf repos are rolling and prune a package once a newer
-build supersedes it) - tools/rpm_deps.bzl fetches pinned versions of those two hermetically
-instead, and Source/Utility/BUILD.bazel's select() (driven by tools/host_platform.bzl, with no
---config/--define flag needed) picks @rpm_deps over @system_libs for just those two labels on
-that one platform. MatIO is unaffected either way.
+On AlmaLinux specifically, Boost and FFTW are the one exception to "discovered from what's
+already on the machine": AlmaLinux's dnf repos are rolling and prune a package once a newer
+build supersedes it, so host discovery there isn't reproducible the way apt/Homebrew's is.
+linux_distro_id (tools/repo_utils.bzl) detects AlmaLinux from inside this repository rule -
+the same place tools/root.bzl already auto-detects platform - and switches to fetching pinned
+.rpm packages hermetically instead (see tools/rpm_deps.bzl for that fetch logic); either way,
+the exposed label is still @system_libs//:boost / @system_libs//:fftw, so no BUILD file needs
+to know or care which path was taken. MatIO is unaffected and always uses host discovery,
+since nothing here pins a specific MatIO version.
 
 Usage from a BUILD file: deps = ["@system_libs//:boost", "@system_libs//:fftw"]
 """
 
 load(":repo_utils.bzl", "is_macos", "linux_distro_id")
+load(
+    ":rpm_deps.bzl",
+    "EXTRACTED_LIBS",
+    "ROOT_RUNTIME_EXTRA_LIBS",
+    "RPM_DOWNLOADS",
+    "cc_import_snippet",
+    "check_is_elf_or_fail",
+    "download_and_extract_rpm",
+)
 
 _MAC_FORMULAE = {
     "boost": {
@@ -171,6 +183,7 @@ def _find_mac_dylib_or_fail(repository_ctx, prefix, libname, brew_formula):
 
 def _system_libs_repo_impl(repository_ctx):
     on_macos = is_macos(repository_ctx)
+    on_almalinux = False  # only ever True on Linux; see the dnf branch below
 
     build_file_parts = [
         'load("@rules_cc//cc:cc_import.bzl", "cc_import")',
@@ -245,14 +258,43 @@ cc_import(
         pkg_manager, linux_libs = _linux_pkg_manager(repository_ctx)
         install_hint = "sudo apt install {pkgs}" if pkg_manager == "apt" else "sudo dnf install {pkgs}"
 
-        # On AlmaLinux, Boost/FFTW come from tools/rpm_deps.bzl's hermetic fetch instead (see
-        # Source/Utility/BUILD.bazel's select()) - CI doesn't install boost-devel/fftw-devel
-        # there at all, so discovering them here would just fail. MatIO is unaffected: nothing
-        # pins a specific MatIO version, so it's still discovered via dnf like everywhere else.
-        skip_formulas = ["boost", "fftw"] if linux_distro_id(repository_ctx) == "almalinux" else []
+        # AlmaLinux 9's dnf repos are rolling (see module docstring), so Boost/FFTW there come
+        # from tools/rpm_deps.bzl's hermetic pinned-.rpm fetch instead of the host-discovery
+        # loop below - detected here, inside the repository rule, the same way tools/root.bzl
+        # already auto-detects platform, rather than via a build-time flag a select() would
+        # need to read.
+        on_almalinux = pkg_manager == "dnf" and linux_distro_id(repository_ctx) == "almalinux"
+        hermetic_formulas = ["boost", "fftw"] if on_almalinux else []
+
+        if on_almalinux:
+            for pkg_name in RPM_DOWNLOADS:
+                download_and_extract_rpm(repository_ctx, pkg_name)
+
+            for pkg_name, source_path, runtime_name in EXTRACTED_LIBS:
+                src = "{}_extracted/{}".format(pkg_name, source_path)
+                check_is_elf_or_fail(repository_ctx, src, pkg_name, source_path)
+                repository_ctx.symlink(src, runtime_name)
+
+            build_file_parts.extend(cc_import_snippet(
+                name = "boost",
+                so_names = [
+                    "libboost_filesystem.so.1.75.0",
+                    "libboost_thread.so.1.75.0",
+                    "libboost_date_time.so.1.75.0",
+                    "libboost_program_options.so.1.75.0",
+                ],
+                hdrs_glob = ["boost-devel_extracted/usr/include/boost/**"],
+                includes = ["boost-devel_extracted/usr/include"],
+            ))
+            build_file_parts.extend(cc_import_snippet(
+                name = "fftw",
+                so_names = ["libfftw3.so.3"],
+                hdrs_glob = ["fftw-devel_extracted/usr/include/fftw3.h"],
+                includes = ["fftw-devel_extracted/usr/include"],
+            ))
 
         for formula, info in linux_libs.items():
-            if formula in skip_formulas:
+            if formula in hermetic_formulas:
                 continue
 
             _check_header_or_fail(
@@ -295,6 +337,19 @@ cc_import(
                 defines = repr(info.get("defines", [])),
                 component_import_labels = repr(component_import_labels),
             ))
+
+    # TBB/xxhash/FreeType/GSL: needed only because ROOT's own prebuilt binaries link against
+    # them (nothing here #includes their headers), and only on AlmaLinux, where they're bundled
+    # into a release archive directly (see root BUILD.bazel) rather than resolved via the
+    # system linker's default paths as on Ubuntu/macOS - so this filegroup is empty everywhere
+    # except AlmaLinux, and BUILD files reference @system_libs//:root_runtime_extra_libs
+    # unconditionally, with no select() needed to pick a platform-specific label.
+    build_file_parts.append("""
+filegroup(
+    name = "root_runtime_extra_libs",
+    srcs = {srcs},
+)
+""".format(srcs = repr(ROOT_RUNTIME_EXTRA_LIBS if on_almalinux else [])))
 
     repository_ctx.file("BUILD.bazel", "\n".join(build_file_parts))
 
