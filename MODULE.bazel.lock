@@ -201,6 +201,45 @@
   },
   "selectedYankedVersions": {},
   "moduleExtensions": {
+    "//tools:almalinux_libs.bzl%almalinux_libs": {
+      "general": {
+        "bzlTransitiveDigest": "jNZqLMbYylIsHUcPtAcwOgSmPspcYK/brE73+b2hpoc=",
+        "usagesDigest": "izPNCe08JGGhSqmIlisQ/bT3VbXJXxIB4T5NyA1Sofg=",
+        "recordedInputs": [],
+        "generatedRepoSpecs": {
+          "almalinux_libs": {
+            "repoRuleId": "@@//tools:almalinux_libs.bzl%_almalinux_libs_repo",
+            "attributes": {}
+          }
+        }
+      }
+    },
+    "//tools:binary_deps.bzl%binary_deps": {
+      "general": {
+        "bzlTransitiveDigest": "nK4XR0CH5OQQLh9m/oZf6MHbZVxyd8mizxiFdOhmal0=",
+        "usagesDigest": "cjeE10oWKLza5/IXJyhKNqdJbxwW3r6FZRsWqukzJRA=",
+        "recordedInputs": [],
+        "generatedRepoSpecs": {
+          "binary_deps": {
+            "repoRuleId": "@@//tools:binary_deps.bzl%_binary_deps_repo",
+            "attributes": {}
+          }
+        }
+      }
+    },
+    "//tools:macos_libs.bzl%macos_libs": {
+      "general": {
+        "bzlTransitiveDigest": "VEudNXPZ0Ge8vApwSI26Lgh/iz4iHOYsuaBGIRJgk4Q=",
+        "usagesDigest": "BL7stWEDSLn9yHzVi4O36xd1VXHyRAy1bzUoWSk9h2Y=",
+        "recordedInputs": [],
+        "generatedRepoSpecs": {
+          "macos_libs": {
+            "repoRuleId": "@@//tools:macos_libs.bzl%_macos_libs_repo",
+            "attributes": {}
+          }
+        }
+      }
+    },
     "//tools:non_bazel_deps.bzl%non_bazel_deps": {
       "general": {
         "bzlTransitiveDigest": "nPU7X/8vcOAVpzM1QrM/I2J8x7DtUexhGxSZ4vx0EK8=",
@@ -261,7 +300,7 @@
     },
     "//tools:root.bzl%root_deps": {
       "general": {
-        "bzlTransitiveDigest": "zl8ZXplFlkeWG0Icg6voB1GQKjjgTVnw4187Iwx0aMU=",
+        "bzlTransitiveDigest": "8NYwgmGJ54ky6cVf92OwvTnGhMaIlE9P8YUr5pwJSMY=",
         "usagesDigest": "sDSkyOP5sRLOjjGmJ18eUF59tYieCxZ7/7JCTOMg6bE=",
         "recordedInputs": [],
         "generatedRepoSpecs": {
@@ -272,27 +311,14 @@
         }
       }
     },
-    "//tools:rpm_deps.bzl%rpm_deps": {
+    "//tools:ubuntu_libs.bzl%ubuntu_libs": {
       "general": {
-        "bzlTransitiveDigest": "y4D/vu2RxlfQ2KusxA+Fjc2z/qxIXKyeEPZrcfLZJW0=",
-        "usagesDigest": "z6iM8tsuBhlV40dcaNf3twZbd3D3vlXS8ois7m3RIXU=",
+        "bzlTransitiveDigest": "s6BiN0KhLWDZgQX0jmFO9EBZ819qjKwOLtN03L5vQ70=",
+        "usagesDigest": "xHs9MgNmsU+70YOC0XRX3Gc/rjrCMb1xVMp+Lg6TZv0=",
         "recordedInputs": [],
         "generatedRepoSpecs": {
-          "rpm_deps": {
-            "repoRuleId": "@@//tools:rpm_deps.bzl%_rpm_deps_repo",
-            "attributes": {}
-          }
-        }
-      }
-    },
-    "//tools:system_deps.bzl%system_deps": {
-      "general": {
-        "bzlTransitiveDigest": "cTGzT6kEpt/GVq4AxFv6S1HmR4BJza0vf3gq3cImybU=",
-        "usagesDigest": "PFljPu5vgSoTlnuznl8mgsJAHt0kfmdVZ9S4XCZ1Usk=",
-        "recordedInputs": [],
-        "generatedRepoSpecs": {
-          "system_libs": {
-            "repoRuleId": "@@//tools:system_deps.bzl%_system_libs_repo",
+          "ubuntu_libs": {
+            "repoRuleId": "@@//tools:ubuntu_libs.bzl%_ubuntu_libs_repo",
             "attributes": {}
           }
         }
