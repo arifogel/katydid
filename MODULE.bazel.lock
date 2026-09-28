@@ -261,7 +261,7 @@
     },
     "//tools:root.bzl%root_deps": {
       "general": {
-        "bzlTransitiveDigest": "fhCjkWJv96Z6AlkcbWDvR9USKfn/3wKYLsiyp5N/miI=",
+        "bzlTransitiveDigest": "vCCvd1IT/BldYMr2wTYDDhlPrxDOiaPcOt8kT4aF5iU=",
         "usagesDigest": "sDSkyOP5sRLOjjGmJ18eUF59tYieCxZ7/7JCTOMg6bE=",
         "recordedInputs": [],
         "generatedRepoSpecs": {
@@ -274,7 +274,7 @@
     },
     "//tools:system_deps.bzl%system_deps": {
       "general": {
-        "bzlTransitiveDigest": "CIGeatnrN4Fcmehq6twKK+r0gzBT0dZOpHbQKqe8cUc=",
+        "bzlTransitiveDigest": "smTuOyeRNSbmtWzzuYmFHSbLH30jj2FEBfSuXiIPsYI=",
         "usagesDigest": "PFljPu5vgSoTlnuznl8mgsJAHt0kfmdVZ9S4XCZ1Usk=",
         "recordedInputs": [],
         "generatedRepoSpecs": {
