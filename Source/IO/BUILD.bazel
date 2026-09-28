@@ -68,9 +68,7 @@ root_dictionary(
 )
 
 # IODict_cxx is compiled in directly: TCling::RegisterModule (in libCore.so) calls dlopen() on
-# whatever file holds a dictionary's compiled code, and a statically linked dictionary inside a
-# PIE executable is never a valid dlopen() target (glibc >= 2.29 refuses it outright; other
-# toolchains leave registration silently incomplete).
+# whatever file holds a dictionary's compiled code, so that file must be a real shared object.
 cc_library(
     name = "katydid_io_lib",
     srcs = [
