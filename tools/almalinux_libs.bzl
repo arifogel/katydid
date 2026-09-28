@@ -166,10 +166,15 @@ RPM_DOWNLOADS = {
         "filename": "harfbuzz-2.7.4-10.el9.x86_64.rpm",
         "sha256": "1f81073019abe4176d4496723a89b55a349c31f507e96397a0b3efa7cea0ff61",
     },
+    # Pinned via an explicit "url" rather than _ALMALINUX_VAULT_RELEASE's usual
+    # filename-only shape: the live repo's current build (1.6.37-15.el9_8.2) isn't in the
+    # vault at all yet (9.8 doesn't even exist there - vault only archives a release once it's
+    # superseded), so this points at 9.7's newest available build instead (1.6.37-12.el9_7.4) -
+    # older build revision, same upstream version and libpng16.so.16 soname, confirmed clean via
+    # the same extract-and-ldd check as every other package here.
     "libpng": {
-        "repo": "BaseOS",
-        "filename": "libpng-1.6.37-15.el9_8.2.x86_64.rpm",
-        "sha256": "b50c9af737a243e6a3c644ecb26f9f2c2a0d214385b0b06102858fea68ae760e",
+        "url": "https://vault.almalinux.org/9.7/BaseOS/x86_64/os/Packages/libpng-1.6.37-12.el9_7.4.x86_64.rpm",
+        "sha256": "d5cd1e6b0b2bfa0b66025b1ad790235af1169e02749eabff6839a3f35d2a109e",
     },
     "graphite2": {
         "repo": "BaseOS",
