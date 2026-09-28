@@ -1,12 +1,5 @@
 """Generates a ROOT dictionary (.cxx + _rdict.pcm) from a LinkDef header, replacing CMake's
-ROOT_GENERATE_DICTIONARY() macro. Used by Katydid's Utility and IO modules, and by Cicada.
-
-This is a real Starlark rule rather than a genrule, because rootcling needs to see every
-header transitively reachable from the dictionary headers (via Nymph, Scarab, Boost, and so
-on), not just the headers local to the module being built. A genrule has no way to discover
-that automatically; only a rule that reads the CcInfo provider of its `deps` can pull the
-real transitive include directories and headers out of Bazel's compilation-context
-bookkeeping.
+ROOT_GENERATE_DICTIONARY() macro.
 """
 
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
@@ -35,10 +28,9 @@ def _root_dictionary_impl(ctx):
     # string is given here literally as the #include target in the generated .cxx. A full
     # execroot-relative path (e.g. "external/+non_bazel_deps+cicada/Library/Foo.hh") doesn't
     # resolve when that .cxx is later compiled from a different location in bazel-out. A bare
-    # basename does resolve, the same way CMake's ROOT_GENERATE_DICTIONARY normally invokes
-    # rootcling - both rootcling's own header lookup *and* the later real compile rely on the
-    # -I flags above (both already include this module's own directory via quote_includes),
-    # not on any path baked into the argument itself.
+    # basename does resolve - both rootcling's own header lookup *and* the later real compile
+    # rely on the -I flags above (both already include this module's own directory via
+    # quote_includes), not on any path baked into the argument itself.
     args.add_all([h.basename for h in ctx.files.headers])
     args.add(ctx.file.linkdef)
 
@@ -72,10 +64,6 @@ _root_dictionary_gen = rule(
         # The cc_library(s) whose transitive include paths/headers rootcling needs to see -
         # normally just the owning module's own cc_library plus its direct deps.
         "deps": attr.label_list(providers = [CcInfo], mandatory = True),
-        # allow_single_file (not executable=True): @root//:rootcling is a plain source
-        # file (symlinked in via exports_files()), not a build rule with a FilesToRunProvider
-        # - executable=True requires the latter and fails with "is misplaced here" otherwise.
-        # ctx.actions.run() accepts a File directly for `executable`, so this works fine.
         "_rootcling": attr.label(
             default = "@root//:rootcling",
             allow_single_file = True,
