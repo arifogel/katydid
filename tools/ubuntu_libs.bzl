@@ -3,11 +3,6 @@ apt-installed files already on the compiler/linker's default search paths, so no
 symlink-and-wrap-headers dance is needed. Unpinned: uses whatever version `apt install`
 currently resolves to (see .github/workflows/ci.yaml's apt install step and BUILDING.md).
 
-cc_import, not cc_library: cc_shared_library's "linked statically but not exported" check
-flags a library reachable from more than one cc_shared_library's deps (e.g. Boost, needed by
-both katydid_utility and nymph); cc_import is exempt from that check, even a header-only
-cc_library with zero srcs is not (bazelbuild/bazel#19920).
-
 Nothing should reference this repo directly - resolution to whichever platform repo is
 actually live on the current host happens with no select()/config_setting/flag anywhere.
 """
