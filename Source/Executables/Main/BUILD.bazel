@@ -129,10 +129,8 @@ harvest_runtime_libs(
     ],
 )
 
-# Regression test for two fixed bugs: TCling::RegisterModule dlopen()-ing Katydid's main
-# executable (fixed by every module being a real, standalone .so, each a valid dlopen()
-# target), and ROOT_INCLUDE_PATH needing to be set before Katydid's process starts (fixed in
-# root_include_path_launcher.bzl). See check_katydid_stderr_test.sh's header for details.
+# Verifies Katydid's --help output contains neither of the two known-bad stderr messages
+# check_katydid_stderr_test.sh checks for. See that file's header for what they'd indicate.
 sh_test(
     name = "katydid_stderr_test",
     srcs = ["check_katydid_stderr_test.sh"],
