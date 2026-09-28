@@ -17,8 +17,7 @@ macOS.
 load("@binary_deps//:lib_dirs.bzl", "LIB_DIRS")
 
 # True for "libfoo.so" and any SONAME-versioned name derived from it ("libfoo.so.3",
-# "libfoo.so.1.75.0", ...). A bare f.basename.endswith(".so") check misses these, silently
-# skipping them in the walk below.
+# "libfoo.so.1.75.0", ...).
 def _is_shared_library(basename):
     idx = basename.find(".so")
     if idx == -1:
