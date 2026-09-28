@@ -14,7 +14,7 @@ $ORIGIN/../lib:$ORIGIN/../root/lib on Linux, @loader_path/../lib and @loader_pat
 macOS.
 """
 
-load("@binary_deps//:lib_dirs.bzl", "LIB_DIRS")
+load("@binary_deps//:lib_dirs.bzl", "MAC_EXTRA_RPATH_FLAGS")
 
 # True for "libfoo.so" and any SONAME-versioned name derived from it ("libfoo.so.3",
 # "libfoo.so.1.75.0", ...).
@@ -35,11 +35,6 @@ def _is_shared_library(basename):
 _ROOT_WORKSPACE_NAME = Label("@root//:BUILD.bazel").workspace_name
 _MACOS_LIBS_WORKSPACE_NAME = Label("@macos_libs//:BUILD.bazel").workspace_name
 _UBUNTU_LIBS_WORKSPACE_NAME = Label("@ubuntu_libs//:BUILD.bazel").workspace_name
-
-# One '-add_rpath <dir>' per macOS Homebrew formula directory: since Boost/FFTW/MatIO aren't
-# bundled into lib/ on macOS (excluded above), the release archive needs to find Homebrew's copy
-# on whatever machine runs it. Empty on Linux, where LIB_DIRS is always [].
-_MAC_EXTRA_RPATH_FLAGS = " ".join(["-add_rpath '{}'".format(d) for d in LIB_DIRS])
 
 def _harvest_runtime_libs_impl(ctx):
     is_macos = ctx.target_platform_has_constraint(ctx.attr._macos_constraint[platform_common.ConstraintValueInfo])
@@ -85,7 +80,7 @@ def _harvest_runtime_libs_impl(ctx):
                         "install_name_tool -delete_rpath \"$rp\" '{out}'; done && " +
                         "install_name_tool -add_rpath '@loader_path/../lib' -add_rpath '@loader_path/../root/lib' {extra} '{out}' && " +
                         "codesign --sign - --force '{out}'"
-                    ).format(src = f.path, out = out.path, base = f.basename, extra = _MAC_EXTRA_RPATH_FLAGS)
+                    ).format(src = f.path, out = out.path, base = f.basename, extra = MAC_EXTRA_RPATH_FLAGS)
                 else:
                     # --set-rpath replaces this .so's Bazel-baked-in RPATH outright (see this
                     # file's docstring for why it's meaningless here).

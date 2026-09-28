@@ -84,7 +84,16 @@ def _binary_deps_repo_impl(repository_ctx):
         brew = brew_require(repository_ctx)
         for formula in _MAC_BREW_FORMULAE:
             lib_dirs.append(brew_prefix(repository_ctx, brew, formula) + "/lib")
-    repository_ctx.file("lib_dirs.bzl", "LIB_DIRS = " + repr(lib_dirs) + "\n")
+
+    # One '-add_rpath <dir>' per entry in lib_dirs, ready to splice into an install_name_tool
+    # command line.
+    mac_extra_rpath_flags = " ".join(["-add_rpath '{}'".format(d) for d in lib_dirs])
+
+    repository_ctx.file(
+        "lib_dirs.bzl",
+        "LIB_DIRS = " + repr(lib_dirs) + "\n" +
+        "MAC_EXTRA_RPATH_FLAGS = " + repr(mac_extra_rpath_flags) + "\n",
+    )
 
 _binary_deps_repo = repository_rule(
     implementation = _binary_deps_repo_impl,
