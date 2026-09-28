@@ -22,7 +22,7 @@ jobs:
           token: ${{ secrets.PAT_WITH_WRITE_ACCESS }}
 
       # Regenerating MODULE.bazel.lock requires evaluating every module extension declared in
-      # MODULE.bazel, including tools/system_deps.bzl's - which requires Boost, FFTW, and MatIO
+      # MODULE.bazel, including tools/ubuntu_libs.bzl's - which requires Boost, FFTW, and MatIO
       # to actually be present on this runner, the same as the main CI workflow's Ubuntu job.
       # ROOT needs no equivalent provisioning: tools/root.bzl's module extension fetches it
       # directly from root.cern, regardless of what's on this runner.

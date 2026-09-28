@@ -3,15 +3,13 @@
 ROOT is fetched as a prebuilt binary from root.cern, one exact URL per supported platform,
 rather than discovered via root-config on PATH: no distro packages a usable ROOT build, and
 building it from source has no existing hermetic Bazel toolchain to lean on. ROOT's prebuilt
-binaries are versioned per exact OS release and toolchain, not just "linux" or "macos", so
-unlike Boost/FFTW/MatIO (see tools/system_deps.bzl) this reads /etc/os-release on Linux rather
-than just checking which package manager is on PATH.
+binaries are versioned per exact OS release and toolchain, so this reads /etc/os-release on
+Linux rather than just checking which package manager is on PATH.
 
-ROOT is its own repository (@root), not folded into @system_libs: @system_libs uses
-local = True so a brew/apt upgrade is picked up on the next build, but ROOT's version here is
-a fixed pin in this file, so it should only be re-fetched when the file changes.
+ROOT's version here is a fixed pin in this file, re-fetched only when the file changes.
 """
 
+load(":almalinux_libs.bzl", "ROOT_RUNTIME_EXTRA_LIBS")
 load(":repo_utils.bzl", "is_macos", "linux_distro_id")
 
 # Bump this (and nowhere else) to change the ROOT version used everywhere. Confirm any new
@@ -69,9 +67,8 @@ def _root_unsupported_platform_error(key):
     )
 
 # Reads a .so's DT_NEEDED entries via readelf -d, returning each as a bare filename (e.g.
-# "libROOTNTupleBrowse.so"). Used below to expand root_lib_names into the transitive closure
-# of ROOT-internal dependencies; readelf is standard binutils, present on every supported
-# Linux platform (not used on macOS - see the comment where this is called).
+# "libROOTNTupleBrowse.so"). readelf is standard binutils, present on every supported Linux
+# platform.
 def _so_needed_names(repository_ctx, so_path):
     result = repository_ctx.execute(["readelf", "-d", str(so_path)])
     if result.return_code != 0:
@@ -97,17 +94,15 @@ def _root_repo_impl(repository_ctx):
     if not download:
         fail(_root_unsupported_platform_error(key))
 
-    # No stripPrefix: root.cern's tarballs already extract with a top-level root/ directory,
-    # landing it at root/ directly inside this repository, matching what the targets below
-    # expect.
+    # No stripPrefix: root.cern's tarballs already extract with a top-level root/ directory.
     repository_ctx.download_and_extract(
         url = download["url"].format(v = _ROOT_VERSION),
         sha256 = download["sha256"],
     )
 
     # root-config is part of the tarball just extracted, not something already on PATH - the
-    # most reliable way to get the exact --libs list for this build, rather than hardcoding
-    # it and risking staleness across ROOT versions.
+    # most reliable way to get the exact --libs list for this build, rather than hardcoding it
+    # and risking staleness across ROOT versions.
     root_config = repository_ctx.path("root/bin/root-config")
 
     # Base libs (Core, RIO, Net, Hist, Graf, Tree, ...) from root-config, plus the extra
@@ -117,11 +112,10 @@ def _root_repo_impl(repository_ctx):
     #
     # Every Katydid module gets the full set here, not scoped per module, matching the CMake
     # reference build's own single, global find_package(ROOT COMPONENTS Gui Spectrum TMVA) and
-    # ${ROOT_LIBRARIES} link into every target. The reference build's smaller, per-module
-    # NEEDED sets come from the system compiler's --as-needed pruning, not from CMake itself;
-    # Bazel's toolchain may not prune the same way, so this can end up less minimal. Not a
-    # correctness concern: an unused DT_NEEDED entry just means an extra library load at
-    # process start.
+    # ${ROOT_LIBRARIES} link into every target. The reference build's smaller, per-module NEEDED
+    # sets come from the system compiler's --as-needed pruning, not from CMake itself; Bazel's
+    # toolchain may not prune the same way, so this can end up less minimal. Not a correctness
+    # concern: an unused DT_NEEDED entry just means an extra library load at process start.
     root_base_libs_result = repository_ctx.execute([root_config, "--libs"])
     if root_base_libs_result.return_code != 0:
         fail("`root-config --libs` failed on the just-extracted ROOT build:\n" + root_base_libs_result.stderr)
@@ -135,34 +129,31 @@ def _root_repo_impl(repository_ctx):
     root_other_linkopts = [x for x in all_root_libs_tokens if x and not x.startswith("-l") and not x.startswith("-L")]
 
     # Expand root_lib_names into the transitive closure of ROOT-internal dependencies before
-    # computing srcs below. root-config --libs plus the hand-added Gui/Spectrum/TMVA
-    # components only names libraries Katydid calls into *directly* - it misses libraries that
-    # are purely internal, transitive dependencies of those (e.g. libGui.so itself has a
-    # NEEDED entry on libROOTNTupleBrowse.so, which never shows up in root-config --libs since
-    # nothing outside ROOT ever names it directly - likewise libMinuit.so/libMLP.so/
-    # libXMLIO.so). cc_library(srcs = [...]) puts every file listed here into one shared solib
-    # directory at runtime, and each .so's baked-in RUNPATH ($ORIGIN/.) only finds a sibling
-    # that's actually present in srcs - so a missing transitive dependency here is a silent
-    # runtime failure ("cannot open shared object file"), not caught by analysis or
-    # compilation, only by running the binary.
+    # computing srcs below. root-config --libs plus the hand-added Gui/Spectrum/TMVA components
+    # only names libraries Katydid calls into directly - it misses libraries that are purely
+    # internal, transitive dependencies of those (e.g. libGui.so itself has a NEEDED entry on
+    # libROOTNTupleBrowse.so, which never shows up in root-config --libs since nothing outside
+    # ROOT ever names it directly - likewise libMinuit.so/libMLP.so/libXMLIO.so). cc_library(srcs
+    # = [...]) puts every file listed here into one shared solib directory at runtime, and each
+    # .so's baked-in RUNPATH ($ORIGIN/.) only finds a sibling that's actually present in srcs -
+    # so a missing transitive dependency here is a silent runtime failure ("cannot open shared
+    # object file"), not caught by analysis or compilation, only by running the binary.
     #
-    # Reading each selected .so's NEEDED entries and repeating until the set stops growing
-    # finds every one of these automatically, without hand-maintaining a second list - and
-    # without pulling in libCPyCppyy.so (ROOT's Python bindings, needing an unbundled
-    # libpythonX.so at *link* time - the original problem that made a hand-picked allowlist
-    # necessary instead of a blanket glob(root/lib/*.so)), since nothing this closure needs
-    # depends on it.
+    # Reading each selected .so's NEEDED entries and repeating until the set stops growing finds
+    # every one of these automatically, without hand-maintaining a second list - and without
+    # pulling in libCPyCppyy.so (ROOT's Python bindings, which need an unbundled libpythonX.so
+    # at link time), since nothing this closure needs depends on it.
     #
     # readelf-based, so Linux-only: on macOS these libraries are linked by real (not
-    # RPATH-relative) install-name references resolved via Homebrew's linked library layout,
-    # not Bazel's solib scattering, so this closure-expansion step is skipped there and
+    # RPATH-relative) install-name references resolved via Homebrew's linked library layout, not
+    # Bazel's solib scattering, so this closure-expansion step is skipped there and
     # root_lib_names is used as-is.
     if not is_macos(repository_ctx):
         selected = {name: True for name in root_lib_names}
         frontier = list(root_lib_names)
 
         # Bounded for loop, breaking early once the closure stops growing. 50 is far more than
-        # ROOT's internal dependency graph could ever need - not a meaningful limit on its own.
+        # ROOT's internal dependency graph could ever need.
         for _ in range(50):
             if not frontier:
                 break
@@ -198,6 +189,24 @@ def _root_repo_impl(repository_ctx):
         if not repository_ctx.path("root/lib/lib{}.so".format(lib_name)).exists
     ]
 
+    # On AlmaLinux, root/lib/*.so and root/bin/rootcling dynamically need libraries root.cern's
+    # tarball doesn't bundle, symlinked in here only on AlmaLinux and added to root_srcs
+    # alongside ROOT's own libs. A plain on-disk symlink resolves for rootcling, invoked
+    # directly as a build-time tool via its own $ORIGIN/../lib-relative RUNPATH, but `bazel
+    # run`/`bazel test` and the packaged release binaries resolve @root's shared libraries
+    # through Bazel's solib scattering, which only bundles what's declared in this cc_library's
+    # srcs - a bare filesystem symlink is invisible to it.
+    #
+    # RPATH/RUNPATH-based throughout, never an environment variable.
+    #
+    # If this RUNPATH assumption doesn't hold on a future ROOT release, `readelf -d
+    # root/bin/rootcling | grep RUNPATH` from inside the extracted tarball confirms it directly;
+    # the fix is patchelf'ing rootcling itself.
+    if key[0] == "almalinux":
+        for lib_name in ROOT_RUNTIME_EXTRA_LIBS:
+            repository_ctx.symlink(Label("@almalinux_libs//:" + lib_name), "root/lib/" + lib_name)
+        root_srcs = root_srcs + ["root/lib/" + lib_name for lib_name in ROOT_RUNTIME_EXTRA_LIBS]
+
     repository_ctx.file("BUILD.bazel", """
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 
@@ -213,11 +222,9 @@ cc_library(
 )
 
 # The full, unfiltered tarball - every file, not just the narrowed srcs= subset above used for
-# linking. Consumed by //:katydid_release to bundle ROOT wholesale into its own root/
-# subdirectory: ROOT's runtime needs a complete install layout (bin/, lib/, etc/, include/) to
-# find things like etc/gitinfo.txt and dlopen()-load libCling.so by its own internal search
-# logic - neither is a real ELF NEEDED dependency, so only bundling the whole tree satisfies
-# them.
+# linking. ROOT's runtime needs a complete install layout (bin/, lib/, etc/, include/) to find
+# things like etc/gitinfo.txt and dlopen()-load libCling.so via its own internal search logic -
+# neither is a real ELF NEEDED dependency.
 filegroup(
     name = "all_files",
     srcs = glob(["root/**"], allow_empty = True),
@@ -226,15 +233,13 @@ filegroup(
 exports_files(["rootcling"])
 """.format(srcs = repr(root_srcs), linkopts = repr(root_linkopts)))
 
-    # Symlinked to the repository root, not referenced as root/bin/rootcling directly: keeps
-    # the label @root//:rootcling short - tools/root_dictionary.bzl's _rootcling attribute
-    # default references it directly.
+    # Symlinked to the repository root rather than referenced as root/bin/rootcling directly, to
+    # keep the label @root//:rootcling short.
     repository_ctx.symlink("root/bin/rootcling", "rootcling")
 
-# No local = True, unlike system_deps.bzl's _system_libs_repo: ROOT's version is a fixed pin
-# in this file, not host state that can change between builds without the file itself
-# changing, so Bazel only needs to re-run this when the file changes (see the module
-# docstring for why this matters).
+# No local = True: ROOT's version is a fixed pin in this file, not host state that changes
+# between builds without the file itself changing, so Bazel only re-runs this when the file
+# changes.
 root_repo = repository_rule(implementation = _root_repo_impl)
 
 def _root_deps_impl(_module_ctx):

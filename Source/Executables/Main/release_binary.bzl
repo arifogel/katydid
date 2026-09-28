@@ -1,14 +1,12 @@
 """Generates release-archive artifacts for one binary: an RPATH-patched copy of the real
 binary, plus a portable wrapper script that sets ROOTSYS/ROOT_INCLUDE_PATH before exec-ing it.
 
-This is deliberately separate from root_include_path_launcher.bzl's wrapper, which is built
-for Bazel's runfiles tree (via $(rlocationpath ...)/rlocation) and used for `bazel run`/
-`bazel test`. The release archive is a plain, flat bin/ + lib/ + root/ + include/ directory
-tree extracted from a tarball, with no Bazel runfiles manifest - paths here are computed
-relative to the wrapper script's own location ($(dirname "$0")) instead, and the real
-binary's RPATH is rewritten (via patchelf) to match that flat layout, since Bazel's build-time
-RPATH (a long list of $ORIGIN-relative solib-farm entries and absolute paths into Bazel's
-cache) is meaningless once repackaged here.
+The release archive is a plain, flat bin/ + lib/ + root/ + include/ directory tree extracted
+from a tarball, with no Bazel runfiles manifest - paths here are computed relative to the
+wrapper script's own location ($(dirname "$0")) instead, and the real binary's RPATH is
+rewritten (via patchelf) to match that flat layout, since Bazel's build-time RPATH (a long list
+of $ORIGIN-relative solib-farm entries and absolute paths into Bazel's cache) is meaningless
+once repackaged here.
 
 On macOS, the same rewrite uses install_name_tool, in three steps: (1) every existing LC_RPATH
 entry is deleted individually (parsed from `otool -l`'s load-command dump) before the new ones
@@ -20,20 +18,20 @@ invalidly-signed Mach-O binary, so the binary is re-signed ad hoc (`codesign --s
 final step.
 """
 
-load("@system_libs//:lib_dirs.bzl", "MAC_LIB_DIRS")
+load("@binary_deps//:lib_dirs.bzl", "LIB_DIRS")
 
-# One '-add_rpath <dir>' per macOS Homebrew formula directory - see tools/system_deps.bzl's
-# comment on mac_lib_dirs for why: Boost/FFTW/MatIO's .dylib files are never bundled into this
-# release archive's lib/, so the binary has to find Homebrew's own copy at runtime instead.
-_MAC_EXTRA_RPATH_FLAGS = " ".join(["-add_rpath '{}'".format(d) for d in MAC_LIB_DIRS])
+# One '-add_rpath <dir>' per macOS Homebrew formula directory - see tools/binary_deps.bzl's
+# LIB_DIRS computation for why: Boost/FFTW/MatIO's .dylib files are never bundled into this
+# release archive's lib/ on macOS, so the binary has to find Homebrew's own copy at runtime
+# instead. Empty (and this flag string empty) on Linux, where LIB_DIRS is always [].
+_MAC_EXTRA_RPATH_FLAGS = " ".join(["-add_rpath '{}'".format(d) for d in LIB_DIRS])
 
 def release_binary(name, real_bin_label, final_bin_name):
     """Defines <name>_bin (RPATH-patched copy of real_bin_label) and <name> (wrapper script).
 
     Both are meant to be packaged into //:katydid_release's bin/ prefix, renamed to
-    bin/<name> and bin/<final_bin_name> respectively (see BUILD.bazel's pkg_files renames) -
-    alongside a sibling lib/ and root/ (ROOT's fully bundled tarball) this wrapper's
-    RPATH/ROOTSYS point at.
+    bin/<name> and bin/<final_bin_name> respectively, alongside a sibling lib/ and root/
+    (ROOT's fully bundled tarball) this wrapper's RPATH/ROOTSYS point at.
 
     Args:
         name: public name; the wrapper script (outs = [name]) is named exactly this.
@@ -55,8 +53,7 @@ def release_binary(name, real_bin_label, final_bin_name):
         name = patched_name + "_patchelf",
         srcs = [real_bin_label],
         outs = [patched_name],
-        # patchelf is built from source by the @patchelf module (see MODULE.bazel); only
-        # needed on the Linux branch below.
+        # patchelf is only needed on the Linux branch below.
         tools = select({
             "@platforms//os:macos": [],
             "//conditions:default": ["@patchelf//:patchelf"],
@@ -110,10 +107,8 @@ DIR="$$(cd "$$(dirname "$${BASH_SOURCE[0]}")" && pwd)"
 # libCling.so via its own internal search logic, independent of the dynamic linker/RPATH above.
 export ROOTSYS="$$DIR/../root"
 
-# Cling's autoload/autoparse needs this to find Cicada's dictionary headers - see
-# Source/Executables/Main/root_include_path_launcher.bzl's comment for the mechanism
-# (identical here, computed relative to this script's location rather than via Bazel's
-# rlocation).
+# Cling's autoload/autoparse needs this to find Cicada's dictionary headers, computed here
+# relative to this script's own location.
 if [[ -n "$${ROOT_INCLUDE_PATH:-}" ]]; then
   export ROOT_INCLUDE_PATH="$${ROOT_INCLUDE_PATH}:$$DIR/../include"
 else

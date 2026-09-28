@@ -27,8 +27,8 @@ cc_library(
         "Library/Utility",
     ],
     deps = [
+        "@binary_deps//:boost",
         "@scarab//:scarab_headers",
-        "@system_libs//:boost",
     ],
 )
 

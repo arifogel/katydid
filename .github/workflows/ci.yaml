@@ -33,7 +33,7 @@ jobs:
 
       # --- Linux: Boost, FFTW, and MatIO come from apt (which installs into locations the
       # compiler already searches by default, so no further configuration is needed - see
-      # tools/system_deps.bzl).
+      # tools/ubuntu_libs.bzl).
       #
       # Caches just the downloaded .deb files, keyed directly on a hash of this file, rather
       # than a third-party action (e.g. awalsh128/cache-apt-pkgs-action) that computes its own
@@ -120,10 +120,10 @@ jobs:
 
       - name: Test everything
         run: bazel test -c ${{ matrix.compilation_mode }} //...
-  # rather than as a third value in the matrix above: GitHub Actions has a known issue
-  # (https://github.com/actions/runner/issues/265) where using an empty `container:` value to
-  # mean "run natively, no container" for some matrix combinations can fail workflow validation
-  # outright. A fully separate job avoids that risk entirely.
+  # AlmaLinux runs as a fully separate job rather than as a third value in the matrix above:
+  # GitHub Actions has a known issue (https://github.com/actions/runner/issues/265) where using
+  # an empty `container:` value to mean "run natively, no container" for some matrix
+  # combinations can fail workflow validation outright.
   build-and-test-almalinux:
     name: Bazel Build (almalinux-9)
     runs-on: ubuntu-latest
@@ -145,31 +145,24 @@ jobs:
           path: /var/cache/dnf
           key: dnf-cache-almalinux9-${{ hashFiles('.github/workflows/ci.yaml') }}
 
-      # AlmaLinux is a RHEL-family Linux distribution, using dnf (and the EPEL and CRB add-on
-      # repositories) rather than apt. gcc-c++ and git are not Katydid dependencies as such -
-      # they are needed for Bazel itself to work at all (a C++ compiler, and the `git` command
-      # Bazel uses to fetch Katydid's own bundled dependencies), and are not present in this
-      # minimal container image by default.
-      #
-      # matio-devel requires the EPEL repository; boost-devel, fftw-devel, tbb-devel, freetype,
-      # and gsl are in AlmaLinux's own default repository. CRB is enabled in case any future
-      # dependency needs it - enabling it costs nothing if unused.
-      - name: Install build tools and Boost/FFTW/MatIO runtime deps (dnf)
+      # AlmaLinux is a RHEL-family Linux distribution, using dnf rather than apt. gcc-c++ and
+      # git are not Katydid dependencies as such - they are needed for Bazel itself to work at
+      # all (a C++ compiler, and the `git` command Bazel uses to fetch Katydid's own bundled
+      # dependencies), and are not present in this minimal container image by default. cpio is
+      # needed to unpack the .rpm packages tools/almalinux_libs.bzl fetches (rpm2cpio itself
+      # ships with the base image already, as part of the `rpm` package dnf depends on).
+      # Boost/FFTW/MatIO/TBB/xxhash/FreeType/GSL are not installed via dnf at all - Bazel itself
+      # fetches those hermetically, directly from AlmaLinux's and EPEL's pinned package archives
+      # (see tools/almalinux_libs.bzl), the same as every other build here. Nothing here needs
+      # EPEL or CRB, since dnf never installs any of these packages.
+      - name: Install build tools (dnf)
         run: |
-          dnf install -y epel-release
-          dnf config-manager --set-enabled crb
           dnf install -y --setopt=keepcache=True \
             gcc-c++ \
             git \
             wget \
             tar \
-            boost-devel \
-            fftw-devel \
-            matio-devel \
-            tbb-devel \
-            xxhash-devel \
-            freetype \
-            gsl
+            cpio
 
       # bazel-contrib/setup-bazel's usual automatic Bazel installation does not reliably work
       # inside this minimal container image, so Bazelisk (the tool that installs the correct
