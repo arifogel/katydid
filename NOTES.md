@@ -11,10 +11,11 @@ and with C/C++ build and link mechanics generally.
 1. **A single command (`bazel build //...`) builds Katydid from a clean checkout**, without
    requiring `git submodule update`, a CMake configure step, or manually building any of
    Katydid's own bundled dependencies (Nymph, Scarab, Cicada).
-2. **Large scientific libraries that are already the user's responsibility on any platform**
-   (ROOT, Boost, FFTW, MatIO) are treated as system-provided, not built by Bazel. This is a
-   deliberate trade against full hermeticity: it avoids the very large time cost of building
-   ROOT from source inside Bazel, at the cost of exact reproducibility across machines.
+2. **Boost, FFTW, and MatIO, already the user's responsibility on any platform**, are treated
+   as system-provided rather than built by Bazel - a deliberate trade against full hermeticity,
+   at the cost of exact reproducibility across machines. ROOT is different: Bazel fetches it
+   itself, as a pinned, exact prebuilt binary per platform, since there's no existing hermetic
+   Bazel toolchain to build it from source.
 3. Supports macOS, Ubuntu 24.04, and AlmaLinux 9, with the platform-specific logic isolated to
    as few places as possible.
 
@@ -304,10 +305,11 @@ latter: `bazel test` with `--build_tests_only` (the default from Bazel 8.2.0 onw
 build non-test targets, which would otherwise leave `Katydid`/`Truncate` unbuilt in CI.
 
 `.github/workflows/lockfile-sync.yaml` keeps `MODULE.bazel.lock` up to date on pull requests
-opened by Renovate. It needs the same system-library provisioning as the main CI job's Ubuntu
+opened by Renovate. It needs the same Boost/FFTW/MatIO provisioning as the main CI job's Ubuntu
 path, because `bazel mod deps` evaluates every module extension declared in `MODULE.bazel` —
 including `tools/system_deps.bzl` — to compute the lockfile, and that extension hard-fails
-without Boost/FFTW/MatIO/ROOT actually present.
+without them actually present. `tools/root.bzl`'s extension needs no equivalent provisioning:
+it fetches ROOT directly from root.cern regardless of what's on the runner.
 
 ## Known limitations / possible future work
 
