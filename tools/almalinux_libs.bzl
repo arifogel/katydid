@@ -25,9 +25,6 @@ package next to the runtime filename to bundle it as.
 A `-devel` package's own unversioned convenience symlink (e.g. boost-devel's
 usr/lib64/libboost_filesystem.so) points at a target that isn't included in that package; it
 only resolves once the matching runtime package (e.g. boost-filesystem) sits alongside it.
-
-To refresh a pin: tools/pin_rpm.sh downloads a candidate URL and prints its sha256, ready to
-paste into RPM_DOWNLOADS.
 """
 
 # Bump this (and nowhere else) to change the AlmaLinux vault snapshot every vault.almalinux.org
