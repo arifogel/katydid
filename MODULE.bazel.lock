@@ -272,6 +272,19 @@
         }
       }
     },
+    "//tools:rpm_deps.bzl%rpm_deps": {
+      "general": {
+        "bzlTransitiveDigest": "y4D/vu2RxlfQ2KusxA+Fjc2z/qxIXKyeEPZrcfLZJW0=",
+        "usagesDigest": "z6iM8tsuBhlV40dcaNf3twZbd3D3vlXS8ois7m3RIXU=",
+        "recordedInputs": [],
+        "generatedRepoSpecs": {
+          "rpm_deps": {
+            "repoRuleId": "@@//tools:rpm_deps.bzl%_rpm_deps_repo",
+            "attributes": {}
+          }
+        }
+      }
+    },
     "//tools:system_deps.bzl%system_deps": {
       "general": {
         "bzlTransitiveDigest": "cTGzT6kEpt/GVq4AxFv6S1HmR4BJza0vf3gq3cImybU=",
