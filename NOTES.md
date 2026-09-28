@@ -172,24 +172,19 @@ the generated payload (see below).
 
 ### Getting the generated `.pcm` file found at runtime
 
-The generated `.pcm` file needs to be a runtime dependency, not just a build input — but making
-that work correctly took real trial and error, and the mechanism is easy to get wrong in a way
-that looks like it should work. ROOT's Cling interpreter looks for a dictionary's `.pcm` file
-**directly inside the same `bazel-out` output directory as the consuming binary itself** — not
-via Bazel's runfiles tree, and not in the package where the dictionary was originally
-generated.
+The generated `.pcm` file needs to be a runtime dependency, not just a build input. ROOT's
+Cling interpreter looks for a dictionary's `.pcm` file **directly inside the same `bazel-out`
+output directory as the consuming binary itself** — not via Bazel's runfiles tree, and not in
+the package where the dictionary was originally generated.
 
 `katydid_utility`, `katydid_io`, and `@cicada` each declare `data = [":<name>_pcm"]` on their
-own `cc_library`, matching the natural first instinct ("this library owns the dictionary, so
-the library should carry the runtime dependency"). This is not sufficient for any consumer
-that lives in a different Bazel package: a library's `data` only propagates the file into
-*that consumer's runfiles tree*, which is a different location from the flat `bazel-out`
-directory Cling actually searches. Confirmed the hard way: `TestTrackProcessing` and
-`TestSequentialTrackFinder` (in `Source/Executables/Validation/`) both transitively depend on
-`katydid_io` and therefore already had this `data` dependency, and both still crashed with
-"ROOT PCM ... file does not exist" until a second, package-local fix was added.
+own `cc_library`. This alone is not sufficient for any consumer that lives in a different
+Bazel package: a library's `data` only propagates the file into *that consumer's runfiles
+tree*, which is a different location from the flat `bazel-out` directory Cling actually
+searches — a consumer transitively depending on `katydid_io` and carrying that `data`
+dependency can still fail with "ROOT PCM ... file does not exist".
 
-That fix — needed in every package that builds a binary linking one of these libraries and
+The fix — needed in every package that builds a binary linking one of these libraries and
 exercising the affected code path — is a `genrule` that copies the relevant dictionary's `.pcm`
 into a plain output *in that consuming package*:
 
@@ -204,11 +199,11 @@ genrule(
 
 listed as a `data` dependency of the actual binary or test. A `genrule`'s output is always
 built directly into the package where the `genrule` itself is declared — never routed through
-runfiles — so this lands exactly where Cling looks. There is no way to make this propagate
-automatically from the defining library; it has to be repeated per consuming package. Both
+runfiles — so this lands exactly where Cling looks. This does not propagate automatically from
+the defining library; it has to be repeated per consuming package. Both
 `Source/Executables/Validation/BUILD.bazel` (for `IODict` and `CicadaDict`) and
 `Source/Executables/Main/BUILD.bazel` (for `Katydid` and `Truncate`, which link `katydid_io`,
-which itself depends on `@cicada`) now carry this genrule.
+which itself depends on `@cicada`) carry this genrule.
 
 Most code tolerates a missing PCM as a harmless "file does not exist" warning and falls back to
 re-parsing the dictionary's own embedded header text at runtime instead — but classes actually
@@ -231,72 +226,59 @@ runtime, from code with no visible connection to codecs at all. Fixed by setting
 `alwayslink = True` on `@scarab`'s `cc_library`, which forces every one of its object files
 into every consumer, whether or not anything references it directly.
 
-Whether `@cicada`'s own dictionary registration needs the same treatment was an open question,
-now resolved: it does not. `rootcling` generates a class's registration as a static global
-(`_R__UNIQUE_DICT_(Init) = GenerateInitInstance();`) inside the dictionary `.cxx` itself —
-structurally the same shape of risk as Scarab's codecs, a self-registering object in its own
-translation unit. The difference is what else references it: Scarab's codec registration is
-purely string-dispatched, so nothing in ordinary code ever calls into `param_json.o` directly,
-which is exactly why it got dropped. ROOT's `ClassDef` macro instead generates `IsA()`,
-`Class()`, and `Streamer()` directly on the class, and these are what ROOT's own I/O machinery
-calls whenever an object is actually streamed to a `TTree`/`TClonesArray` — calling directly
-into functions defined in the dictionary `.cxx`. Writing the class to a ROOT file, the only
-reason to link `@cicada` at all, already forces the same reference Scarab's codecs never got.
-Confirmed empirically, not just by this reasoning: `TestROOTDictionary.cc` can't be used to
-verify this (see above), but
-`Source/Executables/Validation/TestROOTTreeWritingViaCicada.cc` is its own isolated binary that
-actually calls `WriteProcessedTrack`/`WriteMultiTrackEvent` and passes — if the registration
-weren't linked in, that streaming call should fail outright, not just log a warning.
+`@cicada`'s own dictionary registration does not need the same treatment. `rootcling` generates
+a class's registration as a static global (`_R__UNIQUE_DICT_(Init) = GenerateInitInstance();`)
+inside the dictionary `.cxx` itself — structurally the same shape of risk as Scarab's codecs, a
+self-registering object in its own translation unit. The difference is what else references it:
+Scarab's codec registration is purely string-dispatched, so nothing in ordinary code ever calls
+into `param_json.o` directly, which is why it needs `alwayslink`. ROOT's `ClassDef` macro
+instead generates `IsA()`, `Class()`, and `Streamer()` directly on the class, and these are what
+ROOT's own I/O machinery calls whenever an object is actually streamed to a
+`TTree`/`TClonesArray` — calling directly into functions defined in the dictionary `.cxx`.
+Writing the class to a ROOT file, the only reason to link `@cicada` at all, already forces that
+reference.
 
 ## Known pre-existing issues in Katydid's source
 
-Bugs found in the process of porting the build, independent of Bazel — worth fixing upstream,
-not routed around by this build.
+Bugs in Katydid's source, independent of Bazel — worth fixing upstream, not routed around by
+this build.
 
 In library code:
 
 - `Source/Utility/KTKatydidApp.hh` defines `GetTApplication()` out-of-class in the header
   without the `inline` keyword — a One Definition Rule violation that only manifests when
   statically linking (as Bazel's default `cc_library` does), not when linking against a shared
-  library (as the original CMake build, with `BUILD_SHARED_LIBS ON`, does). Fixed by adding
-  `inline`.
+  library (as the original CMake build, with `BUILD_SHARED_LIBS ON`, does).
 - `Source/Utility/KTDemangle.hh` (a free function) and
-  `Source/EventAnalysis/KTSpectrogramCollector.hh` (a method) have the same ODR violation as
-  above — a definition sitting directly in a header without `inline`. Each surfaced only when a
-  Validation test became a second translation unit compiling the same header. Both fixed the
-  same way.
+  `Source/EventAnalysis/KTSpectrogramCollector.hh` (a method) have the same ODR violation — a
+  definition sitting directly in a header without `inline`. Each surfaces only when a
+  Validation test becomes a second translation unit compiling the same header.
 - `Source/Utility/KTCutable.hh`'s `RangeIteratorEqualTo`/`RangeIteratorHash` inherited from
-  `std::binary_function`/`std::unary_function`, both removed from modern libc++. Fixed by
-  dropping the inheritance; `boost::unordered_map` only actually needs `operator()`.
+  `std::binary_function`/`std::unary_function`, both removed from modern libc++;
+  `boost::unordered_map` only actually needs `operator()`.
 - `Source/Utility/KTSpline.hh` declares `Implement()` returning
   `std::shared_ptr<Implementation>`. `KTSpline.cc` matches this under `#ifdef ROOT_FOUND` — the
   only configuration this build ever compiles — but not in the `#else` branch, which returns a
-  raw `KTPhysicalArray<1,double>*` instead. Since the branch this build actually compiles is
-  correct, `KTSpline.cc` is included in the build.
+  raw `KTPhysicalArray<1,double>*` instead.
 
 In `Source/Executables/Validation` test files:
 
-- `TestConvolution1D.cc` hardcoded an absolute path
+- `TestConvolution1D.cc` hardcodes an absolute path
   (`/Users/ezayas/Katydid/Examples/CustomApplications/GaussianKernel.json`) to a sample kernel
-  file, with a comment reading "You'll need to change this to your own path" — this test was
-  never meant to run unattended. Fixed by referencing the file with a relative path and adding
-  it as a `data` dependency (see `Examples/CustomApplications/BUILD.bazel`, which did not exist
-  as a Bazel package at all before this).
-- `TestSequentialTrackFinder.cc` unconditionally dereferenced `itccandidates.begin()` before
-  writing a candidate to a ROOT tree, without checking whether the set was empty. With this
+  file, with a comment reading "You'll need to change this to your own path" — not meant to run
+  unattended. References the file with a relative path and a `data` dependency instead (see
+  `Examples/CustomApplications/BUILD.bazel`).
+- `TestSequentialTrackFinder.cc` unconditionally dereferences `itccandidates.begin()` before
+  writing a candidate to a ROOT tree, without checking whether the set is empty. With this
   test's synthetic data and clustering parameters, the set is empty on every run, making
-  `.begin() == .end()`; dereferencing that is undefined behavior, which manifested as a
-  `shared_ptr` constructed from garbage, crashing when its reference count was incremented. An
-  `lldb` backtrace was needed to find this: the crash occurred in the log immediately after a
-  ROOT dictionary autoload warning, which was initially (and incorrectly) suspected as the
-  cause before the actual backtrace pointed to this line instead.
-- `TestWignerVille.cc` had three separate bugs: it initialized the forward FFT for
+  `.begin() == .end()`; dereferencing that is undefined behavior, manifesting as a `shared_ptr`
+  constructed from garbage that crashes when its reference count is incremented.
+- `TestWignerVille.cc` has three separate bugs: it initializes the forward FFT for
   real-as-complex data with `InitializeForRealTDD()` instead of
-  `InitializeForRealAsComplexTDD()`; it never called `KTWignerVille::Initialize()`, so
-  `TransformData()` failed on every call; and its `KTAnalyticAssociateData` was stack-allocated
+  `InitializeForRealAsComplexTDD()`; it never calls `KTWignerVille::Initialize()`, so
+  `TransformData()` fails on every call; and its `KTAnalyticAssociateData` is stack-allocated
   inside the processing loop, whose destructor recursively deletes chained extensible-struct
-  data — a use-after-free deferred until the post-loop ROOT-writing code actually read from it.
-  All three fixed directly in the test file.
+  data — a use-after-free deferred until the post-loop ROOT-writing code actually reads from it.
 
 `Source/Simulation` and `Source/Evaluation` are not part of the Bazel build. Both are already
 excluded from the CMake build itself (`add_subdirectory` for both is commented out in the
@@ -320,19 +302,12 @@ modules each tier's programs depend on), with two exceptions:
 - `TestDataDisplay` is excluded entirely: it launches an interactive ROOT GUI and cannot run
   unattended.
 - `Test2DDiscrim` is excluded: it directly constructs a `KTSpline` object (see `KTSpline`
-  above). Whether it's portable given `KTSpline.cc`'s current inclusion in the build hasn't
-  been checked.
+  above). Its portability given `KTSpline.cc`'s current inclusion in the build is unverified.
 
 Most of these tests are smoke tests only — they run a processing pipeline on synthetic data and
-check that nothing crashes, without asserting on specific output values. A few do check for a
+check that nothing crashes, without asserting on specific output values. A few check for a
 specific internal error condition (see the comment above the `TestChannelAggregator` block in
-the BUILD file for exactly which). None of this behavior was written or changed as part of the
-Bazel port; it reflects the tests exactly as CMake ran them.
-
-This directory is also where every bug listed above under "Known pre-existing issues" was
-actually found: Katydid's CMake build had evidently not been exercising most of these programs
-for long enough that straightforward compile errors, undefined behavior, and missing runtime
-dependencies had accumulated undetected.
+the BUILD file for exactly which). This behavior reflects the tests exactly as CMake ran them.
 
 ## CI (`.github/workflows/ci.yaml`)
 

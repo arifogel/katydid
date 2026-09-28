@@ -1,17 +1,15 @@
 """Provides Boost, FFTW, and MatIO for Ubuntu, exposed as @ubuntu_libs - discovered from
 apt-installed files already on the compiler/linker's default search paths, so no explicit -I/
-symlink-and-wrap-headers dance is needed the way tools/macos_libs.bzl's Homebrew discovery
-needs. Unpinned: uses whatever version `apt install` currently resolves to (see
-.github/workflows/ci.yaml's apt install step and BUILDING.md).
+symlink-and-wrap-headers dance is needed. Unpinned: uses whatever version `apt install`
+currently resolves to (see .github/workflows/ci.yaml's apt install step and BUILDING.md).
 
-cc_import, not cc_library: it's exempt from cc_shared_library's "linked statically but not
-exported" check for a library reachable from more than one cc_shared_library's deps (e.g.
-Boost, needed by both katydid_utility and nymph) - cc_import is exempt from that check,
-cc_library is not, even a header-only cc_library with zero srcs (bazelbuild/bazel#19920).
+cc_import, not cc_library: cc_shared_library's "linked statically but not exported" check
+flags a library reachable from more than one cc_shared_library's deps (e.g. Boost, needed by
+both katydid_utility and nymph); cc_import is exempt from that check, even a header-only
+cc_library with zero srcs is not (bazelbuild/bazel#19920).
 
-Nothing should reference this repo directly - go through @binary_deps instead (see
-tools/binary_deps.bzl), which resolves to whichever platform repo is actually live on the
-current host, with no select()/config_setting/flag anywhere.
+Nothing should reference this repo directly - resolution to whichever platform repo is
+actually live on the current host happens with no select()/config_setting/flag anywhere.
 """
 
 # Package names/versions confirmed against Ubuntu 24.04 (noble)'s package index: matio's

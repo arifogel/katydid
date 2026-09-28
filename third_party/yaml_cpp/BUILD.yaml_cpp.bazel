@@ -12,9 +12,7 @@ cc_library(
     includes = ["include"],
 )
 
-# Real, substantial source compiled ourselves (unlike boost/fftw/matio/root, which already
-# exist as precompiled system .so's and are wrapped via cc_import instead - see
-# tools/binary_deps.bzl's top comment).
+# Compiled from source, since yaml-cpp isn't provided as a system package here.
 cc_library(
     name = "yaml_cpp_lib",
     srcs = glob([

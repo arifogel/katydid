@@ -1,15 +1,12 @@
-"""Provides Boost, FFTW, and MatIO for macOS via Homebrew (tools/brew.bzl), exposed as
-@macos_libs - unpinned, using whatever version `brew install` currently resolves to (see
-BUILDING.md).
+"""Provides Boost, FFTW, and MatIO for macOS via Homebrew, exposed as @macos_libs - unpinned,
+using whatever version `brew install` currently resolves to (see BUILDING.md).
 
-cc_import, not cc_library, for the same reason as tools/ubuntu_libs.bzl/tools/almalinux_libs.bzl
-(see either's module docstring): it's exempt from cc_shared_library's "linked statically but
-not exported" check for a library reachable from more than one cc_shared_library's deps (e.g.
+cc_import, not cc_library: it's exempt from cc_shared_library's "linked statically but not
+exported" check for a library reachable from more than one cc_shared_library's deps (e.g.
 Boost, needed by both katydid_utility and nymph) - bazelbuild/bazel#19920.
 
-Nothing should reference this repo directly - go through @binary_deps instead (see
-tools/binary_deps.bzl), which resolves to whichever platform repo is actually live on the
-current host, with no select()/config_setting/flag anywhere.
+Nothing should reference this repo directly - resolution to whichever platform repo is
+actually live on the current host happens with no select()/config_setting/flag anywhere.
 """
 
 load(":brew.bzl", "brew_cc_import_snippet", "brew_require")

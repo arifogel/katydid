@@ -5,19 +5,18 @@
 # patched binary) - same for Truncate. lib/ is flat: every Katydid module .so, Cicada/Nymph/
 # Scarab/yaml-cpp, and their dictionary PCMs, sitting directly beside the .so each PCM belongs
 # to - harvested automatically from Katydid_bin/Truncate_bin's runfiles (see
-# //Source/Executables/Main:harvest_runtime_libs.bzl), not hand-listed. ROOT is bundled
-# wholesale, unfiltered, into a separate root/ subdirectory (see //tools:root.bzl's all_files
-# filegroup), kept separate from lib/: ROOT's runtime needs a real, complete install layout
-# (bin/, lib/, etc/, include/) to find things like etc/gitinfo.txt and dlopen()-load
-# libCling.so.
+# //Source/Executables/Main:harvest_runtime_libs.bzl). ROOT is bundled wholesale, unfiltered,
+# into a separate root/ subdirectory (see //tools:root.bzl's all_files filegroup), kept
+# separate from lib/: ROOT's runtime needs a real, complete install layout (bin/, lib/, etc/,
+# include/) to find things like etc/gitinfo.txt and dlopen()-load libCling.so.
 #
 # On AlmaLinux, Boost/FFTW/MatIO/TBB/xxhash/FreeType/GSL are all bundled into lib/ too
 # (Boost/FFTW via the harvest above, since they're a real Bazel dependency there; the other
 # four - never anything's dependency, just ROOT's own runtime need - via
 # katydid_release_root_runtime_extra_libs below, which @binary_deps//:root_runtime_extra_libs
-# is empty everywhere except AlmaLinux (see tools/binary_deps.bzl), so this needs no
-# platform-specific select() of its own). Elsewhere, Boost/FFTW are still resolved via plain
-# system linker paths, not bundled - see NOTES.md for status.
+# is empty everywhere except AlmaLinux, so this needs no platform-specific select() of its
+# own). Elsewhere, Boost/FFTW are resolved via plain system linker paths - see NOTES.md for
+# status.
 
 load("@rules_pkg//pkg:mappings.bzl", "pkg_attributes", "pkg_files", "strip_prefix")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")

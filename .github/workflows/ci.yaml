@@ -120,10 +120,10 @@ jobs:
 
       - name: Test everything
         run: bazel test -c ${{ matrix.compilation_mode }} //...
-  # rather than as a third value in the matrix above: GitHub Actions has a known issue
-  # (https://github.com/actions/runner/issues/265) where using an empty `container:` value to
-  # mean "run natively, no container" for some matrix combinations can fail workflow validation
-  # outright. A fully separate job avoids that risk entirely.
+  # AlmaLinux runs as a fully separate job rather than as a third value in the matrix above:
+  # GitHub Actions has a known issue (https://github.com/actions/runner/issues/265) where using
+  # an empty `container:` value to mean "run natively, no container" for some matrix
+  # combinations can fail workflow validation outright.
   build-and-test-almalinux:
     name: Bazel Build (almalinux-9)
     runs-on: ubuntu-latest

@@ -3,10 +3,8 @@
 # EPEL's dl.fedoraproject.org/pub/archive/epel/) and prints its sha256, formatted as a
 # ready-to-paste entry for the download table in tools/almalinux_libs.bzl.
 #
-# Run this from a machine that can actually reach the archive (this sandbox's network
-# allowlist blocks both vault.almalinux.org and dl.fedoraproject.org) - a plain laptop/CI
-# runner with normal internet access is fine, an AlmaLinux container is not required just for
-# this step.
+# Run this from a machine with normal internet access that can reach the archive - a plain
+# laptop or CI runner is fine; an AlmaLinux container is not required just for this step.
 #
 # Usage:
 #   tools/pin_rpm.sh <pkg-key> <url>

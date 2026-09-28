@@ -65,10 +65,9 @@ def _binary_deps_repo_impl(repository_ctx):
         build_file_parts.append('alias(name = "{}", actual = "{}")'.format(name, by_host[key]))
 
     # TBB/xxhash/FreeType/GSL: needed only because ROOT's own prebuilt binaries link against
-    # them, and only on AlmaLinux, where tools/almalinux_libs.bzl fetches them hermetically -
-    # see that file's docstring. A real, empty filegroup everywhere else (not an omitted
-    # target), so root BUILD.bazel can reference this unconditionally with no select() of its
-    # own.
+    # them, and only on AlmaLinux, where tools/almalinux_libs.bzl fetches them hermetically.
+    # A real, empty filegroup everywhere else, so consumers can reference this unconditionally
+    # with no select() of their own.
     if key == "almalinux":
         build_file_parts.append('alias(name = "root_runtime_extra_libs", actual = "@almalinux_libs//:root_runtime_extra_libs")')
     else:
@@ -76,10 +75,10 @@ def _binary_deps_repo_impl(repository_ctx):
 
     repository_ctx.file("BUILD.bazel", "\n".join(build_file_parts))
 
-    # Extra RPATH directories harvest_runtime_libs.bzl/release_binary.bzl need to bake in on
-    # macOS (Homebrew keeps formulae off the default library search path) - empty everywhere
-    # else. Computed directly via tools/brew.bzl rather than loading tools/macos_libs.bzl's own
-    # output (see _MAC_BREW_FORMULAE above for why).
+    # Extra RPATH directories to bake in at release-packaging time on macOS (Homebrew keeps
+    # formulae off the default library search path) - empty everywhere else. Computed directly
+    # via tools/brew.bzl rather than loading tools/macos_libs.bzl's own output (see
+    # _MAC_BREW_FORMULAE above for why).
     lib_dirs = []
     if key == "mac":
         brew = brew_require(repository_ctx)

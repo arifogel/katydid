@@ -1,11 +1,9 @@
-"""Shared Homebrew helpers for tools/macos_libs.bzl and tools/binary_deps.bzl.
+"""Shared Homebrew helper functions: locating formula prefixes/dylibs and building cc_import
+BUILD.bazel snippets.
 
-Plain Starlark functions, not a repository rule or module extension of its own: nothing
-outside those two files needs to reference a formula via some independent @brew label, and
-keeping this a plain .bzl file (rather than a repo) lets tools/binary_deps.bzl call straight
-into it - gated behind its own is_macos check - without forcing a fetch on non-macOS hosts the
-way an unconditional cross-repo load() would (see tools/binary_deps.bzl's docstring for why
-that matters).
+Plain Starlark functions, not a repository rule or module extension of its own, so a caller can
+load and call straight into it - gated behind its own is_macos check - without forcing an
+unconditional cross-repo fetch on non-macOS hosts.
 """
 
 def brew_require(repository_ctx):
@@ -46,9 +44,8 @@ def brew_cc_import_snippet(repository_ctx, brew, dest_prefix, brew_formula, libs
     """Symlinks a Homebrew formula's headers/libs into dest_prefix/ inside the calling repo.
 
     Returns (build_file_text_parts, absolute_lib_dir): the BUILD.bazel text for a cc_import
-    named `dest_prefix` exposing the formula (plus one per-component cc_import it depends on -
-    see the module docstring on why cc_import, not cc_library, in tools/macos_libs.bzl), and
-    the formula's absolute <prefix>/lib directory, for RPATH use by tools/binary_deps.bzl.
+    named `dest_prefix` exposing the formula (plus one per-component cc_import it depends on),
+    and the formula's absolute <prefix>/lib directory, for RPATH use.
 
     Args:
         repository_ctx: the calling repository_rule's repository_ctx.
