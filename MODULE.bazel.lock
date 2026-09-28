@@ -300,7 +300,7 @@
     },
     "//tools:root.bzl%root_deps": {
       "general": {
-        "bzlTransitiveDigest": "8NYwgmGJ54ky6cVf92OwvTnGhMaIlE9P8YUr5pwJSMY=",
+        "bzlTransitiveDigest": "wWM9RjhftwrRSvmYls6M2HRl+xpEt9T869eTACueET4=",
         "usagesDigest": "sDSkyOP5sRLOjjGmJ18eUF59tYieCxZ7/7JCTOMg6bE=",
         "recordedInputs": [],
         "generatedRepoSpecs": {
