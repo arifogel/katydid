@@ -51,8 +51,8 @@ cc_library(
         "library/utility",
     ],
     deps = [
-        "@rapidjson",
         "@binary_deps//:boost",
+        "@rapidjson",
         "@yaml_cpp//:yaml_cpp_headers",
     ],
 )

@@ -18,11 +18,11 @@ cc_library(
     defines = ["USE_CPP11"],
     includes = ["."],
     deps = [
+        "@binary_deps//:boost",
+        "@binary_deps//:fftw",
         "@nymph//:nymph_headers",
         "@root",
         "@scarab//:scarab_headers",
-        "@binary_deps//:boost",
-        "@binary_deps//:fftw",
     ],
 )
 
