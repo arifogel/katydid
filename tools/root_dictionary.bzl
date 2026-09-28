@@ -85,11 +85,9 @@ _root_dictionary_gen = rule(
 )
 
 def root_dictionary(name, headers, linkdef, deps):
-    """Convenience wrapper: generates <name>.cxx and <name>_rdict.pcm.
-
-    Add "<name>.cxx" to the owning cc_library's srcs (via `:<name>` won't work directly since
-    this produces two outputs - use `filegroup` below, or reference `<name>_gen` and pick the
-    cxx/pcm OutputGroups explicitly).
+    """Generates a ROOT dictionary from headers and a LinkDef, as two targets: <name>_cxx (the
+    generated .cxx, to add to the owning cc_library's srcs) and <name>_pcm (the generated .pcm,
+    to depend on wherever it's needed as data).
     """
     _root_dictionary_gen(
         name = name + "_gen",
