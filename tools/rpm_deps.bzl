@@ -15,13 +15,17 @@ against them - nothing here ever #includes their headers - so only the compiled 
 extracted, exposed as a plain filegroup rather than a cc_import (nothing `deps` on it; a
 release archive bundles it directly).
 
-Some of these packages ship their compiled library under an unversioned or
-partially-versioned filename (e.g. FFTW's plain "libfftw3.so", or xxhash's "libxxhash.so.0"
-beside the fuller "libxxhash.so.0.8.2"), which does not always match the exact SONAME a
-consumer actually looks up at runtime (confirmed via `ldd` against a real build: e.g. Katydid
-needs "libfftw3.so.3", not the bare "libfftw3.so" fftw-devel ships) - _EXTRACTED_LIBS below
-records the source path inside each package next to the runtime filename it needs to be
-bundled as.
+Some of these packages ship their compiled library under a filename that doesn't match the
+exact SONAME a consumer actually looks up at runtime - e.g. xxhash's real payload is
+"libxxhash.so.0.8.2", with "libxxhash.so.0" (what Katydid actually needs, confirmed via `ldd`
+against a real build) as a symlink beside it - so _EXTRACTED_LIBS below records the source path
+inside each package next to the runtime filename it needs to be bundled as.
+
+A `-devel` package's own unversioned convenience symlinks (e.g. boost-devel's
+usr/lib64/libboost_filesystem.so) are a different problem, not just a naming mismatch: their
+target isn't in the package at all, only resolving once the matching separate runtime package
+(e.g. boost-filesystem, or fftw-libs-double for fftw-devel) is installed alongside it - see the
+comment on _EXTRACTED_LIBS.
 
 Usage from a BUILD file: deps = ["@rpm_deps//:boost", "@rpm_deps//:fftw"]
 """
@@ -64,10 +68,18 @@ _RPM_DOWNLOADS = {
         "filename": "boost-program-options-1.75.0-13.el9_7.x86_64.rpm",
         "sha256": "709ac7193b267de7a8ca29f91d80d456db19e87527d244d54cf9719fe3f92956",
     },
+    # Headers only - fftw-devel's own usr/lib64/libfftw3.so is an unversioned convenience
+    # symlink whose target isn't in this package either (same story as Boost above); the real
+    # compiled library is in fftw-libs-double.
     "fftw-devel": {
         "repo": "AppStream",
         "filename": "fftw-devel-3.3.8-12.el9.x86_64.rpm",
         "sha256": "21ded4f5da9cbfc00b200b48ba39c0f851d9b5a9c2fb978302bd7a4d30c7a020",
+    },
+    "fftw-libs-double": {
+        "repo": "AppStream",
+        "filename": "fftw-libs-double-3.3.8-12.el9.x86_64.rpm",
+        "sha256": "3beed15e45dc5b33e64532da7412c243368eca5be5f113164425bb09c04da0fe",
     },
     "tbb-devel": {
         "repo": "AppStream",
@@ -94,18 +106,18 @@ _RPM_DOWNLOADS = {
 # Every compiled library this repository exposes: (package, path inside the package, runtime
 # filename to bundle it as - see this file's docstring for why the two filenames differ).
 #
-# Boost's compiled libraries come from four separate per-component packages, not boost-devel:
-# boost-devel's own usr/lib64/libboost_*.so entries are unversioned convenience symlinks (an
-# RPM dependency on the matching runtime package, e.g. boost-filesystem, is what normally makes
-# them resolve) - confirmed broken when boost-devel is unpacked on its own, via `file` reporting
-# "broken symbolic link to libboost_filesystem.so.1.75.0" for a target this package doesn't
-# contain.
+# Boost's and FFTW's compiled libraries come from separate runtime packages, not boost-devel/
+# fftw-devel: each -devel package's own usr/lib64/libboost_*.so or libfftw3.so entry is an
+# unversioned convenience symlink (an RPM dependency on the matching runtime package - e.g.
+# boost-filesystem, or fftw-libs-double - is what normally makes it resolve) - confirmed broken
+# when each -devel package is unpacked on its own, via `file` reporting e.g. "broken symbolic
+# link to libboost_filesystem.so.1.75.0" for a target the -devel package doesn't contain.
 _EXTRACTED_LIBS = [
     ("boost-filesystem", "usr/lib64/libboost_filesystem.so.1.75.0", "libboost_filesystem.so.1.75.0"),
     ("boost-thread", "usr/lib64/libboost_thread.so.1.75.0", "libboost_thread.so.1.75.0"),
     ("boost-date-time", "usr/lib64/libboost_date_time.so.1.75.0", "libboost_date_time.so.1.75.0"),
     ("boost-program-options", "usr/lib64/libboost_program_options.so.1.75.0", "libboost_program_options.so.1.75.0"),
-    ("fftw-devel", "usr/lib64/libfftw3.so", "libfftw3.so.3"),
+    ("fftw-libs-double", "usr/lib64/libfftw3.so.3.5.8", "libfftw3.so.3"),
     ("tbb-devel", "usr/lib64/libtbb.so", "libtbb.so.2"),
     ("xxhash-libs", "usr/lib64/libxxhash.so.0.8.2", "libxxhash.so.0"),
     ("freetype", "usr/lib64/libfreetype.so.6.17.4", "libfreetype.so.6"),
