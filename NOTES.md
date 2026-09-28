@@ -313,9 +313,10 @@ without Boost/FFTW/MatIO/ROOT actually present.
 
 - `Test2DDiscrim` (see "The Validation test suite" above) has not been checked for portability
   given `KTSpline.cc`'s current inclusion in the build.
-- ROOT, Boost, FFTW, and MatIO are not built hermetically; the exact versions used depend on
-  what is installed on the host. `MODULE.bazel.lock` only pins the Bazel Central Registry
-  dependencies (`rules_cc`, `platforms`).
+- Boost, FFTW, and MatIO are not built hermetically; the exact versions used depend on what is
+  installed on the host. ROOT is pinned (`tools/root.bzl`'s `_ROOT_VERSION`) and fetched by
+  Bazel itself, independent of the host. `MODULE.bazel.lock` only pins the Bazel Central
+  Registry dependencies (`rules_cc`, `platforms`).
 - A shared HPC cluster deployment (no root/administrator access for ordinary users) has not
   been built out. The likely approach: a minimal `dnf install` request to a cluster
   administrator for the four `-devel` packages `tools/system_deps.bzl` already needs, plus a
