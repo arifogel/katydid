@@ -206,9 +206,9 @@ In library code:
   `inline`.
 - `Source/Utility/KTDemangle.hh` (a free function) and
   `Source/EventAnalysis/KTSpectrogramCollector.hh` (a method) have the same ODR violation as
-  above — a definition sitting directly in a header without `inline`. Each surfaced only once a
-  Validation test happened to be the second translation unit compiling the same header
-  alongside the library itself. Both fixed the same way.
+  above — a definition sitting directly in a header without `inline`. Each surfaced only when a
+  Validation test became a second translation unit compiling the same header. Both fixed the
+  same way.
 - `Source/Utility/KTCutable.hh`'s `RangeIteratorEqualTo`/`RangeIteratorHash` inherited from
   `std::binary_function`/`std::unary_function`, both removed from modern libc++. Fixed by
   dropping the inheritance; `boost::unordered_map` only actually needs `operator()`.
