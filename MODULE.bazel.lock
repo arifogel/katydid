@@ -203,7 +203,7 @@
   "moduleExtensions": {
     "//tools:almalinux_libs.bzl%almalinux_libs": {
       "general": {
-        "bzlTransitiveDigest": "jNZqLMbYylIsHUcPtAcwOgSmPspcYK/brE73+b2hpoc=",
+        "bzlTransitiveDigest": "MG50cdAcgmnTHc8CQhVIhAl26JtxDMn5TaXHSifzjIQ=",
         "usagesDigest": "izPNCe08JGGhSqmIlisQ/bT3VbXJXxIB4T5NyA1Sofg=",
         "recordedInputs": [],
         "generatedRepoSpecs": {
