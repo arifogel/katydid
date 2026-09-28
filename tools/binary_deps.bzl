@@ -4,11 +4,6 @@ own prebuilt binaries need. This is the one label surface any BUILD file should 
 (deps = ["@binary_deps//:boost", "@binary_deps//:fftw"]); tools/macos_libs.bzl,
 tools/ubuntu_libs.bzl, and tools/almalinux_libs.bzl are retrieval-only and nothing outside this
 file should reference them directly.
-
-Resolution happens entirely inside this repository rule, via is_macos/linux_distro_id, with no
-select(), config_setting, or command-line/.bazelrc flag anywhere. Because the BUILD.bazel text
-this rule writes only ever names the one matching platform repo's labels, the other two platform
-repos are never referenced and so never fetched on a given host.
 """
 
 load(":brew.bzl", "brew_prefix", "brew_require")
