@@ -120,10 +120,9 @@ jobs:
 
       - name: Test everything
         run: bazel test -c ${{ matrix.compilation_mode }} //...
-  # AlmaLinux runs as a fully separate job rather than as a third value in the matrix above:
-  # GitHub Actions has a known issue (https://github.com/actions/runner/issues/265) where using
-  # an empty `container:` value to mean "run natively, no container" for some matrix
-  # combinations can fail workflow validation outright.
+  # A separate job, not a third value in the matrix above: GitHub Actions can fail workflow
+  # validation when an empty `container:` value means "run natively" for only some matrix
+  # combinations (https://github.com/actions/runner/issues/265).
   build-and-test-almalinux:
     name: Bazel Build (almalinux-9)
     runs-on: ubuntu-latest
@@ -145,16 +144,13 @@ jobs:
           path: /var/cache/dnf
           key: dnf-cache-almalinux9-${{ hashFiles('.github/workflows/ci.yaml') }}
 
-      # AlmaLinux is a RHEL-family Linux distribution, using dnf rather than apt. gcc-c++ and
-      # git are not Katydid dependencies as such - they are needed for Bazel itself to work at
-      # all (a C++ compiler, and the `git` command Bazel uses to fetch Katydid's own bundled
-      # dependencies), and are not present in this minimal container image by default. cpio is
-      # needed to unpack the .rpm packages tools/almalinux_libs.bzl fetches (rpm2cpio itself
-      # ships with the base image already, as part of the `rpm` package dnf depends on).
-      # Boost/FFTW/MatIO/TBB/xxhash/FreeType/GSL are not installed via dnf at all - Bazel itself
-      # fetches those hermetically, directly from AlmaLinux's and EPEL's pinned package archives
-      # (see tools/almalinux_libs.bzl), the same as every other build here. Nothing here needs
-      # EPEL or CRB, since dnf never installs any of these packages.
+      # AlmaLinux is a RHEL-family Linux distribution, using dnf rather than apt. gcc-c++ (a C++
+      # compiler) and git (which Bazel uses to fetch Katydid's bundled dependencies) are Bazel's
+      # own requirements, missing from this minimal container image by default. cpio unpacks the
+      # .rpm packages tools/almalinux_libs.bzl fetches; rpm2cpio ships with the base image as
+      # part of the `rpm` package. Bazel fetches Boost/FFTW/MatIO/TBB/xxhash/FreeType/GSL
+      # hermetically from AlmaLinux's and EPEL's pinned package archives
+      # (tools/almalinux_libs.bzl).
       - name: Install build tools (dnf)
         run: |
           dnf install -y --setopt=keepcache=True \
