@@ -29,10 +29,10 @@ _LIBS = {
     },
 }
 
-# Homebrew formula names for the LIB_DIRS/RPATH computation below, duplicated by hand rather
-# than loaded from a shared generated source: loading one here would force @macos_libs to be
-# fetched on every platform this file runs on, defeating the laziness this file exists to
-# preserve (see the module docstring).
+# Homebrew formula names for the LIB_DIRS/RPATH computation below. @macos_libs computes an
+# equivalent list, but loading it here would fetch @macos_libs on every platform this file runs
+# on, defeating this file's per-host fetch laziness (see the module docstring) - so this list is
+# kept in sync with it by hand instead.
 _MAC_BREW_FORMULAE = ["boost", "fftw", "libmatio"]
 
 def _host_key(repository_ctx):
