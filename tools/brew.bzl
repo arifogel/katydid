@@ -7,7 +7,14 @@ unconditional cross-repo fetch on non-macOS hosts.
 """
 
 def brew_require(repository_ctx):
-    """Returns the `brew` binary's path, failing with an install hint if it's not on PATH."""
+    """Returns the `brew` binary's path, failing with an install hint if it's not on PATH.
+
+    Args:
+        repository_ctx: the calling repository_rule's repository_ctx.
+
+    Returns:
+        The absolute path to the `brew` binary.
+    """
     brew = repository_ctx.which("brew")
     if not brew:
         fail(
@@ -18,7 +25,16 @@ def brew_require(repository_ctx):
     return brew
 
 def brew_prefix(repository_ctx, brew, formula):
-    """Returns `brew --prefix <formula>`'s absolute path, failing with an install hint."""
+    """Returns `brew --prefix <formula>`'s absolute path, failing with an install hint.
+
+    Args:
+        repository_ctx: the calling repository_rule's repository_ctx.
+        brew: the `brew` binary's path (from brew_require).
+        formula: the Homebrew formula name.
+
+    Returns:
+        The formula's absolute install prefix.
+    """
     result = repository_ctx.execute([brew, "--prefix", formula])
     if result.return_code != 0:
         fail(
@@ -43,10 +59,6 @@ def _find_dylib_or_fail(repository_ctx, prefix, libname, brew_formula):
 def brew_cc_import_snippet(repository_ctx, brew, dest_prefix, brew_formula, libs, defines = []):
     """Symlinks a Homebrew formula's headers/libs into dest_prefix/ inside the calling repo.
 
-    Returns (build_file_text_parts, absolute_lib_dir): the BUILD.bazel text for a cc_import
-    named `dest_prefix` exposing the formula (plus one per-component cc_import it depends on),
-    and the formula's absolute <prefix>/lib directory, for RPATH use.
-
     Args:
         repository_ctx: the calling repository_rule's repository_ctx.
         brew: the `brew` binary's path (from brew_require).
@@ -56,6 +68,11 @@ def brew_cc_import_snippet(repository_ctx, brew, dest_prefix, brew_formula, libs
             formula name doesn't always match Katydid's target name).
         libs: library base names (e.g. "boost_filesystem" for libboost_filesystem.dylib).
         defines: defines to attach to the aggregating cc_import (e.g. ["FFTW_FOUND"]).
+
+    Returns:
+        A (build_file_text_parts, absolute_lib_dir) pair: the BUILD.bazel text for a cc_import
+        named `dest_prefix` exposing the formula (plus one per-component cc_import it depends
+        on), and the formula's absolute <prefix>/lib directory, for RPATH use.
     """
     prefix = brew_prefix(repository_ctx, brew, brew_formula)
 

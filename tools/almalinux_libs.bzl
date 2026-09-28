@@ -179,6 +179,12 @@ def _rpm_url(info):
     )
 
 def download_and_extract_rpm(repository_ctx, pkg_name):
+    """Downloads pkg_name's pinned .rpm and extracts it into "<pkg_name>_extracted/".
+
+    Args:
+        repository_ctx: the calling repository_rule's repository_ctx.
+        pkg_name: a key into RPM_DOWNLOADS.
+    """
     info = RPM_DOWNLOADS[pkg_name]
     url = _rpm_url(info)
     rpm_path = pkg_name + ".rpm"
@@ -208,9 +214,22 @@ def check_is_elf_or_fail(repository_ctx, path, pkg_name, source_path):
             "to point at whatever real file it resolves to."
         ).format(source = source_path, pkg = pkg_name))
 
-# Starlark disallows nested defs, so this builds one cc_import's worth of BUILD.bazel text (the
-# aggregating target plus one component cc_import per .so) as a standalone helper.
 def cc_import_snippet(name, so_names, hdrs_glob = [], includes = [], defines = []):
+    """Builds one cc_import's worth of BUILD.bazel text: the aggregating target plus one
+    component cc_import per .so.
+
+    A standalone helper rather than a closure, since Starlark disallows nested defs.
+
+    Args:
+        name: the aggregating cc_import's target name.
+        so_names: shared library filenames to import, one component cc_import each.
+        hdrs_glob: glob patterns for the aggregating cc_import's hdrs.
+        includes: the aggregating cc_import's includes.
+        defines: the aggregating cc_import's defines.
+
+    Returns:
+        A list of BUILD.bazel text snippets to join into the repo's BUILD.bazel.
+    """
     parts = []
     component_labels = []
     for so_name in so_names:
