@@ -16,27 +16,33 @@ RPATH used is identical to the top-level binary's in release_binary.bzl
 lib/ itself, so one RPATH is correct in both places.
 """
 
-load("@system_libs//:lib_dirs.bzl", "MAC_LIB_DIRS")
+load("@binary_deps//:lib_dirs.bzl", "LIB_DIRS")
 
 # The real workspace name, from this file's repo mapping (not Bazel's internal,
 # version-specific canonical-name mangling, e.g. the "+root_deps+root"-style names visible in
 # solib directory paths).
 _ROOT_WORKSPACE_NAME = Label("@root//:BUILD.bazel").workspace_name
 
-# @system_libs (Boost/FFTW/MatIO) is excluded from harvesting the same way @root is: on every
-# OS, the release archive relies on these already being present on the machine it runs on
-# (Homebrew on macOS, apt/dnf's default search paths on Linux - see tools/system_deps.bzl), so
-# there is nothing to bundle here. This also sidesteps a real RHEL-family packaging quirk:
-# AlmaLinux's boost-devel ships at least one unversioned name (libboost_thread.so) as a plain
-# linker script, not a real ELF file, which patchelf below correctly refuses to touch.
-_SYSTEM_LIBS_WORKSPACE_NAME = Label("@system_libs//:BUILD.bazel").workspace_name
+# @macos_libs/@ubuntu_libs (Boost/FFTW/MatIO on macOS/Ubuntu) are excluded from harvesting the
+# same way @root is: on those platforms, the release archive relies on these already being
+# present on the machine it runs on (Homebrew on macOS, apt's default search paths on Ubuntu -
+# see tools/macos_libs.bzl, tools/ubuntu_libs.bzl), so there is nothing to bundle here. This
+# also sidesteps a real RHEL-family packaging quirk that would otherwise bite on AlmaLinux:
+# boost-devel there ships at least one unversioned name (libboost_thread.so) as a plain linker
+# script, not a real ELF file, which patchelf below correctly refuses to touch - which is why
+# @almalinux_libs is deliberately NOT excluded here: its Boost/FFTW/MatIO cc_imports reference
+# real, working SONAME-level files (see tools/almalinux_libs.bzl), so they harvest and bundle
+# cleanly like everything else on AlmaLinux.
+_MACOS_LIBS_WORKSPACE_NAME = Label("@macos_libs//:BUILD.bazel").workspace_name
+_UBUNTU_LIBS_WORKSPACE_NAME = Label("@ubuntu_libs//:BUILD.bazel").workspace_name
 
-# One '-add_rpath <dir>' per macOS Homebrew formula directory (see tools/system_deps.bzl's
-# comment on mac_lib_dirs): since Boost/FFTW/MatIO are never bundled into lib/ (excluded above),
-# the release archive instead has to find Homebrew's copy on whatever machine runs it - the
-# same non-hermetic trade-off Linux already makes for these three libraries via apt/dnf's
-# default search paths, which need no equivalent RPATH addition here.
-_MAC_EXTRA_RPATH_FLAGS = " ".join(["-add_rpath '{}'".format(d) for d in MAC_LIB_DIRS])
+# One '-add_rpath <dir>' per macOS Homebrew formula directory (see tools/binary_deps.bzl's
+# LIB_DIRS computation): since Boost/FFTW/MatIO are never bundled into lib/ on macOS (excluded
+# above), the release archive instead has to find Homebrew's copy on whatever machine runs it -
+# the same non-hermetic trade-off Ubuntu already makes for these three libraries via apt's
+# default search paths, which need no equivalent RPATH addition here. Empty (and this flag
+# string empty) on Linux, where LIB_DIRS is always [].
+_MAC_EXTRA_RPATH_FLAGS = " ".join(["-add_rpath '{}'".format(d) for d in LIB_DIRS])
 
 def _harvest_runtime_libs_impl(ctx):
     is_macos = ctx.target_platform_has_constraint(ctx.attr._macos_constraint[platform_common.ConstraintValueInfo])
@@ -48,9 +54,10 @@ def _harvest_runtime_libs_impl(ctx):
             # @root is bundled wholesale into the release archive's root/ subdirectory
             # separately (see //tools:root.bzl's all_files filegroup and the top-level
             # BUILD.bazel comment on //:katydid_release), so anything owned by it here would
-            # be a duplicate. @system_libs is excluded for a different reason - see
-            # _SYSTEM_LIBS_WORKSPACE_NAME above.
-            if f.owner != None and f.owner.workspace_name in (_ROOT_WORKSPACE_NAME, _SYSTEM_LIBS_WORKSPACE_NAME):
+            # be a duplicate. @macos_libs/@ubuntu_libs are excluded for a different reason -
+            # see _MACOS_LIBS_WORKSPACE_NAME/_UBUNTU_LIBS_WORKSPACE_NAME above. @almalinux_libs
+            # is deliberately not excluded - see the same comment.
+            if f.owner != None and f.owner.workspace_name in (_ROOT_WORKSPACE_NAME, _MACOS_LIBS_WORKSPACE_NAME, _UBUNTU_LIBS_WORKSPACE_NAME):
                 continue
             if not (f.basename.endswith(".so") or f.basename.endswith(".pcm")):
                 continue
@@ -110,5 +117,5 @@ harvest_runtime_libs = rule(
         # Only used on the Linux branch above; harmless to build unconditionally.
         "_patchelf": attr.label(default = Label("@patchelf//:patchelf"), executable = True, cfg = "exec"),
     },
-    doc = "Collects every .so/.pcm file reachable from binaries' runfiles, flat, excluding @root and @system_libs (see this file's docstring).",
+    doc = "Collects every .so/.pcm file reachable from binaries' runfiles, flat, excluding @root, @macos_libs, and @ubuntu_libs (see this file's docstring).",
 )

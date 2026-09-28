@@ -21,8 +21,8 @@ cc_library(
         "@nymph//:nymph_headers",
         "@root",
         "@scarab//:scarab_headers",
-        "@system_libs//:boost",
-        "@system_libs//:fftw",
+        "@binary_deps//:boost",
+        "@binary_deps//:fftw",
     ],
 )
 

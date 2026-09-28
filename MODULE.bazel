@@ -27,10 +27,20 @@ use_repo(non_bazel_deps, "cicada", "nymph", "rapidjson", "scarab", "yaml_cpp")
 root_deps = use_extension("//tools:root.bzl", "root_deps")
 use_repo(root_deps, "root")
 
-# --- System-provided scientific libraries (Boost, FFTW, MatIO) -----------------------------
-# These are located on the host machine rather than built by Bazel - see tools/system_deps.bzl
-# for how each is found on macOS, Ubuntu, and AlmaLinux/RHEL-family Linux, and BUILDING.md for
-# what needs to be installed on each platform before building.
+# --- Scientific libraries (Boost, FFTW, MatIO, + AlmaLinux's ROOT-runtime extras) ----------
+# One retrieval repo per platform (tools/macos_libs.bzl, tools/ubuntu_libs.bzl,
+# tools/almalinux_libs.bzl - Homebrew/apt discovery on macOS/Ubuntu, a hermetic pinned fetch on
+# AlmaLinux), resolved to a single @binary_deps label surface by tools/binary_deps.bzl - see
+# that file for how, and BUILDING.md for what needs to be installed on each platform.
 
-system_deps = use_extension("//tools:system_deps.bzl", "system_deps")
-use_repo(system_deps, "system_libs")
+macos_libs = use_extension("//tools:macos_libs.bzl", "macos_libs")
+use_repo(macos_libs, "macos_libs")
+
+ubuntu_libs = use_extension("//tools:ubuntu_libs.bzl", "ubuntu_libs")
+use_repo(ubuntu_libs, "ubuntu_libs")
+
+almalinux_libs = use_extension("//tools:almalinux_libs.bzl", "almalinux_libs")
+use_repo(almalinux_libs, "almalinux_libs")
+
+binary_deps = use_extension("//tools:binary_deps.bzl", "binary_deps")
+use_repo(binary_deps, "binary_deps")

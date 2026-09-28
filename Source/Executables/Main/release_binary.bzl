@@ -20,12 +20,13 @@ invalidly-signed Mach-O binary, so the binary is re-signed ad hoc (`codesign --s
 final step.
 """
 
-load("@system_libs//:lib_dirs.bzl", "MAC_LIB_DIRS")
+load("@binary_deps//:lib_dirs.bzl", "LIB_DIRS")
 
-# One '-add_rpath <dir>' per macOS Homebrew formula directory - see tools/system_deps.bzl's
-# comment on mac_lib_dirs for why: Boost/FFTW/MatIO's .dylib files are never bundled into this
-# release archive's lib/, so the binary has to find Homebrew's own copy at runtime instead.
-_MAC_EXTRA_RPATH_FLAGS = " ".join(["-add_rpath '{}'".format(d) for d in MAC_LIB_DIRS])
+# One '-add_rpath <dir>' per macOS Homebrew formula directory - see tools/binary_deps.bzl's
+# LIB_DIRS computation for why: Boost/FFTW/MatIO's .dylib files are never bundled into this
+# release archive's lib/ on macOS, so the binary has to find Homebrew's own copy at runtime
+# instead. Empty (and this flag string empty) on Linux, where LIB_DIRS is always [].
+_MAC_EXTRA_RPATH_FLAGS = " ".join(["-add_rpath '{}'".format(d) for d in LIB_DIRS])
 
 def release_binary(name, real_bin_label, final_bin_name):
     """Defines <name>_bin (RPATH-patched copy of real_bin_label) and <name> (wrapper script).

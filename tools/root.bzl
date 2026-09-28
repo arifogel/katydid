@@ -4,12 +4,14 @@ ROOT is fetched as a prebuilt binary from root.cern, one exact URL per supported
 rather than discovered via root-config on PATH: no distro packages a usable ROOT build, and
 building it from source has no existing hermetic Bazel toolchain to lean on. ROOT's prebuilt
 binaries are versioned per exact OS release and toolchain, not just "linux" or "macos", so
-unlike Boost/FFTW/MatIO (see tools/system_deps.bzl) this reads /etc/os-release on Linux rather
-than just checking which package manager is on PATH.
+unlike Boost/FFTW/MatIO on macOS/Ubuntu (see tools/macos_libs.bzl, tools/ubuntu_libs.bzl) this
+reads /etc/os-release on Linux rather than just checking which package manager is on PATH.
 
-ROOT is its own repository (@root), not folded into @system_libs: @system_libs uses
-local = True so a brew/apt upgrade is picked up on the next build, but ROOT's version here is
-a fixed pin in this file, so it should only be re-fetched when the file changes.
+ROOT is its own repository (@root), not folded into @macos_libs/@ubuntu_libs/@almalinux_libs:
+those repos use local = True (except @almalinux_libs, which is a fixed hermetic pin like ROOT
+here - see tools/almalinux_libs.bzl) so a brew/apt upgrade is picked up on the next build, but
+ROOT's version here is a fixed pin in this file, so it should only be re-fetched when the file
+changes.
 """
 
 load(":repo_utils.bzl", "is_macos", "linux_distro_id")
@@ -231,9 +233,9 @@ exports_files(["rootcling"])
     # default references it directly.
     repository_ctx.symlink("root/bin/rootcling", "rootcling")
 
-# No local = True, unlike system_deps.bzl's _system_libs_repo: ROOT's version is a fixed pin
-# in this file, not host state that can change between builds without the file itself
-# changing, so Bazel only needs to re-run this when the file changes (see the module
+# No local = True, unlike macos_libs.bzl's/ubuntu_libs.bzl's repository rules: ROOT's version
+# is a fixed pin in this file, not host state that can change between builds without the file
+# itself changing, so Bazel only needs to re-run this when the file changes (see the module
 # docstring for why this matters).
 root_repo = repository_rule(implementation = _root_repo_impl)
 

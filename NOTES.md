@@ -11,19 +11,27 @@ and with C/C++ build and link mechanics generally.
 1. **A single command (`bazel build //...`) builds Katydid from a clean checkout**, without
    requiring `git submodule update`, a CMake configure step, or manually building any of
    Katydid's own bundled dependencies (Nymph, Scarab, Cicada).
-2. **Boost, FFTW, and MatIO, already the user's responsibility on any platform**, are treated
-   as system-provided rather than built by Bazel - a deliberate trade against full hermeticity,
-   at the cost of exact reproducibility across machines. ROOT is different: Bazel fetches it
-   itself, as a pinned, exact prebuilt binary per platform, since there's no existing hermetic
-   Bazel toolchain to build it from source.
+2. **Boost, FFTW, and MatIO** are located differently per platform. On macOS and Ubuntu they are
+   treated as system-provided (Homebrew/apt), a deliberate trade against full hermeticity, at the
+   cost of exact reproducibility across machines. On AlmaLinux they are instead fetched
+   hermetically by Bazel itself, from pinned, permalinked package archives - AlmaLinux's rolling
+   `dnf` mirror prunes superseded package builds outright, so `dnf install` there is not
+   reproducible the way `apt`/Homebrew effectively are in practice. ROOT is always fetched by
+   Bazel itself, as a pinned, exact prebuilt binary per platform, since there's no existing
+   hermetic Bazel toolchain to build it from source.
 3. Supports macOS, Ubuntu 24.04, and AlmaLinux 9, with the platform-specific logic isolated to
-   as few places as possible.
+   as few places as possible: one retrieval file per platform (`tools/macos_libs.bzl`,
+   `tools/ubuntu_libs.bzl`, `tools/almalinux_libs.bzl`), resolved to a single label surface
+   (`tools/binary_deps.bzl`) that the rest of the build depends on, with no build flags anywhere
+   (no `--define`, `--config`, or `--platforms`) - see the section below.
 
 ## Repository layout
 
-- `MODULE.bazel` — the Bazel module definition. Declares two module extensions:
-  `tools/non_bazel_deps.bzl` (fetches Katydid's own git-based dependencies) and
-  `tools/system_deps.bzl` (locates system-provided libraries).
+- `MODULE.bazel` — the Bazel module definition. Declares the module extensions:
+  `tools/non_bazel_deps.bzl` (fetches Katydid's own git-based dependencies),
+  `tools/root.bzl` (fetches ROOT), and the Boost/FFTW/MatIO retrieval-and-resolution extensions
+  below (`tools/macos_libs.bzl`, `tools/ubuntu_libs.bzl`, `tools/almalinux_libs.bzl`,
+  `tools/binary_deps.bzl`).
 - `tools/non_bazel_deps.bzl` — fetches Nymph, Scarab, Cicada, rapidjson, and yaml-cpp as pinned
   git commits, each paired with a hand-written `BUILD.bazel` file under `third_party/`, since
   none of them have native Bazel support upstream. Also applies two source patches to Scarab
@@ -31,9 +39,20 @@ and with C/C++ build and link mechanics generally.
 - `tools/root.bzl` — fetches a prebuilt ROOT binary from root.cern for the current platform,
   exposed as `@root`.
 - `tools/repo_utils.bzl` — `repository_ctx` helpers (`is_macos`, `linux_distro_id`) shared
-  between `tools/root.bzl` and `tools/system_deps.bzl`.
-- `tools/system_deps.bzl` — locates Boost, FFTW, and MatIO on the host machine and exposes
-  them as `cc_library`/`cc_import` targets under the repository name `@system_libs`.
+  between `tools/root.bzl` and the Boost/FFTW/MatIO retrieval files below.
+- `tools/brew.bzl` — plain Homebrew helper functions (not a repository rule/module extension of
+  its own), used by both `tools/macos_libs.bzl` and `tools/binary_deps.bzl`.
+- `tools/macos_libs.bzl` — locates Boost, FFTW, and MatIO via Homebrew, exposed as
+  `@macos_libs`.
+- `tools/ubuntu_libs.bzl` — locates Boost, FFTW, and MatIO via `apt`'s default search paths,
+  exposed as `@ubuntu_libs`.
+- `tools/almalinux_libs.bzl` — fetches Boost, FFTW, MatIO, and the extra libraries ROOT's own
+  prebuilt AlmaLinux binaries need (TBB, xxhash, FreeType, GSL) hermetically, from pinned
+  package archives, exposed as `@almalinux_libs`.
+- `tools/binary_deps.bzl` — resolves Boost/FFTW/MatIO (and, on AlmaLinux, the ROOT-runtime
+  extras) to whichever of the three repos above actually applies on the current host, exposed
+  as `@binary_deps` — the one label surface the rest of the build depends on. See "How ROOT,
+  Boost, FFTW, and MatIO are located" below for how the resolution works.
 - `tools/root_dictionary.bzl` — a Bazel rule wrapping `rootcling`, replacing CMake's
   `ROOT_GENERATE_DICTIONARY()` macro.
 - `Source/*/BUILD.bazel` — one per active Katydid module, translated from the corresponding
@@ -65,26 +84,62 @@ hardcoding the libs list), and adds `-lGui -lSpectrum -lTMVA` on top, matching K
 is symlinked to the repository root and exposed as `@root//:rootcling`. No installation step,
 and no `root-config` needs to already be on `PATH` beforehand.
 
-**Boost, FFTW, and MatIO** (`tools/system_deps.bzl`) are located differently depending on the
-package manager, exposed as `@system_libs`:
+**Boost, FFTW, and MatIO** are located differently per platform, but every consumer in the
+build depends on a single resolved label surface, `@binary_deps` (e.g.
+`deps = ["@binary_deps//:boost", "@binary_deps//:fftw"]`) - nothing outside
+`tools/binary_deps.bzl` itself references `@macos_libs`, `@ubuntu_libs`, or `@almalinux_libs`
+directly. This is a three-layer design:
 
-- On **macOS**, via Homebrew (`brew --prefix <formula>`), since Homebrew deliberately installs
-  outside the compiler's default search paths.
-- On **Linux**, via whichever of `apt-get` or `dnf` is found on `PATH` — not by checking the OS
-  release name, so this doesn't need updating for other Linux distributions using the same
-  package managers. Neither `apt` nor `dnf` need explicit include/library paths, since both
-  install into the compiler and linker's default search locations.
-- Correctness is checked by looking for a representative header file for each library
-  (`boost/version.hpp`, `fftw3.h`, `matio.h`), not by asking the package manager whether a
-  specific package name is installed. This matters in practice: some Linux package managers use
-  "transitional" wrapper packages for versioned libraries (e.g. Ubuntu's
-  `libboost-filesystem-dev` simply depends on the real `libboost-filesystem1.83-dev`), and
-  certain caching mechanisms used in CI do not reliably register these wrapper packages even
-  though the underlying files are present and working. Checking for the actual header sidesteps
-  this entirely.
+1. **Retrieval** (one file per platform, each exposing its own repository):
+   - `tools/macos_libs.bzl` → `@macos_libs`, via Homebrew (`brew --prefix <formula>`), since
+     Homebrew deliberately installs outside the compiler's default search paths. Uses
+     `tools/brew.bzl`'s plain helper functions, not a repository rule of its own, so loading
+     them doesn't force `@macos_libs` to be fetched on other platforms.
+   - `tools/ubuntu_libs.bzl` → `@ubuntu_libs`, via `apt`'s default search paths (no explicit
+     include/library paths needed).
+   - `tools/almalinux_libs.bzl` → `@almalinux_libs`, fetched hermetically: each package is
+     downloaded from a pinned, permalinked URL (`vault.almalinux.org` for AlmaLinux's own
+     packages, `dl.fedoraproject.org/pub/archive/epel/` for MatIO, which is an EPEL package) and
+     checked against a pinned `sha256`, then extracted with `rpm2cpio`/`cpio` (Bazel's
+     `download_and_extract` has no native `.rpm` support). This is the one platform where the
+     live package mirror is not usable as a reproducible source - AlmaLinux's rolling `dnf`
+     mirror prunes superseded builds outright, unlike `apt`'s or Homebrew's. `tools/pin_rpm.sh`
+     computes the `sha256`/prints the dict entry for a new pinned package. Also fetches the four
+     extra libraries (TBB, xxhash, FreeType, GSL) ROOT's own prebuilt AlmaLinux binaries dynamically
+     depend on but don't bundle, exposed as `@almalinux_libs//:root_runtime_extra_libs`.
+   - On macOS and Ubuntu, correctness is checked by looking for a representative header file for
+     each library (`boost/version.hpp`, `fftw3.h`, `matio.h`), not by asking the package manager
+     whether a specific package name is installed - some Linux package managers use
+     "transitional" wrapper packages for versioned libraries (e.g. Ubuntu's
+     `libboost-filesystem-dev` simply depends on the real `libboost-filesystem1.83-dev`), and
+     certain CI caching mechanisms do not reliably register these wrapper packages even though
+     the underlying files are present and working.
+2. **Resolution** (`tools/binary_deps.bzl` → `@binary_deps`): picks which of the three retrieval
+   repos' labels to alias, entirely inside its own repository rule via `is_macos`/
+   `linux_distro_id` - the same host-detection pattern `tools/root.bzl` already uses to pick
+   ROOT's per-platform URL. There is no `select()`, `config_setting`, or command-line/`.bazelrc`
+   flag anywhere in this resolution: the generated `BUILD.bazel` only ever names the one
+   matching platform repo's labels, so the other two are never referenced and so never fetched
+   on a given host (the same Bzlmod laziness `tools/root.bzl`'s own single-URL choice already
+   relies on). `@binary_deps//:root_runtime_extra_libs` is a real, always-present target (an
+   `alias()` to `@almalinux_libs`'s version on AlmaLinux, an empty `filegroup` elsewhere), so
+   root `BUILD.bazel` can reference it unconditionally with no `select()` of its own.
+   `@binary_deps//:lib_dirs.bzl`'s `LIB_DIRS` (macOS Homebrew formula directories, needed for
+   RPATH patching in the release archive) is computed the same way, directly via
+   `tools/brew.bzl` rather than loading `@macos_libs`'s own output, to avoid forcing that fetch
+   on non-macOS hosts.
+3. **RPATH modification** at release-packaging time (`Source/Executables/Main/harvest_runtime_libs.bzl`,
+   `release_binary.bzl`) - unchanged by which retrieval repo actually backed `@binary_deps` on a
+   given host.
+
+Everything under `@almalinux_libs` is bundled into the release archive uniformly (harvested like
+any other real Bazel dependency, or listed directly via `root_runtime_extra_libs`), since it's
+all fetched the same hermetic way there. On macOS and Ubuntu, Boost/FFTW/MatIO are excluded from
+the harvest and never bundled - the release archive relies on them already being present on the
+machine it runs on, the same non-hermetic trade-off as build time.
 
 `FFTW_FOUND` and `ROOT_FOUND` — preprocessor defines Katydid's own source checks with `#ifdef`
-— are set as `defines` directly on the `@system_libs//:fftw` and `@root//:root` targets, so
+— are set as `defines` directly on the `@binary_deps//:fftw` and `@root//:root` targets, so
 they propagate automatically to every target that depends on them, matching what
 `add_definitions(-DFFTW_FOUND)` did project-wide in the CMake build.
 
@@ -295,10 +350,12 @@ working `bazel` binary inside the minimal `almalinux:9` image, that job installs
 `setup-bazel` (still used afterward for its build/repository caching).
 
 ROOT's prebuilt binaries for both Ubuntu and AlmaLinux dynamically depend on shared libraries
-that are not present by default on a fresh container or runner image (`libtbb`, `libxxhash`)
-— the AlmaLinux job includes a step that runs `ldd` against `rootcling` immediately after
-extracting it, so that any other missing shared library is caught in one clear failure rather
-than discovered one Bazel build at a time.
+that are not present by default on a fresh container or runner image (`libtbb`, `libxxhash`,
+`libfreetype`, `libgsl`) — on AlmaLinux, `tools/almalinux_libs.bzl` fetches these hermetically
+as part of the Bazel build itself (see the section above), so nothing needs installing via `dnf`
+for them; both CI jobs also include a step that runs `ldd` against a built test binary
+(`TestVector`) to catch any missing shared library in one clear failure rather than discovered
+one Bazel build at a time.
 
 Both `bazel build //...` and `bazel test //...` are run explicitly, rather than just the
 latter: `bazel test` with `--build_tests_only` (the default from Bazel 8.2.0 onward) does not
@@ -307,7 +364,7 @@ build non-test targets, which would otherwise leave `Katydid`/`Truncate` unbuilt
 `.github/workflows/lockfile-sync.yaml` keeps `MODULE.bazel.lock` up to date on pull requests
 opened by Renovate. It needs the same Boost/FFTW/MatIO provisioning as the main CI job's Ubuntu
 path, because `bazel mod deps` evaluates every module extension declared in `MODULE.bazel` —
-including `tools/system_deps.bzl` — to compute the lockfile, and that extension hard-fails
+including `tools/ubuntu_libs.bzl` — to compute the lockfile, and that extension hard-fails
 without them actually present. `tools/root.bzl`'s extension needs no equivalent provisioning:
 it fetches ROOT directly from root.cern regardless of what's on the runner.
 
@@ -315,35 +372,41 @@ it fetches ROOT directly from root.cern regardless of what's on the runner.
 
 - `Test2DDiscrim` (see "The Validation test suite" above) has not been checked for portability
   given `KTSpline.cc`'s current inclusion in the build.
-- Boost, FFTW, and MatIO are not built hermetically; the exact versions used depend on what is
-  installed on the host. ROOT is pinned (`tools/root.bzl`'s `_ROOT_VERSION`) and fetched by
-  Bazel itself, independent of the host. `MODULE.bazel.lock` only pins the Bazel Central
-  Registry dependencies (`rules_cc`, `platforms`).
+- Boost, FFTW, and MatIO are not built hermetically on macOS or Ubuntu; the exact versions used
+  there depend on what is installed on the host (see "How ROOT, Boost, FFTW, and MatIO are
+  located" above). On AlmaLinux they are pinned and fetched hermetically
+  (`tools/almalinux_libs.bzl`). ROOT is pinned everywhere (`tools/root.bzl`'s `_ROOT_VERSION`)
+  and fetched by Bazel itself, independent of the host. `MODULE.bazel.lock` only pins the Bazel
+  Central Registry dependencies (`rules_cc`, `platforms`).
 - A shared HPC cluster deployment (no root/administrator access for ordinary users) has not
-  been built out. The likely approach: a minimal `dnf install` request to a cluster
-  administrator for the four `-devel` packages `tools/system_deps.bzl` already needs, plus a
-  user-writable ROOT tarball installation (not `/opt`, which ordinary users typically cannot
-  write to). Worth checking first whether the cluster already provides these via CVMFS or an
-  environment module system, which could reduce or eliminate the administrator request
-  entirely.
-- Boost, FFTW, and MatIO could in principle be built hermetically by Bazel instead of relying
-  on the system package manager — `rules_boost` (which pairs Boost's source with hand-written
-  native `cc_library` build files, avoiding Boost's own `b2` build system) is the natural
-  starting point for Boost specifically. ROOT is a much larger undertaking and not recommended:
-  a full source build is slow, and there is no maintained "ROOT for Bazel" project to build on.
+  been built out. On macOS/Ubuntu, the likely approach would be a minimal package-manager
+  request to a cluster administrator for the packages `tools/macos_libs.bzl`/
+  `tools/ubuntu_libs.bzl` need, plus a user-writable ROOT tarball installation (not `/opt`, which
+  ordinary users typically cannot write to) - though AlmaLinux clusters need no such request at
+  all, since `tools/almalinux_libs.bzl` fetches everything hermetically already. Worth checking
+  first whether the cluster already provides these via CVMFS or an environment module system,
+  which could reduce or eliminate the administrator request entirely on macOS/Ubuntu.
+- Boost, FFTW, and MatIO could in principle be built hermetically by Bazel on macOS/Ubuntu too,
+  instead of relying on the system package manager — `rules_boost` (which pairs Boost's source
+  with hand-written native `cc_library` build files, avoiding Boost's own `b2` build system) is
+  the natural starting point for Boost specifically. ROOT is a much larger undertaking and not
+  recommended: a full source build is slow, and there is no maintained "ROOT for Bazel" project
+  to build on.
 - `//:katydid_release`'s packaged archive layout is `bin/` (portable wrapper scripts execing
   RPATH-patched real binaries), `lib/` (every Katydid/Cicada/Nymph/Scarab/yaml-cpp `.so` and
   dictionary PCM, harvested automatically from the binaries' runfiles — see
-  `Source/Executables/Main/harvest_runtime_libs.bzl`), `root/` (ROOT's tarball, bundled
-  wholesale and kept separate from `lib/`, since ROOT's runtime needs a real, intact install
-  layout to find `etc/gitinfo.txt` and `dlopen()`-load `libCling.so`), and `include/`
-  (currently just the six Cicada headers `CicadaDict`'s dictionary payload `#include`s by bare
-  filename — the specific set needed for Cling's autoparse to succeed rather than fail
-  outright on a TClonesArray-backed write). Not yet done: Boost/FFTW are still resolved via
-  plain system linker paths at archive-build time, not bundled into the archive itself, so the
-  target machine still needs them installed; every other Katydid/Nymph/Scarab header isn't
-  bundled or flattened into a single `include/Katydid/` the way the CMake install does, so the
-  archive isn't yet usable as a build-against dependency for downstream code; and while
-  `bazel build //...` builds `//:katydid_release` (RPATH-patching included) on all three CI
-  platforms, nothing extracts the resulting archive and actually runs the binary from it, on
-  either Linux or macOS - so the patched RPATHs' correctness is never verified end-to-end.
+  `Source/Executables/Main/harvest_runtime_libs.bzl` — plus, on AlmaLinux only, Boost/FFTW/MatIO
+  and the TBB/xxhash/FreeType/GSL ROOT-runtime extras, since those are fetched hermetically
+  there), `root/` (ROOT's tarball, bundled wholesale and kept separate from `lib/`, since ROOT's
+  runtime needs a real, intact install layout to find `etc/gitinfo.txt` and `dlopen()`-load
+  `libCling.so`), and `include/` (currently just the six Cicada headers `CicadaDict`'s
+  dictionary payload `#include`s by bare filename — the specific set needed for Cling's
+  autoparse to succeed rather than fail outright on a TClonesArray-backed write). Not yet done:
+  on macOS/Ubuntu, Boost/FFTW are still resolved via plain system linker paths at archive-build
+  time, not bundled into the archive itself, so the target machine still needs them installed;
+  every other Katydid/Nymph/Scarab header isn't bundled or flattened into a single
+  `include/Katydid/` the way the CMake install does, so the archive isn't yet usable as a
+  build-against dependency for downstream code; and while `bazel build //...` builds
+  `//:katydid_release` (RPATH-patching included) on all three CI platforms, nothing extracts the
+  resulting archive and actually runs the binary from it, on either Linux or macOS - so the
+  patched RPATHs' correctness is never verified end-to-end.

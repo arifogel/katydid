@@ -52,7 +52,7 @@ cc_library(
     ],
     deps = [
         "@rapidjson",
-        "@system_libs//:boost",
+        "@binary_deps//:boost",
         "@yaml_cpp//:yaml_cpp_headers",
     ],
 )
