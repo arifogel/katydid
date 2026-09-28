@@ -201,6 +201,37 @@ def _root_repo_impl(repository_ctx):
         if not repository_ctx.path("root/lib/lib{}.so".format(lib_name)).exists
     ]
 
+    # On AlmaLinux, root/lib/*.so (and root/bin/rootcling) themselves dynamically need
+    # TBB/xxhash/FreeType/GSL (see tools/almalinux_libs.bzl's ROOT_RUNTIME_EXTRA_LIBS
+    # docstring) - libraries root.cern's own tarball doesn't bundle. Symlinked into root/lib/
+    # here (via a dynamic Label("@almalinux_libs//:...") reference, only on AlmaLinux, so
+    # laziness on macOS/Ubuntu is untouched) and added to root_srcs alongside ROOT's own libs,
+    # not just placed on disk: root/bin/rootcling is invoked directly as a build-time tool
+    # (tools/root_dictionary.bzl), outside Bazel's cc_library solib scattering entirely, so a
+    # plain on-disk symlink is enough for it to resolve them via its own baked-in
+    # $ORIGIN/../lib-relative RUNPATH (the same directory-relative pattern root/lib/*.so's own
+    # $ORIGIN RUNPATH already relies on) - but `bazel run`/`bazel test` and the packaged
+    # release binaries resolve @root's shared libraries through a *different* mechanism
+    # entirely (Bazel's own solib scattering / runfiles tree), which only bundles whatever is
+    # declared in this cc_library's srcs below - a bare filesystem symlink is invisible to it.
+    # Being real srcs entries also means harvest_runtime_libs.bzl (which excludes anything
+    # owned by @root, since @root is bundled wholesale into the release archive's root/
+    # subdirectory separately - see this file's all_files filegroup) doesn't need to change to
+    # account for them: they ride along inside that wholesale root/ bundle instead, and
+    # release_binary.bzl's RPATH already includes .../root/lib.
+    #
+    # Not an environment variable (LD_LIBRARY_PATH or similar) anywhere - RPATH/RUNPATH only,
+    # matching how every other runtime library resolution in this build already works.
+    #
+    # If the RUNPATH assumption above turns out wrong on some future ROOT release, `readelf -d
+    # root/bin/rootcling | grep RUNPATH` (or RPATH) from inside root/'s extracted tarball
+    # confirms it directly - fix would be patchelf'ing rootcling itself instead, the same as
+    # harvest_runtime_libs.bzl/release_binary.bzl already do for Katydid's own binaries.
+    if key[0] == "almalinux":
+        for lib_name in ROOT_RUNTIME_EXTRA_LIBS:
+            repository_ctx.symlink(Label("@almalinux_libs//:" + lib_name), "root/lib/" + lib_name)
+        root_srcs = root_srcs + ["root/lib/" + lib_name for lib_name in ROOT_RUNTIME_EXTRA_LIBS]
+
     repository_ctx.file("BUILD.bazel", """
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 
@@ -233,27 +264,6 @@ exports_files(["rootcling"])
     # the label @root//:rootcling short - tools/root_dictionary.bzl's _rootcling attribute
     # default references it directly.
     repository_ctx.symlink("root/bin/rootcling", "rootcling")
-
-    # On AlmaLinux, root/bin/rootcling and some of root/lib/*.so themselves dynamically need
-    # TBB/xxhash/FreeType/GSL (see tools/almalinux_libs.bzl's ROOT_RUNTIME_EXTRA_LIBS docstring)
-    # - libraries root.cern's own tarball doesn't bundle. rootcling is invoked directly as a
-    # build-time tool (tools/root_dictionary.bzl), outside Bazel's cc_library solib scattering
-    # entirely, so it resolves shared libraries the same way any plain ELF binary does: via its
-    # own baked-in RUNPATH, which for root.cern's official Linux binaries is $ORIGIN/../lib
-    # (bin/rootcling -> ../lib) - the same directory-relative pattern root/lib/*.so's own
-    # $ORIGIN RUNPATH already relies on (see the comment on root_srcs above). Symlinking these
-    # extra libs directly into root/lib/ here - not an environment variable, and not something
-    # every consumer has to remember to set - lets that existing RUNPATH find them for free,
-    # for rootcling, for `bazel run`/`bazel test`, and for the packaged release binaries alike
-    # (release_binary.bzl's own RPATH already includes .../root/lib).
-    #
-    # If this assumption about rootcling's RUNPATH turns out wrong on some future ROOT release,
-    # `readelf -d root/bin/rootcling | grep RUNPATH` (or RPATH) from inside root/'s extracted
-    # tarball confirms it directly - fix would be patchelf'ing rootcling itself instead, the
-    # same as harvest_runtime_libs.bzl/release_binary.bzl already do for Katydid's own binaries.
-    if key[0] == "almalinux":
-        for lib_name in ROOT_RUNTIME_EXTRA_LIBS:
-            repository_ctx.symlink(Label("@almalinux_libs//:" + lib_name), "root/lib/" + lib_name)
 
 # No local = True, unlike macos_libs.bzl's/ubuntu_libs.bzl's repository rules: ROOT's version
 # is a fixed pin in this file, not host state that can change between builds without the file
