@@ -62,9 +62,6 @@ root_dictionary(
     deps = [":cicada_headers"],
 )
 
-# CicadaDict_cxx is compiled in directly because TCling::RegisterModule (in libCore.so) calls
-# dlopen() on whatever file holds a dictionary's compiled code, so that file must be a real
-# shared object.
 cc_library(
     name = "cicada_lib",
     srcs = [

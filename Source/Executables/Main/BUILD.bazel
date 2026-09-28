@@ -75,6 +75,10 @@ _ALL_PCM_DATA = [
     ":UtilityDict_pcm_local_copy",
 ]
 
+# Never add a module's generated dictionary .cxx (IODict_cxx/CicadaDict_cxx/UtilityDict_cxx) as
+# a src here: TCling::RegisterModule locates a dictionary's compiled code by dlopen()-ing the
+# .so that contains it, so dictionary code has to live in its own module .so, not statically
+# linked into these binaries.
 cc_binary(
     name = "Katydid_bin",
     srcs = ["Katydid.cc"],

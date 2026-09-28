@@ -33,9 +33,6 @@ root_dictionary(
     deps = [":katydid_utility_headers"],
 )
 
-# UtilityDict_cxx is compiled in directly: TCling::RegisterModule (in libCore.so) calls
-# dlopen() on whatever file holds a dictionary's compiled code, so that file must be a real
-# shared object.
 cc_library(
     name = "katydid_utility_lib",
     srcs = [
