@@ -2,12 +2,10 @@
 
 ROOT is fetched as a prebuilt binary from root.cern, one exact URL per supported platform,
 rather than discovered via root-config on PATH: no distro packages a usable ROOT build, and
-building it from source has no existing hermetic Bazel toolchain to lean on. Only the three
-platforms this repo's CI supports are covered - Ubuntu 24.04, AlmaLinux 9.x (any minor
-version; ABI-compatible across the series), and macOS on arm64. ROOT's prebuilt binaries are
-versioned per exact OS release and toolchain, not just "linux" or "macos", so unlike
-Boost/FFTW/MatIO (see tools/system_deps.bzl) this reads /etc/os-release on Linux rather than
-just checking which package manager is on PATH.
+building it from source has no existing hermetic Bazel toolchain to lean on. ROOT's prebuilt
+binaries are versioned per exact OS release and toolchain, not just "linux" or "macos", so
+unlike Boost/FFTW/MatIO (see tools/system_deps.bzl) this reads /etc/os-release on Linux rather
+than just checking which package manager is on PATH.
 
 ROOT is its own repository (@root), not folded into @system_libs: @system_libs uses
 local = True so a brew/apt upgrade is picked up on the next build, but ROOT's version here is
