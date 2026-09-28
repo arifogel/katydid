@@ -8,9 +8,10 @@ mangling.
 Every harvested .so gets its RPATH rewritten (patchelf on Linux, install_name_tool on macOS):
 each carries whatever RPATH Bazel baked in at its original build time, pointing at Bazel's
 solib-tree paths, meaningless once repackaged. Library-to-library dependencies among the bundled
-.so files need the same fix. The RPATH used ($ORIGIN/../lib:$ORIGIN/../root/lib on Linux,
-@loader_path/../lib and @loader_path/../root/lib on macOS) is correct both for the top-level
-binary and for a file already inside lib/, since ../lib round-trips back to lib/ itself.
+.so files need the same fix. The same RPATH is used for the top-level binary and for a file
+already inside lib/, since ../lib round-trips back to lib/ itself:
+$ORIGIN/../lib:$ORIGIN/../root/lib on Linux, @loader_path/../lib and @loader_path/../root/lib on
+macOS.
 """
 
 load("@binary_deps//:lib_dirs.bzl", "LIB_DIRS")
