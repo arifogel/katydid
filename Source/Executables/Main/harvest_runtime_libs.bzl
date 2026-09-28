@@ -38,8 +38,7 @@ _UBUNTU_LIBS_WORKSPACE_NAME = Label("@ubuntu_libs//:BUILD.bazel").workspace_name
 
 # One '-add_rpath <dir>' per macOS Homebrew formula directory: since Boost/FFTW/MatIO aren't
 # bundled into lib/ on macOS (excluded above), the release archive needs to find Homebrew's copy
-# on whatever machine runs it - the same trade-off Ubuntu makes via apt's default search paths,
-# which need no equivalent RPATH addition. Empty on Linux, where LIB_DIRS is always [].
+# on whatever machine runs it. Empty on Linux, where LIB_DIRS is always [].
 _MAC_EXTRA_RPATH_FLAGS = " ".join(["-add_rpath '{}'".format(d) for d in LIB_DIRS])
 
 def _harvest_runtime_libs_impl(ctx):
