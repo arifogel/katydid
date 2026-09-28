@@ -1,6 +1,4 @@
-"""Defines katydid_validation_test, a macro wrapping one Validation test in the
-ROOT_INCLUDE_PATH launcher unconditionally. See BUILD.bazel's own top comment for why.
-"""
+"""Defines katydid_cc_test, the rule to use for a Katydid C++ test in this package."""
 
 load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 load("//Source/Executables/Main:root_include_path_launcher.bzl", "root_include_path_test_launcher")
@@ -12,20 +10,15 @@ _PCM_DATA = [
     ":IODict_pcm_local_copy",
 ]
 
-def katydid_validation_test(name, srcs, deps, dynamic_deps, data = []):
-    """Defines one Validation test, wrapped unconditionally in the ROOT_INCLUDE_PATH launcher.
-
-    The real binary is a testonly cc_binary named name + "_bin": running it directly is never
-    valid (ROOT_INCLUDE_PATH must be set before it starts - see root_include_path_launcher.bzl's
-    docstring), so it's a cc_binary rather than a cc_test. The wrapper sh_test, named plain
-    name, is the actual test target and what `bazel test`/`bazel run` should be given.
+def katydid_cc_test(name, srcs, deps, dynamic_deps, data = []):
+    """Defines one Katydid C++ test, named name.
 
     Args:
-        name: the test's public name; also the name of the generated sh_test wrapper.
-        srcs: passed straight to the underlying cc_binary.
-        deps: passed straight to the underlying cc_binary.
-        dynamic_deps: passed straight to the underlying cc_binary.
-        data: passed straight to the underlying cc_binary.
+        name: the test's public name.
+        srcs: the test's source files.
+        deps: the test's dependencies.
+        dynamic_deps: the test's dynamic library dependencies.
+        data: runtime data files for the test.
     """
     bin_name = name + "_bin"
     cc_binary(

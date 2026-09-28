@@ -143,8 +143,7 @@ def root_include_path_launcher(name, real_bin_label, pcm_data = _DEFAULT_PCM_DAT
     _root_include_path_wrapper(name, real_bin_label, pcm_data, sh_binary, testonly = False)
 
 def root_include_path_test_launcher(name, real_bin_label, pcm_data):
-    """Test counterpart of root_include_path_launcher: wraps a testonly cc_binary as a real
-    sh_test.
+    """Test counterpart of root_include_path_launcher: wraps a testonly binary as a real test.
 
     Intended to wrap every Validation test unconditionally, not just ones already known to
     touch Cicada's ROOT dictionary at runtime: harmless for a test that doesn't need it, and
@@ -153,7 +152,7 @@ def root_include_path_test_launcher(name, real_bin_label, pcm_data):
 
     Args:
         name: name of the generated sh_test.
-        real_bin_label: label of the real, testonly cc_binary this wraps (e.g.
+        real_bin_label: label of the real, testonly binary this wraps (e.g.
             ":TestVector_bin").
         pcm_data: see _root_include_path_wrapper. No default: these are package-relative
             labels defined in the calling package (e.g. Validation's local PCM copies), not

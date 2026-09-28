@@ -104,7 +104,7 @@ def _harvest_runtime_libs_impl(ctx):
 harvest_runtime_libs = rule(
     implementation = _harvest_runtime_libs_impl,
     attrs = {
-        "binaries": attr.label_list(mandatory = True, doc = "cc_binarys to harvest runtime .so/.pcm files from."),
+        "binaries": attr.label_list(mandatory = True, doc = "Binary targets to harvest runtime .so/.pcm files from."),
         # Private, not user-facing: lets the rule implementation branch on target OS.
         "_macos_constraint": attr.label(default = Label("@platforms//os:macos")),
         # Only used on the Linux branch above; harmless to build unconditionally.

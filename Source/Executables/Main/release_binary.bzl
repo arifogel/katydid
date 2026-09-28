@@ -37,7 +37,7 @@ def release_binary(name, real_bin_label, final_bin_name):
 
     Args:
         name: public name; the wrapper script (outs = [name]) is named exactly this.
-        real_bin_label: label of the real, unpatched cc_binary to patch and wrap (e.g.
+        real_bin_label: label of the real, unpatched binary to patch and wrap (e.g.
             ":Katydid_bin").
         final_bin_name: the patched binary's final name once packaged (e.g. "Katydid_bin") -
             baked into the wrapper script's exec line, since the packaging step's own rename

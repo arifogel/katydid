@@ -79,7 +79,7 @@
 
 load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 load("//Source/Executables/Main:root_include_path_launcher.bzl", "root_include_path_launcher")
-load(":validation_test.bzl", "katydid_validation_test")
+load(":validation_test.bzl", "katydid_cc_test")
 
 _ALL_KATYDID_HEADERS = [
     "//Source/Data:katydid_data_headers",
@@ -134,76 +134,76 @@ genrule(
 
 # Duplicated from validation_test.bzl's _PCM_DATA, which is private and so not loadable here:
 # TestDPTReader has no sh_test wrapper, so it goes through root_include_path_launcher directly
-# instead of the katydid_validation_test macro.
+# instead of the katydid_cc_test macro.
 _PCM_DATA = [
     ":CicadaDict_pcm_local_copy",
     ":IODict_pcm_local_copy",
 ]
 
-katydid_validation_test(
+katydid_cc_test(
     name = "ObjectSize",
     srcs = ["ObjectSize.cc"],
     dynamic_deps = _ALL_KATYDID_LIBS,
     deps = _ALL_KATYDID_HEADERS,
 )
 
-katydid_validation_test(
+katydid_cc_test(
     name = "TestAxisProperties",
     srcs = ["TestAxisProperties.cc"],
     dynamic_deps = _ALL_KATYDID_LIBS,
     deps = _ALL_KATYDID_HEADERS,
 )
 
-katydid_validation_test(
+katydid_cc_test(
     name = "TestComplexPolar",
     srcs = ["TestComplexPolar.cc"],
     dynamic_deps = _ALL_KATYDID_LIBS,
     deps = _ALL_KATYDID_HEADERS,
 )
 
-katydid_validation_test(
+katydid_cc_test(
     name = "TestCutableArray",
     srcs = ["TestCutableArray.cc"],
     dynamic_deps = _ALL_KATYDID_LIBS,
     deps = _ALL_KATYDID_HEADERS,
 )
 
-katydid_validation_test(
+katydid_cc_test(
     name = "TestCutIterator",
     srcs = ["TestCutIterator.cc"],
     dynamic_deps = _ALL_KATYDID_LIBS,
     deps = _ALL_KATYDID_HEADERS,
 )
 
-katydid_validation_test(
+katydid_cc_test(
     name = "TestDBSCAN",
     srcs = ["TestDBSCAN.cc"],
     dynamic_deps = _ALL_KATYDID_LIBS,
     deps = _ALL_KATYDID_HEADERS,
 )
 
-katydid_validation_test(
+katydid_cc_test(
     name = "TestMinMaxBin",
     srcs = ["TestMinMaxBin.cc"],
     dynamic_deps = _ALL_KATYDID_LIBS,
     deps = _ALL_KATYDID_HEADERS,
 )
 
-katydid_validation_test(
+katydid_cc_test(
     name = "TestNanoflann",
     srcs = ["TestNanoflann.cc"],
     dynamic_deps = _ALL_KATYDID_LIBS,
     deps = _ALL_KATYDID_HEADERS + ["//vendor/nanoflann"],
 )
 
-katydid_validation_test(
+katydid_cc_test(
     name = "TestRandom",
     srcs = ["TestRandom.cc"],
     dynamic_deps = _ALL_KATYDID_LIBS,
     deps = _ALL_KATYDID_HEADERS,
 )
 
-katydid_validation_test(
+katydid_cc_test(
     name = "TestVector",
     srcs = ["TestVector.cc"],
     dynamic_deps = _ALL_KATYDID_LIBS,
@@ -224,77 +224,77 @@ root_include_path_launcher(
     real_bin_label = ":TestDPTReader_bin",
 )
 
-katydid_validation_test(
+katydid_cc_test(
     name = "TestJSONWriter",
     srcs = ["TestJSONWriter.cc"],
     dynamic_deps = _ALL_KATYDID_LIBS,
     deps = _ALL_KATYDID_HEADERS,
 )
 
-katydid_validation_test(
+katydid_cc_test(
     name = "TestKDTree",
     srcs = ["TestKDTree.cc"],
     dynamic_deps = _ALL_KATYDID_LIBS,
     deps = _ALL_KATYDID_HEADERS + ["//vendor/nanoflann"],
 )
 
-katydid_validation_test(
+katydid_cc_test(
     name = "TestKDTreeData",
     srcs = ["TestKDTreeData.cc"],
     dynamic_deps = _ALL_KATYDID_LIBS,
     deps = _ALL_KATYDID_HEADERS,
 )
 
-katydid_validation_test(
+katydid_cc_test(
     name = "TestSmoothing",
     srcs = ["TestSmoothing.cc"],
     dynamic_deps = _ALL_KATYDID_LIBS,
     deps = _ALL_KATYDID_HEADERS,
 )
 
-katydid_validation_test(
+katydid_cc_test(
     name = "TestComboFFTW",
     srcs = ["TestComboFFTW.cc"],
     dynamic_deps = _ALL_KATYDID_LIBS,
     deps = _ALL_KATYDID_HEADERS,
 )
 
-katydid_validation_test(
+katydid_cc_test(
     name = "TestForwardFFTW",
     srcs = ["TestForwardFFTW.cc"],
     dynamic_deps = _ALL_KATYDID_LIBS,
     deps = _ALL_KATYDID_HEADERS,
 )
 
-katydid_validation_test(
+katydid_cc_test(
     name = "TestReverseFFTW",
     srcs = ["TestReverseFFTW.cc"],
     dynamic_deps = _ALL_KATYDID_LIBS,
     deps = _ALL_KATYDID_HEADERS,
 )
 
-katydid_validation_test(
+katydid_cc_test(
     name = "TestWignerVille",
     srcs = ["TestWignerVille.cc"],
     dynamic_deps = _ALL_KATYDID_LIBS,
     deps = _ALL_KATYDID_HEADERS,
 )
 
-katydid_validation_test(
+katydid_cc_test(
     name = "TestChannelAggregator",
     srcs = ["TestChannelAggregator.cc"],
     dynamic_deps = _ALL_KATYDID_LIBS,
     deps = _ALL_KATYDID_HEADERS,
 )
 
-katydid_validation_test(
+katydid_cc_test(
     name = "TestConsensusThresholding",
     srcs = ["TestConsensusThresholding.cc"],
     dynamic_deps = _ALL_KATYDID_LIBS,
     deps = _ALL_KATYDID_HEADERS,
 )
 
-katydid_validation_test(
+katydid_cc_test(
     name = "TestConvolution1D",
     srcs = ["TestConvolution1D.cc"],
     data = ["//Examples/CustomApplications:GaussianKernel.json"],
@@ -302,112 +302,112 @@ katydid_validation_test(
     deps = _ALL_KATYDID_HEADERS,
 )
 
-katydid_validation_test(
+katydid_cc_test(
     name = "TestCorrelator",
     srcs = ["TestCorrelator.cc"],
     dynamic_deps = _ALL_KATYDID_LIBS,
     deps = _ALL_KATYDID_HEADERS,
 )
 
-katydid_validation_test(
+katydid_cc_test(
     name = "TestDataAccumulator",
     srcs = ["TestDataAccumulator.cc"],
     dynamic_deps = _ALL_KATYDID_LIBS,
     deps = _ALL_KATYDID_HEADERS,
 )
 
-katydid_validation_test(
+katydid_cc_test(
     name = "TestDBSCANNoiseFiltering",
     srcs = ["TestDBSCANNoiseFiltering.cc"],
     dynamic_deps = _ALL_KATYDID_LIBS,
     deps = _ALL_KATYDID_HEADERS,
 )
 
-katydid_validation_test(
+katydid_cc_test(
     name = "TestDBSCANTrackClustering",
     srcs = ["TestDBSCANTrackClustering.cc"],
     dynamic_deps = _ALL_KATYDID_LIBS,
     deps = _ALL_KATYDID_HEADERS,
 )
 
-katydid_validation_test(
+katydid_cc_test(
     name = "TestGainNormalization",
     srcs = ["TestGainNormalization.cc"],
     dynamic_deps = _ALL_KATYDID_LIBS,
     deps = _ALL_KATYDID_HEADERS,
 )
 
-katydid_validation_test(
+katydid_cc_test(
     name = "TestGainVariationProcessor",
     srcs = ["TestGainVariationProcessor.cc"],
     dynamic_deps = _ALL_KATYDID_LIBS,
     deps = _ALL_KATYDID_HEADERS,
 )
 
-katydid_validation_test(
+katydid_cc_test(
     name = "TestNTracksNPointsNUPCut",
     srcs = ["TestNTracksNPointsNUPCut.cc"],
     dynamic_deps = _ALL_KATYDID_LIBS,
     deps = _ALL_KATYDID_HEADERS,
 )
 
-katydid_validation_test(
+katydid_cc_test(
     name = "TestSequentialTrackFinder",
     srcs = ["TestSequentialTrackFinder.cc"],
     dynamic_deps = _ALL_KATYDID_LIBS,
     deps = _ALL_KATYDID_HEADERS,
 )
 
-katydid_validation_test(
+katydid_cc_test(
     name = "TestSpectrogramCollector",
     srcs = ["TestSpectrogramCollector.cc"],
     dynamic_deps = _ALL_KATYDID_LIBS,
     deps = _ALL_KATYDID_HEADERS,
 )
 
-katydid_validation_test(
+katydid_cc_test(
     name = "TestSpectrogramStriper",
     srcs = ["TestSpectrogramStriper.cc"],
     dynamic_deps = _ALL_KATYDID_LIBS,
     deps = _ALL_KATYDID_HEADERS,
 )
 
-katydid_validation_test(
+katydid_cc_test(
     name = "TestSpectrogramStriperSwaps",
     srcs = ["TestSpectrogramStriperSwaps.cc"],
     dynamic_deps = _ALL_KATYDID_LIBS,
     deps = _ALL_KATYDID_HEADERS,
 )
 
-katydid_validation_test(
+katydid_cc_test(
     name = "TestSpectrumDiscriminator",
     srcs = ["TestSpectrumDiscriminator.cc"],
     dynamic_deps = _ALL_KATYDID_LIBS,
     deps = _ALL_KATYDID_HEADERS,
 )
 
-katydid_validation_test(
+katydid_cc_test(
     name = "TestTrackProcessing",
     srcs = ["TestTrackProcessing.cc"],
     dynamic_deps = _ALL_KATYDID_LIBS,
     deps = _ALL_KATYDID_HEADERS,
 )
 
-katydid_validation_test(
+katydid_cc_test(
     name = "TestWindowFunction",
     srcs = ["TestWindowFunction.cc"],
     dynamic_deps = _ALL_KATYDID_LIBS,
     deps = _ALL_KATYDID_HEADERS,
 )
 
-katydid_validation_test(
+katydid_cc_test(
     name = "TestBackgroundFlattening",
     srcs = ["TestBackgroundFlattening.cc"],
     dynamic_deps = _ALL_KATYDID_LIBS,
     deps = _ALL_KATYDID_HEADERS,
 )
 
-katydid_validation_test(
+katydid_cc_test(
     name = "TestBasicROOTFileWriter",
     srcs = ["TestBasicROOTFileWriter.cc"],
     dynamic_deps = _ALL_KATYDID_LIBS,
@@ -420,7 +420,7 @@ katydid_validation_test(
 # free through one of the katydid_* libraries for *headers* (all depend on @nymph), but every
 # test still needs @nymph and @scarab as direct dynamic_deps too, for the runtime link - see
 # this file's top comment.
-katydid_validation_test(
+katydid_cc_test(
     name = "TestROOTDictionary",
     srcs = ["TestROOTDictionary.cc"],
     dynamic_deps = [
@@ -433,14 +433,14 @@ katydid_validation_test(
     ],
 )
 
-katydid_validation_test(
+katydid_cc_test(
     name = "TestROOTTreeWritingViaCicada",
     srcs = ["TestROOTTreeWritingViaCicada.cc"],
     dynamic_deps = _ALL_KATYDID_LIBS,
     deps = _ALL_KATYDID_HEADERS,
 )
 
-katydid_validation_test(
+katydid_cc_test(
     name = "TestROOTWriterFileManager",
     srcs = ["TestROOTWriterFileManager.cc"],
     dynamic_deps = _ALL_KATYDID_LIBS,
