@@ -29,17 +29,10 @@ def _is_shared_library(basename):
         return False
     return all([part.isdigit() for part in suffix[1:].split(".")])
 
-# The real workspace name, from this file's repo mapping (not Bazel's internal,
+# The real workspace names, from this file's repo mapping (not Bazel's internal,
 # version-specific canonical-name mangling, e.g. the "+root_deps+root"-style names visible in
 # solib directory paths).
 _ROOT_WORKSPACE_NAME = Label("@root//:BUILD.bazel").workspace_name
-
-# @macos_libs/@ubuntu_libs are excluded from harvesting the same way @root is: on those
-# platforms, Boost/FFTW/MatIO are expected to already be present on the machine that runs the
-# release archive. This also sidesteps a RHEL-family packaging quirk on AlmaLinux: boost-devel
-# there ships at least one unversioned name (libboost_thread.so) as a plain linker script, not a
-# real ELF file, which patchelf below refuses to touch. @almalinux_libs's Boost/FFTW/MatIO
-# cc_imports reference real, working SONAME-level files instead, so it isn't excluded.
 _MACOS_LIBS_WORKSPACE_NAME = Label("@macos_libs//:BUILD.bazel").workspace_name
 _UBUNTU_LIBS_WORKSPACE_NAME = Label("@ubuntu_libs//:BUILD.bazel").workspace_name
 
@@ -58,8 +51,12 @@ def _harvest_runtime_libs_impl(ctx):
         for f in binary[DefaultInfo].default_runfiles.files.to_list():
             # @root is bundled wholesale into the release archive's root/ subdirectory
             # separately, so anything owned by it here would be a duplicate. @macos_libs/
-            # @ubuntu_libs are excluded for a different reason (see above); @almalinux_libs is
-            # deliberately not excluded.
+            # @ubuntu_libs are excluded too: on those platforms, Boost/FFTW/MatIO are expected to
+            # already be present on the machine that runs the release archive. This also
+            # sidesteps a RHEL-family packaging quirk on AlmaLinux: boost-devel there ships at
+            # least one unversioned name (libboost_thread.so) as a plain linker script, which
+            # patchelf below refuses to touch. @almalinux_libs's Boost/FFTW/MatIO cc_imports
+            # reference real, working SONAME-level files instead, so it isn't excluded.
             if f.owner != None and f.owner.workspace_name in (_ROOT_WORKSPACE_NAME, _MACOS_LIBS_WORKSPACE_NAME, _UBUNTU_LIBS_WORKSPACE_NAME):
                 continue
             if not (_is_shared_library(f.basename) or f.basename.endswith(".pcm")):
