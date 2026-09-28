@@ -1,19 +1,12 @@
-"""Resolves Boost/FFTW/MatIO - and, on AlmaLinux only, the extra runtime libs ROOT's own
-prebuilt binaries need - to whichever platform-specific repository actually provides them on
-this host, exposed as @binary_deps. This is the one label surface any BUILD file should
-reference (deps = ["@binary_deps//:boost", "@binary_deps//:fftw"]); tools/macos_libs.bzl,
+"""Resolves Boost/FFTW/MatIO to whichever platform-specific repository actually provides them on
+this host, exposed as @binary_deps. On AlmaLinux, this also covers the extra runtime libs ROOT's
+own prebuilt binaries need. This is the one label surface any BUILD file should reference
+(deps = ["@binary_deps//:boost", "@binary_deps//:fftw"]); tools/macos_libs.bzl,
 tools/ubuntu_libs.bzl, and tools/almalinux_libs.bzl are retrieval-only and nothing outside this
 file should reference them directly.
-
-Resolution happens the same way tools/root.bzl already picks ROOT's per-platform download URL:
-entirely inside this repository rule, via is_macos/linux_distro_id, with no select(),
-config_setting, or command-line/.bazelrc flag anywhere. Because the BUILD.bazel text this rule
-writes only ever names the one matching platform repo's labels, the other two platform repos
-are never referenced and so never fetched on a given host - the same laziness root.bzl's own
-single-URL choice already relies on.
 """
 
-load(":brew.bzl", "brew_prefix", "brew_require")
+load(":brew.bzl", "MAC_BREW_FORMULAE", "brew_prefix", "brew_require")
 load(":repo_utils.bzl", "is_macos", "linux_distro_id")
 
 # {dependency: {host_key: underlying label}} - see tools/macos_libs.bzl, tools/ubuntu_libs.bzl,
@@ -35,13 +28,6 @@ _LIBS = {
         "almalinux": "@almalinux_libs//:matio",
     },
 }
-
-# Homebrew formula names for the LIB_DIRS/RPATH computation below - kept in step with
-# tools/macos_libs.bzl's own formula table by hand (duplicated rather than shared): loading
-# tools/macos_libs.bzl's own generated output here would force @macos_libs to be fetched on
-# every platform this file runs on, defeating the laziness this file exists to preserve (see
-# the module docstring).
-_MAC_BREW_FORMULAE = ["boost", "fftw", "libmatio"]
 
 def _host_key(repository_ctx):
     if is_macos(repository_ctx):
@@ -75,16 +61,24 @@ def _binary_deps_repo_impl(repository_ctx):
 
     repository_ctx.file("BUILD.bazel", "\n".join(build_file_parts))
 
-    # Extra RPATH directories to bake in at release-packaging time on macOS (Homebrew keeps
-    # formulae off the default library search path) - empty everywhere else. Computed directly
-    # via tools/brew.bzl rather than loading tools/macos_libs.bzl's own output (see
-    # _MAC_BREW_FORMULAE above for why).
+    # Extra RPATH directories to bake in at release-packaging time on macOS, where Homebrew
+    # keeps formulae off the default library search path. Empty everywhere else.
     lib_dirs = []
     if key == "mac":
         brew = brew_require(repository_ctx)
-        for formula in _MAC_BREW_FORMULAE:
-            lib_dirs.append(brew_prefix(repository_ctx, brew, formula) + "/lib")
-    repository_ctx.file("lib_dirs.bzl", "LIB_DIRS = " + repr(lib_dirs) + "\n")
+        for formula, info in MAC_BREW_FORMULAE.items():
+            brew_formula = info.get("brew_formula", formula)
+            lib_dirs.append(brew_prefix(repository_ctx, brew, brew_formula) + "/lib")
+
+    # One '-add_rpath <dir>' per entry in lib_dirs, ready to splice into an install_name_tool
+    # command line.
+    mac_extra_rpath_flags = " ".join(["-add_rpath '{}'".format(d) for d in lib_dirs])
+
+    repository_ctx.file(
+        "lib_dirs.bzl",
+        "LIB_DIRS = " + repr(lib_dirs) + "\n" +
+        "MAC_EXTRA_RPATH_FLAGS = " + repr(mac_extra_rpath_flags) + "\n",
+    )
 
 _binary_deps_repo = repository_rule(
     implementation = _binary_deps_repo_impl,

@@ -7,7 +7,7 @@ load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
 load("//tools:root_dictionary.bzl", "root_dictionary")
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = ["//Source:__subpackages__"])
 
 cc_library(
     name = "katydid_utility_headers",

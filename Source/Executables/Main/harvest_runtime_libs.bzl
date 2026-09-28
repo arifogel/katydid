@@ -8,16 +8,16 @@ mangling.
 Every harvested .so gets its RPATH rewritten (patchelf on Linux, install_name_tool on macOS):
 each carries whatever RPATH Bazel baked in at its original build time, pointing at Bazel's
 solib-tree paths, meaningless once repackaged. Library-to-library dependencies among the bundled
-.so files need the same fix. The RPATH used ($ORIGIN/../lib:$ORIGIN/../root/lib on Linux,
-@loader_path/../lib and @loader_path/../root/lib on macOS) is correct both for the top-level
-binary and for a file already inside lib/, since ../lib round-trips back to lib/ itself.
+.so files need the same fix. The same RPATH is used for the top-level binary and for a file
+already inside lib/, since ../lib round-trips back to lib/ itself:
+$ORIGIN/../lib:$ORIGIN/../root/lib on Linux, @loader_path/../lib and @loader_path/../root/lib on
+macOS.
 """
 
-load("@binary_deps//:lib_dirs.bzl", "LIB_DIRS")
+load("@binary_deps//:lib_dirs.bzl", "MAC_EXTRA_RPATH_FLAGS")
 
 # True for "libfoo.so" and any SONAME-versioned name derived from it ("libfoo.so.3",
-# "libfoo.so.1.75.0", ...). A bare f.basename.endswith(".so") check misses these, silently
-# skipping them in the walk below.
+# "libfoo.so.1.75.0", ...).
 def _is_shared_library(basename):
     idx = basename.find(".so")
     if idx == -1:
@@ -29,25 +29,12 @@ def _is_shared_library(basename):
         return False
     return all([part.isdigit() for part in suffix[1:].split(".")])
 
-# The real workspace name, from this file's repo mapping (not Bazel's internal,
+# The real workspace names, from this file's repo mapping (not Bazel's internal,
 # version-specific canonical-name mangling, e.g. the "+root_deps+root"-style names visible in
 # solib directory paths).
 _ROOT_WORKSPACE_NAME = Label("@root//:BUILD.bazel").workspace_name
-
-# @macos_libs/@ubuntu_libs are excluded from harvesting the same way @root is: on those
-# platforms, Boost/FFTW/MatIO are expected to already be present on the machine that runs the
-# release archive. This also sidesteps a RHEL-family packaging quirk on AlmaLinux: boost-devel
-# there ships at least one unversioned name (libboost_thread.so) as a plain linker script, not a
-# real ELF file, which patchelf below refuses to touch. @almalinux_libs's Boost/FFTW/MatIO
-# cc_imports reference real, working SONAME-level files instead, so it isn't excluded.
 _MACOS_LIBS_WORKSPACE_NAME = Label("@macos_libs//:BUILD.bazel").workspace_name
 _UBUNTU_LIBS_WORKSPACE_NAME = Label("@ubuntu_libs//:BUILD.bazel").workspace_name
-
-# One '-add_rpath <dir>' per macOS Homebrew formula directory: since Boost/FFTW/MatIO aren't
-# bundled into lib/ on macOS (excluded above), the release archive needs to find Homebrew's copy
-# on whatever machine runs it - the same trade-off Ubuntu makes via apt's default search paths,
-# which need no equivalent RPATH addition. Empty on Linux, where LIB_DIRS is always [].
-_MAC_EXTRA_RPATH_FLAGS = " ".join(["-add_rpath '{}'".format(d) for d in LIB_DIRS])
 
 def _harvest_runtime_libs_impl(ctx):
     is_macos = ctx.target_platform_has_constraint(ctx.attr._macos_constraint[platform_common.ConstraintValueInfo])
@@ -58,8 +45,12 @@ def _harvest_runtime_libs_impl(ctx):
         for f in binary[DefaultInfo].default_runfiles.files.to_list():
             # @root is bundled wholesale into the release archive's root/ subdirectory
             # separately, so anything owned by it here would be a duplicate. @macos_libs/
-            # @ubuntu_libs are excluded for a different reason (see above); @almalinux_libs is
-            # deliberately not excluded.
+            # @ubuntu_libs are excluded too: on those platforms, Boost/FFTW/MatIO are expected to
+            # already be present on the machine that runs the release archive. This also
+            # sidesteps a RHEL-family packaging quirk on AlmaLinux: boost-devel there ships at
+            # least one unversioned name (libboost_thread.so) as a plain linker script, which
+            # patchelf below refuses to touch. @almalinux_libs's Boost/FFTW/MatIO cc_imports
+            # reference real, working SONAME-level files instead, so it isn't excluded.
             if f.owner != None and f.owner.workspace_name in (_ROOT_WORKSPACE_NAME, _MACOS_LIBS_WORKSPACE_NAME, _UBUNTU_LIBS_WORKSPACE_NAME):
                 continue
             if not (_is_shared_library(f.basename) or f.basename.endswith(".pcm")):
@@ -89,11 +80,10 @@ def _harvest_runtime_libs_impl(ctx):
                         "install_name_tool -delete_rpath \"$rp\" '{out}'; done && " +
                         "install_name_tool -add_rpath '@loader_path/../lib' -add_rpath '@loader_path/../root/lib' {extra} '{out}' && " +
                         "codesign --sign - --force '{out}'"
-                    ).format(src = f.path, out = out.path, base = f.basename, extra = _MAC_EXTRA_RPATH_FLAGS)
+                    ).format(src = f.path, out = out.path, base = f.basename, extra = MAC_EXTRA_RPATH_FLAGS)
                 else:
                     # --set-rpath replaces this .so's Bazel-baked-in RPATH outright (see this
-                    # file's docstring for why it's meaningless here). patchelf is built from
-                    # source by the @patchelf module, not a preinstalled system package.
+                    # file's docstring for why it's meaningless here).
                     command = (
                         "cp -f '{src}' '{out}' && chmod +w '{out}' && " +
                         "'{patchelf}' --set-rpath '$ORIGIN/../lib:$ORIGIN/../root/lib' '{out}'"

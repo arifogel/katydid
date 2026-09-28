@@ -103,10 +103,10 @@ directly. This is a three-layer design:
      checked against a pinned `sha256`, then extracted with `rpm2cpio`/`cpio` (Bazel's
      `download_and_extract` has no native `.rpm` support). This is the one platform where the
      live package mirror is not usable as a reproducible source - AlmaLinux's rolling `dnf`
-     mirror prunes superseded builds outright, unlike `apt`'s or Homebrew's. `tools/pin_rpm.sh`
-     computes the `sha256`/prints the dict entry for a new pinned package. Also fetches the four
-     extra libraries (TBB, xxhash, FreeType, GSL) ROOT's own prebuilt AlmaLinux binaries dynamically
-     depend on but don't bundle, exposed as `@almalinux_libs//:root_runtime_extra_libs`.
+     mirror prunes superseded builds outright, unlike `apt`'s or Homebrew's. Also fetches the
+     four extra libraries (TBB, xxhash, FreeType, GSL) ROOT's own prebuilt AlmaLinux binaries
+     dynamically depend on but don't bundle, exposed as
+     `@almalinux_libs//:root_runtime_extra_libs`.
    - On macOS and Ubuntu, correctness is checked by looking for a representative header file for
      each library (`boost/version.hpp`, `fftw3.h`, `matio.h`), not by asking the package manager
      whether a specific package name is installed - some Linux package managers use
@@ -125,9 +125,9 @@ directly. This is a three-layer design:
    `alias()` to `@almalinux_libs`'s version on AlmaLinux, an empty `filegroup` elsewhere), so
    root `BUILD.bazel` can reference it unconditionally with no `select()` of its own.
    `@binary_deps//:lib_dirs.bzl`'s `LIB_DIRS` (macOS Homebrew formula directories, needed for
-   RPATH patching in the release archive) is computed the same way, directly via
-   `tools/brew.bzl` rather than loading `@macos_libs`'s own output, to avoid forcing that fetch
-   on non-macOS hosts.
+   RPATH patching in the release archive) is computed the same way, from `tools/brew.bzl`'s
+   `MAC_BREW_FORMULAE` table - the same table `tools/macos_libs.bzl` builds its `cc_import`s
+   from.
 3. **RPATH modification** at release-packaging time (`Source/Executables/Main/harvest_runtime_libs.bzl`,
    `release_binary.bzl`) - unchanged by which retrieval repo actually backed `@binary_deps` on a
    given host.

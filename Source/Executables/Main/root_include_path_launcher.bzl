@@ -46,7 +46,7 @@ _RAW_PCM_TARGETS = [
     "//Source/Utility:UtilityDict_pcm",
 ]
 
-def _root_include_path_wrapper(name, real_bin_label, pcm_data, wrapper_rule, testonly):
+def _root_include_path_wrapper(name, real_bin_label, pcm_data, wrapper_rule, testonly, visibility):
     """Shared implementation behind root_include_path_launcher/root_include_path_test_launcher.
 
     libCore.so is a dependency of every Katydid module .so (katydid_io, katydid_utility,
@@ -81,6 +81,8 @@ def _root_include_path_wrapper(name, real_bin_label, pcm_data, wrapper_rule, tes
             them next to the real, exec'd binary (see BUILD.bazel's comment on those genrules).
         wrapper_rule: sh_binary or sh_test.
         testonly: whether real_bin_label is itself testonly.
+        visibility: applied to the generated wrapper_rule target only, not the intermediate
+            genrule.
     """
     genrule_name = name + "_launcher_gen"
     native.genrule(
@@ -130,19 +132,21 @@ chmod +x $@
         ] + _CICADA_DICT_HEADERS + _RAW_PCM_TARGETS + pcm_data,
         use_bash_launcher = True,
         deps = ["@rules_shell//shell/runfiles"],
+        visibility = visibility,
     )
 
-def root_include_path_launcher(name, real_bin_label, pcm_data = _DEFAULT_PCM_DATA):
+def root_include_path_launcher(name, real_bin_label, pcm_data = _DEFAULT_PCM_DATA, visibility = None):
     """Sets ROOT_INCLUDE_PATH before real_bin_label's process starts, then execs it.
 
     Args:
         name: name of the generated sh_binary.
         real_bin_label: label of the real binary this wraps (e.g. ":Katydid_bin").
         pcm_data: see _root_include_path_wrapper. Defaults to this package's local copies.
+        visibility: applied to the generated sh_binary.
     """
-    _root_include_path_wrapper(name, real_bin_label, pcm_data, sh_binary, testonly = False)
+    _root_include_path_wrapper(name, real_bin_label, pcm_data, sh_binary, testonly = False, visibility = visibility)
 
-def root_include_path_test_launcher(name, real_bin_label, pcm_data):
+def root_include_path_test_launcher(name, real_bin_label, pcm_data, visibility = None):
     """Test counterpart of root_include_path_launcher: wraps a testonly binary as a real test.
 
     Intended to wrap every Validation test unconditionally, not just ones already known to
@@ -157,5 +161,6 @@ def root_include_path_test_launcher(name, real_bin_label, pcm_data):
         pcm_data: see _root_include_path_wrapper. No default: these are package-relative
             labels defined in the calling package (e.g. Validation's local PCM copies), not
             this one.
+        visibility: applied to the generated sh_test.
     """
-    _root_include_path_wrapper(name, real_bin_label, pcm_data, sh_test, testonly = True)
+    _root_include_path_wrapper(name, real_bin_label, pcm_data, sh_test, testonly = True, visibility = visibility)
