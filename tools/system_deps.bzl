@@ -1,30 +1,37 @@
-"""Wraps system-provided libraries (Boost, FFTW, MatIO, ROOT) as cc_library targets - via
-Homebrew on macOS, via apt or dnf on Linux (whichever is actually on PATH - not a hardcoded
-distro list, so this doesn't need editing again for the next Linux flavor that shows up).
-ROOT is handled the same way on every OS: none of the three assume the package manager
-actually provides it (apt's/dnf's ROOT packaging is inconsistent-to-nonexistent across
-distros, and building ROOT from source is squarely "unreasonable to build from source"
-territory) - instead this just requires `root-config` to already be on PATH, however it got
-there (a Homebrew symlink, or a prebuilt tarball from root.cern extracted somewhere like
-/opt/root with its bin/ added to PATH - all work identically here, since root-config is
-ROOT's own official query tool regardless of how it was installed).
+"""Wraps system-provided libraries (Boost, FFTW, MatIO), exposed as @system_libs - via
+Homebrew on macOS, via apt or dnf on Linux (whichever is on PATH, so a new Linux flavor needs
+no edit here).
 
-This is a deliberate trade: none of this is built hermetically by Bazel, and the exact
-version you get depends on what's already on the machine. In exchange, there's no need to
-compile ROOT from source inside the Bazel graph (slow, and not something the Bazel
-ecosystem supports out of the box), and on Linux, apt/dnf-installed Boost/FFTW/MatIO need
-no explicit discovery at all - both install into the compiler/linker's default search
-paths, unlike Homebrew, which deliberately keeps things out of the way.
+ROOT's fetch/discovery lives in tools/root.bzl, fully independent of this file.
+
+Boost/FFTW/MatIO are exposed as cc_import targets pointing at the already-installed .so/.dylib
+for each library component (apt/dnf's known paths on Linux, `brew --prefix` on macOS). This is
+also what fixes cc_shared_library's "linked statically but not exported" error for a library
+reachable from more than one cc_shared_library's deps (e.g. Boost, needed by both
+katydid_utility and nymph): cc_import is exempt from that check, cc_library is not, even a
+header-only cc_library with zero srcs (bazelbuild/bazel#19920). If a future Bazel version's
+behavior here changes, tags = ["LINKABLE_MORE_THAN_ONCE"] on the per-component cc_import
+targets below is the fallback - safe here since a cc_import wrapping an existing system
+.so/.dylib has no compiled code of its own to duplicate, unlike a library actually compiled
+from source (e.g. @yaml_cpp, which needs its own cc_shared_library instead).
+
+Boost/FFTW/MatIO are discovered from what's already on the machine rather than fetched
+hermetically, so the exact version depends on what's installed. The two OSes differ only in
+how the library is located: apt/dnf-installed Boost/FFTW/MatIO need no explicit -I (headers
+land on the compiler's default system include path); Homebrew keeps things out of the way, so
+macOS needs `brew --prefix` plus explicit hdrs/includes on the aggregating cc_import below.
 
 Usage from a BUILD file: deps = ["@system_libs//:boost", "@system_libs//:fftw"]
 """
 
+load(":repo_utils.bzl", "is_macos")
+
 _MAC_FORMULAE = {
     "boost": {
-        # header-only usage needs no libs, but Nymph/Scarab/Katydid link these components.
-        # boost_system deliberately NOT listed: Boost.System has been header-only since 1.69,
-        # and Boost 1.89 (2025) removed the compiled stub library entirely - linking -lboost_system
-        # now fails outright ("library not found") on any current Homebrew Boost.
+        # Nymph/Scarab/Katydid link these specific components, not just Boost's header-only
+        # parts. boost_system deliberately omitted: header-only since 1.69, and Boost 1.89
+        # removed the compiled stub library entirely - linking -lboost_system fails on any
+        # current Homebrew Boost.
         "libs": [
             "boost_filesystem",
             "boost_thread",
@@ -35,9 +42,8 @@ _MAC_FORMULAE = {
     "fftw": {
         "libs": ["fftw3"],
         # Katydid's code checks #ifdef FFTW_FOUND (e.g. Data/Time/KTPhysicalArrayFFTW.hh) to
-        # choose between real fftw3.h and a bundled stand-in header. Defining it here, once,
-        # propagates transitively to every target that depends on @system_libs//:fftw (directly
-        # or via Utility) - same as CMake's `add_definitions(-DFFTW_FOUND)` did project-wide.
+        # choose between real fftw3.h and a bundled stand-in header - matches CMake's
+        # add_definitions(-DFFTW_FOUND).
         "defines": ["FFTW_FOUND"],
     },
     # Homebrew's formula for MatIO is "libmatio", not "matio" - keep the exposed target name
@@ -48,11 +54,10 @@ _MAC_FORMULAE = {
     },
 }
 
-# Linux: apt-installed Boost/FFTW/MatIO need no -I/-L at all (default search paths already
-# cover them) - just -l flags. Package names/versions confirmed against Ubuntu 24.04 (noble)'s
-# package index directly, not assumed - matio's shared lib is libmatio13, but libmatio-dev
-# provides the unversioned libmatio.so symlink needed for a plain -lmatio to resolve, same
-# pattern as most -dev packages.
+# apt puts Boost/FFTW/MatIO's .so files and headers on the compiler/linker's default search
+# paths. Package names/versions confirmed against Ubuntu 24.04 (noble)'s package index: matio's
+# shared lib is libmatio13, but libmatio-dev provides the unversioned libmatio.so symlink used
+# here, same pattern as most -dev packages.
 _LINUX_APT_LIBS = {
     "boost": {
         "packages": [
@@ -74,11 +79,10 @@ _LINUX_APT_LIBS = {
     },
 }
 
-# AlmaLinux 9 / RHEL 9 family (dnf). Same "no -I/-L needed" reasoning as apt - dnf also installs
-# into the compiler/linker's default search paths. Package names confirmed against the real
-# AlmaLinux/EPEL package index, not assumed: boost-devel/fftw-devel/tbb-devel all live in
-# AlmaLinux 9's own AppStream repo; matio-devel specifically needs EPEL
-# (`dnf install epel-release`) - it isn't in AppStream or CRB.
+# AlmaLinux 9 / RHEL 9 family (dnf). Same default-search-path story as apt. Package names
+# confirmed against the AlmaLinux/EPEL package index: boost-devel/fftw-devel live in AlmaLinux
+# 9's AppStream repo; matio-devel needs EPEL (`dnf install epel-release`) - not in AppStream or
+# CRB.
 _LINUX_DNF_LIBS = {
     "boost": {
         "packages": ["boost-devel"],
@@ -95,27 +99,19 @@ _LINUX_DNF_LIBS = {
     },
 }
 
-# Checked by looking for the actual header each library installs, not by asking the package
-# manager whether a specific package name is "installed" (`dpkg -s` / `rpm -q`). The latter is
-# unreliable on Linux in a way worth avoiding: some package managers use "transitional" wrapper
-# packages for versioned libraries (e.g. Ubuntu's libboost-filesystem-dev simply depends on the
-# real libboost-filesystem1.83-dev), and some caching mechanisms used in CI do not reliably
-# register these wrapper packages, even though the underlying files are genuinely present and
-# working. Checking for the header directly avoids this: it is what is actually needed, it is
-# identical logic on both apt and dnf, and it cannot be fooled by a package manager's internal
-# bookkeeping.
+# Checked via the actual header each library installs, not via the package manager's own
+# "is this installed" query (dpkg -s / rpm -q): some package managers use transitional wrapper
+# packages for versioned libraries (e.g. Ubuntu's libboost-filesystem-dev depends on the real
+# libboost-filesystem1.83-dev), and some CI caching doesn't reliably register these wrapper
+# packages even when the files are present.
 _LINUX_HEADER_CHECK = {
     "boost": "usr/include/boost/version.hpp",
     "fftw": "usr/include/fftw3.h",
     "matio": "usr/include/matio.h",
 }
 
-def _is_macos(repository_ctx):
-    return repository_ctx.os.name.lower().startswith("mac")
-
-# Distinguishes apt-based vs dnf-based Linux by which package manager binary is actually on
-# PATH, rather than parsing /etc/os-release or hardcoding a list of distro names - robust to
-# whatever distro shows up next without needing this file edited again.
+# Distinguishes apt vs dnf by which package manager binary is on PATH rather than parsing
+# /etc/os-release or hardcoding distro names, so a new Linux flavor needs no edit here.
 def _linux_pkg_manager(repository_ctx):
     if repository_ctx.which("apt-get"):
         return "apt", _LINUX_APT_LIBS
@@ -135,76 +131,53 @@ def _check_header_or_fail(repository_ctx, formula, header, packages, install_hin
             hint = install_hint.format(pkgs = " ".join(packages)),
         ))
 
-def _root_config_not_found_error():
-    return (
-        "`root-config` was not found on PATH. Install ROOT and make sure its bin/ directory " +
-        "is on PATH:\n" +
-        "  macOS:  `brew install root` (Homebrew symlinks root-config onto PATH automatically)\n" +
-        "  Linux:  download a prebuilt binary from https://root.cern/install/, extract it " +
-        "somewhere (e.g. /opt/root), and add its bin/ directory to PATH (building ROOT from " +
-        "source is not recommended - it's a large, slow build).\n" +
-        "Or adjust tools/system_deps.bzl if ROOT lives somewhere else."
+# apt (Debian/Ubuntu multiarch) and dnf (RHEL-family lib64) install to different absolute
+# paths, checked in order.
+def _find_shared_lib_or_fail(repository_ctx, libname, packages, install_hint):
+    candidate_paths = [
+        "/usr/lib/x86_64-linux-gnu/lib{}.so".format(libname),  # apt (Debian/Ubuntu multiarch)
+        "/usr/lib64/lib{}.so".format(libname),  # dnf (RHEL-family)
+        "/usr/lib/lib{}.so".format(libname),  # less common, but seen on some distros
+    ]
+    for path in candidate_paths:
+        if repository_ctx.path(path).exists:
+            return path
+    fail(
+        "Could not find lib{lib}.so in any known location ({paths}) - looks like it isn't " +
+        "installed.\nRun:\n  {hint}".format(
+            lib = libname,
+            paths = ", ".join(candidate_paths),
+            hint = install_hint.format(pkgs = " ".join(packages)),
+        ),
+    )
+
+# Homebrew always puts it at exactly one place (unlike apt/dnf), so there's a single
+# candidate to check.
+def _find_mac_dylib_or_fail(repository_ctx, prefix, libname, brew_formula):
+    path = "{}/lib/lib{}.dylib".format(prefix, libname)
+    if repository_ctx.path(path).exists:
+        return path
+    fail(
+        "Could not find {path} - looks like `brew install {f}` didn't provide it, or " +
+        "Homebrew's layout for this formula has changed.".format(path = path, f = brew_formula),
     )
 
 def _system_libs_repo_impl(repository_ctx):
-    is_macos = _is_macos(repository_ctx)
+    on_macos = is_macos(repository_ctx)
 
-    build_file_parts = ['load("@rules_cc//cc:cc_library.bzl", "cc_library")']
+    build_file_parts = [
+        'load("@rules_cc//cc:cc_import.bzl", "cc_import")',
+    ]
     build_file_parts.append('package(default_visibility = ["//visibility:public"])')
 
-    # --- ROOT: OS-agnostic. Uses root-config, ROOT's own official query tool, rather than
-    # guessing an install layout (which differs between Homebrew's Cellar, a root.cern tarball
-    # extracted to /opt/root, LCG, conda...). Every ROOT install ships root-config for exactly
-    # this reason, regardless of how it got onto the machine.
-    root_config = repository_ctx.which("root-config")
-    if not root_config:
-        fail(_root_config_not_found_error())
+    # Every macOS formula's absolute <prefix>/lib directory (empty on Linux), written out below
+    # as its own .bzl file so release_binary.bzl/harvest_runtime_libs.bzl can bake these in as
+    # extra RPATH entries (see harvest_runtime_libs.bzl's docstring for why).
+    mac_lib_dirs = []
 
-    root_incdir = repository_ctx.execute([root_config, "--incdir"]).stdout.strip()
-    root_libdir = repository_ctx.execute([root_config, "--libdir"]).stdout.strip()
-    root_bindir = repository_ctx.execute([root_config, "--bindir"]).stdout.strip()
-
-    # Base libs (Core, RIO, Net, Hist, Graf, Tree, ... ) from root-config, plus the extra
-    # COMPONENTS Katydid's CMakeLists.txt explicitly requests via
-    # find_package(ROOT 6.00 COMPONENTS Gui Spectrum TMVA) - root-config --libs alone doesn't
-    # include those, they have to be added by hand the same way CMake's find_package would.
-    root_base_libs_result = repository_ctx.execute([root_config, "--libs"])
-    if root_base_libs_result.return_code != 0:
-        fail("`root-config --libs` failed:\n" + root_base_libs_result.stderr)
-    root_extra_component_libs = ["-lGui", "-lSpectrum", "-lTMVA"]
-
-    repository_ctx.symlink(root_incdir, "root/include")
-
-    root_base_libs = [x for x in root_base_libs_result.stdout.strip().split(" ") if x]
-    root_linkopts = (
-        root_base_libs +
-        root_extra_component_libs +
-        ["-Wl,-rpath," + root_libdir]  # ROOT dlopens plugin libs at runtime; needs rpath, not just -L
-    )
-
-    build_file_parts.append("""
-cc_library(
-    name = "root",
-    hdrs = glob(["root/include/**"], allow_empty = True),
-    includes = ["root/include"],
-    # Propagates to every transitive dependent, same reasoning as FFTW_FOUND below - Katydid's
-    # code checks #ifdef ROOT_FOUND throughout, matching CMake's `add_definitions(-DROOT_FOUND)`.
-    defines = ["ROOT_FOUND"],
-    linkopts = {linkopts},
-)
-""".format(linkopts = repr(root_linkopts)))
-
-    # rootcling lives in root-config's bindir; exposed as a plain file for root_dictionary.bzl
-    # to depend on as an executable.
-    repository_ctx.symlink(root_bindir + "/rootcling", "rootcling")
-    build_file_parts.append("""
-exports_files(["rootcling"])
-""")
-
-    # --- Boost / FFTW / MatIO: genuinely different discovery per OS, not just a different
-    # formula name. Homebrew deliberately keeps things out of default search paths (needs
-    # explicit -I/-L, found via `brew --prefix`); apt installs into them (needs neither).
-    if is_macos:
+    # Homebrew keeps headers out of the default include path (needs explicit hdrs/includes,
+    # found via `brew --prefix`); apt puts them on it (needs neither).
+    if on_macos:
         brew = repository_ctx.which("brew")
         if not brew:
             fail(
@@ -224,23 +197,42 @@ exports_files(["rootcling"])
                     ),
                 )
             prefix = result.stdout.strip()
+            mac_lib_dirs.append(prefix + "/lib")
 
-            # Symlink brew's include dir into this repo so `hdrs = glob(...)` has real files to
-            # see - brew's prefix lives outside the workspace/output tree, Bazel can't glob into
-            # it directly.
+            # Symlinks brew's include dir into this repo (needed for hdrs = glob(...) below).
             repository_ctx.symlink(prefix + "/include", formula + "/include")
 
-            linkopts = ["-L" + prefix + "/lib"] + ["-l" + lib for lib in info["libs"]]
+            # Real cc_import per library component, matching Linux (see module docstring).
+            component_import_labels = []
+            for lib in info["libs"]:
+                dylib_path = _find_mac_dylib_or_fail(repository_ctx, prefix, lib, brew_formula)
+                symlink_name = "{formula}/lib{lib}.dylib".format(formula = formula, lib = lib)
+                repository_ctx.symlink(dylib_path, symlink_name)
 
+                import_name = "_{formula}_{lib}_import".format(formula = formula, lib = lib)
+                component_import_labels.append(":" + import_name)
+                build_file_parts.append("""
+cc_import(
+    name = "{import_name}",
+    shared_library = "{symlink_name}",
+)
+""".format(import_name = import_name, symlink_name = symlink_name))
+
+            # hdrs/includes live on this aggregating target since Homebrew's include/ isn't on
+            # the default system include path (unlike apt/dnf's, on Linux).
             build_file_parts.append("""
-cc_library(
+cc_import(
     name = "{formula}",
     hdrs = glob(["{formula}/include/**"], allow_empty = True),
     includes = ["{formula}/include"],
     defines = {defines},
-    linkopts = {linkopts},
+    deps = {component_import_labels},
 )
-""".format(formula = formula, defines = repr(info.get("defines", [])), linkopts = repr(linkopts)))
+""".format(
+                formula = formula,
+                defines = repr(info.get("defines", [])),
+                component_import_labels = repr(component_import_labels),
+            ))
 
     else:
         pkg_manager, linux_libs = _linux_pkg_manager(repository_ctx)
@@ -255,21 +247,44 @@ cc_library(
                 install_hint,
             )
 
-            linkopts = ["-l" + lib for lib in info["libs"]]
+            # Symlinked into this repository first, then wrapped as cc_import.
+            component_import_labels = []
+            for lib in info["libs"]:
+                so_path = _find_shared_lib_or_fail(repository_ctx, lib, info["packages"], install_hint)
+                symlink_name = "{formula}/lib{lib}.so".format(formula = formula, lib = lib)
+                repository_ctx.symlink(so_path, symlink_name)
 
-            # No hdrs/includes: apt/dnf already put the headers on the compiler's default system
-            # include path (/usr/include), which Bazel's auto-configured C++ toolchain always
-            # allows inside the sandbox - the same mechanism that makes <vector>/<stdio.h> work
-            # without declaring them as hdrs on any target.
+                import_name = "_{formula}_{lib}_import".format(formula = formula, lib = lib)
+                component_import_labels.append(":" + import_name)
+                build_file_parts.append("""
+cc_import(
+    name = "{import_name}",
+    shared_library = "{symlink_name}",
+)
+""".format(import_name = import_name, symlink_name = symlink_name))
+
+            # No hdrs/includes: apt/dnf already put the headers on the compiler's default
+            # system include path.
+            #
+            # This aggregating target is a cc_import too (see module docstring for why), just
+            # deps on the per-component imports above.
             build_file_parts.append("""
-cc_library(
+cc_import(
     name = "{formula}",
     defines = {defines},
-    linkopts = {linkopts},
+    deps = {component_import_labels},
 )
-""".format(formula = formula, defines = repr(info.get("defines", [])), linkopts = repr(linkopts)))
+""".format(
+                formula = formula,
+                defines = repr(info.get("defines", [])),
+                component_import_labels = repr(component_import_labels),
+            ))
 
     repository_ctx.file("BUILD.bazel", "\n".join(build_file_parts))
+
+    # See mac_lib_dirs above: empty on Linux, one absolute <prefix>/lib directory per macOS
+    # formula otherwise.
+    repository_ctx.file("lib_dirs.bzl", "MAC_LIB_DIRS = " + repr(mac_lib_dirs) + "\n")
 
 _system_libs_repo = repository_rule(
     implementation = _system_libs_repo_impl,

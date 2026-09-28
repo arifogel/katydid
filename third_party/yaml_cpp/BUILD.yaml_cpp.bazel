@@ -1,4 +1,5 @@
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
 
 # BUILD file for @yaml_cpp (github.com/jbeder/yaml-cpp), used by Scarab to read Katydid's YAML
 # configuration files.
@@ -6,13 +7,27 @@ load("@rules_cc//cc:cc_library.bzl", "cc_library")
 package(default_visibility = ["//visibility:public"])
 
 cc_library(
-    name = "yaml_cpp",
+    name = "yaml_cpp_headers",
+    hdrs = glob(["include/yaml-cpp/**/*.h"]),
+    includes = ["include"],
+)
+
+# Real, substantial source compiled ourselves (unlike boost/fftw/matio/root, which already
+# exist as precompiled system .so's and are wrapped via cc_import instead - see
+# tools/system_deps.bzl's top comment).
+cc_library(
+    name = "yaml_cpp_lib",
     srcs = glob([
         "src/*.cpp",
         "src/contrib/*.cpp",
         "src/*.h",
         "src/contrib/*.h",
     ]),
-    hdrs = glob(["include/yaml-cpp/**/*.h"]),
-    includes = ["include"],
+    deps = [":yaml_cpp_headers"],
+)
+
+cc_shared_library(
+    name = "yaml_cpp",
+    shared_lib_name = "libyaml-cpp.so",
+    deps = [":yaml_cpp_lib"],
 )

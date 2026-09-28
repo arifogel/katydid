@@ -10,11 +10,33 @@
 # are.
 
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
 
 package(default_visibility = ["//visibility:public"])
 
 cc_library(
-    name = "katydid_data",
+    name = "katydid_data_headers",
+    hdrs = glob([
+        "SpectrumAnalysis/*.hh",
+        "EventAnalysis/*.hh",
+        "Time/*.hh",
+        "Transform/*.hh",
+    ]),
+    includes = [
+        ".",
+        "EventAnalysis",
+        "SpectrumAnalysis",
+        "Time",
+        "Transform",
+    ],
+    deps = [
+        "//Source/Utility:katydid_utility_headers",
+        "//vendor/nanoflann",
+    ],
+)
+
+cc_library(
+    name = "katydid_data_lib",
     srcs = [
         "EventAnalysis/KTClassifierResultsData.cc",
         "EventAnalysis/KTFrequencyCandidate.cc",
@@ -78,21 +100,15 @@ cc_library(
         "Transform/KTTimeFrequencyDataPolar.cc",
         "Transform/KTTimeFrequencyPolar.cc",
     ],
-    hdrs = glob([
-        "SpectrumAnalysis/*.hh",
-        "EventAnalysis/*.hh",
-        "Time/*.hh",
-        "Transform/*.hh",
-    ]),
-    includes = [
-        ".",
-        "EventAnalysis",
-        "SpectrumAnalysis",
-        "Time",
-        "Transform",
-    ],
-    deps = [
+    deps = [":katydid_data_headers"],
+)
+
+cc_shared_library(
+    name = "katydid_data",
+    dynamic_deps = [
         "//Source/Utility:katydid_utility",
-        "//vendor/nanoflann",
+        "@nymph",
     ],
+    shared_lib_name = "libKatydidData.so",
+    deps = [":katydid_data_lib"],
 )

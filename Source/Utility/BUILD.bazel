@@ -4,26 +4,25 @@
 # needs to be usable interactively from the ROOT prompt.
 
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
 load("//tools:root_dictionary.bzl", "root_dictionary")
 
 package(default_visibility = ["//visibility:public"])
 
-# Exposes this module's headers, and everything reachable through its dependencies, without
-# depending on the full katydid_utility library below - which would be circular, since that
-# library's sources include the dictionary file generated from this target.
 cc_library(
     name = "katydid_utility_headers",
     hdrs = glob([
         "*.hh",
         "complexpolar/*.hh",
     ]),
+    defines = ["USE_CPP11"],
     includes = ["."],
     deps = [
-        "@nymph",
-        "@scarab",
+        "@nymph//:nymph_headers",
+        "@root",
+        "@scarab//:scarab_headers",
         "@system_libs//:boost",
         "@system_libs//:fftw",
-        "@system_libs//:root",
     ],
 )
 
@@ -35,7 +34,7 @@ root_dictionary(
 )
 
 cc_library(
-    name = "katydid_utility",
+    name = "katydid_utility_lib",
     srcs = [
         "KTAxisProperties.cc",
         "KTCountHistogram.cc",
@@ -48,20 +47,18 @@ cc_library(
         "complexpolar/specialization.cc",
         ":UtilityDict_cxx",
     ],
-    hdrs = glob([
-        "*.hh",
-        "complexpolar/*.hh",
-    ]),
-    # ROOT's class loader looks for the generated .pcm file next to the compiled library or
-    # executable at runtime, not just at compile time, so it needs to be a runtime dependency.
+    # ROOT's class loader looks for the generated .pcm file next to the compiled library at
+    # runtime, not just at compile time, so it needs to be a runtime dependency.
     data = [":UtilityDict_pcm"],
-    defines = ["USE_CPP11"],
-    includes = ["."],
-    deps = [
+    deps = [":katydid_utility_headers"],
+)
+
+cc_shared_library(
+    name = "katydid_utility",
+    dynamic_deps = [
         "@nymph",
         "@scarab",
-        "@system_libs//:boost",
-        "@system_libs//:fftw",
-        "@system_libs//:root",
     ],
+    shared_lib_name = "libKatydidUtility.so",
+    deps = [":katydid_utility_lib"],
 )
