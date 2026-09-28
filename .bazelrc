@@ -26,3 +26,8 @@ build --curses=yes
 # other, instead of silently proceeding against a stale lockfile. Run
 # `bazel mod deps --lockfile_mode=update` to regenerate the lockfile after changing MODULE.bazel.
 common --lockfile_mode=error
+
+# AlmaLinux 9 builds pass --config=almalinux, switching Boost/FFTW to tools/rpm_deps.bzl's
+# hermetic fetch instead of tools/system_deps.bzl's host discovery (see
+# //tools:is_almalinux and Source/Utility/BUILD.bazel).
+build:almalinux --define=distro=almalinux

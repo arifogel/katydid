@@ -149,12 +149,15 @@ jobs:
       # repositories) rather than apt. gcc-c++ and git are not Katydid dependencies as such -
       # they are needed for Bazel itself to work at all (a C++ compiler, and the `git` command
       # Bazel uses to fetch Katydid's own bundled dependencies), and are not present in this
-      # minimal container image by default.
+      # minimal container image by default. cpio is needed to unpack the .rpm packages
+      # tools/rpm_deps.bzl fetches (rpm2cpio itself ships with the base image already, as part
+      # of the `rpm` package dnf depends on). Boost/FFTW/TBB/xxhash/FreeType/GSL are not
+      # installed here at all - --config=almalinux below fetches those hermetically instead
+      # (see tools/rpm_deps.bzl).
       #
-      # matio-devel requires the EPEL repository; boost-devel, fftw-devel, tbb-devel, freetype,
-      # and gsl are in AlmaLinux's own default repository. CRB is enabled in case any future
-      # dependency needs it - enabling it costs nothing if unused.
-      - name: Install build tools and Boost/FFTW/MatIO runtime deps (dnf)
+      # matio-devel requires the EPEL repository. CRB is enabled in case any future dependency
+      # needs it - enabling it costs nothing if unused.
+      - name: Install build tools (dnf)
         run: |
           dnf install -y epel-release
           dnf config-manager --set-enabled crb
@@ -163,13 +166,8 @@ jobs:
             git \
             wget \
             tar \
-            boost-devel \
-            fftw-devel \
-            matio-devel \
-            tbb-devel \
-            xxhash-devel \
-            freetype \
-            gsl
+            cpio \
+            matio-devel
 
       # bazel-contrib/setup-bazel's usual automatic Bazel installation does not reliably work
       # inside this minimal container image, so Bazelisk (the tool that installs the correct
@@ -205,7 +203,7 @@ jobs:
           cache-version: almalinux9
 
       - name: Verify MODULE.bazel.lock is up to date and build everything
-        run: bazel build //...
+        run: bazel build --config=almalinux //...
 
       - name: Check a built test binary for missing shared libraries
         run: |
@@ -217,7 +215,7 @@ jobs:
           fi
 
       - name: Test everything
-        run: bazel test //...
+        run: bazel test --config=almalinux //...
 
   lint-and-format:
     runs-on: ubuntu-latest
