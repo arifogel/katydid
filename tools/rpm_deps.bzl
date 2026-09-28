@@ -81,10 +81,14 @@ _RPM_DOWNLOADS = {
         "filename": "fftw-libs-double-3.3.8-12.el9.x86_64.rpm",
         "sha256": "3beed15e45dc5b33e64532da7412c243368eca5be5f113164425bb09c04da0fe",
     },
-    "tbb-devel": {
+    # tbb-devel's own usr/lib64/libtbb.so is the same kind of broken unversioned symlink
+    # boost-devel/fftw-devel have - and unlike Boost/FFTW, nothing here needs TBB's headers at
+    # all, so this uses the plain runtime "tbb" package directly instead of also keeping
+    # tbb-devel around for nothing.
+    "tbb": {
         "repo": "AppStream",
-        "filename": "tbb-devel-2020.3-9.el9.x86_64.rpm",
-        "sha256": "f5b356364d8e02331919d69c98602389829c7096c92c02e14f17b1ff1f61f56d",
+        "filename": "tbb-2020.3-9.el9.x86_64.rpm",
+        "sha256": "c0400e2eca46d4b54d52f9ff000fda086557867d7c46bf0ec9f23e1285bc1cb8",
     },
     "xxhash-libs": {
         "repo": "AppStream",
@@ -118,7 +122,7 @@ _EXTRACTED_LIBS = [
     ("boost-date-time", "usr/lib64/libboost_date_time.so.1.75.0", "libboost_date_time.so.1.75.0"),
     ("boost-program-options", "usr/lib64/libboost_program_options.so.1.75.0", "libboost_program_options.so.1.75.0"),
     ("fftw-libs-double", "usr/lib64/libfftw3.so.3.5.8", "libfftw3.so.3"),
-    ("tbb-devel", "usr/lib64/libtbb.so", "libtbb.so.2"),
+    ("tbb", "usr/lib64/libtbb.so.2", "libtbb.so.2"),
     ("xxhash-libs", "usr/lib64/libxxhash.so.0.8.2", "libxxhash.so.0"),
     ("freetype", "usr/lib64/libfreetype.so.6.17.4", "libfreetype.so.6"),
     ("gsl", "usr/lib64/libgsl.so.25.0.0", "libgsl.so.25"),
