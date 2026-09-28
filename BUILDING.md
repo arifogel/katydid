@@ -10,8 +10,7 @@ just follow the steps for your operating system below.
 Bazel is a build tool, like CMake, but with one property that matters for Katydid: once you've
 installed a short list of system libraries (below), Bazel downloads and builds everything else
 automatically — Nymph, Scarab, Cicada, and Katydid's other bundled dependencies — with a single
-command. There's no `git submodule update`, no `ccmake` configuration screen, and no separate
-install step. If you edit a source file and rebuild, Bazel recompiles only what changed.
+command. If you edit a source file and rebuild, Bazel recompiles only what changed.
 
 This is currently a secondary way to build Katydid, alongside the CMake/Docker workflow. Use
 whichever one your collaborators or supervisor recommend if you're not sure.
@@ -31,7 +30,7 @@ close to correct, but you may need help from someone familiar with Bazel.
 
 Bazel is normally installed via a small helper program called **Bazelisk**, which reads a file
 in the Katydid repository (`.bazelversion`) and automatically downloads the exact version of
-Bazel that Katydid needs. You don't need to think about Bazel version numbers yourself.
+Bazel that Katydid needs.
 
 **macOS:**
 ```
@@ -51,8 +50,7 @@ thing.
 
 Bazel fetches Katydid's own bundled dependencies (Nymph, Scarab, Cicada, and a few small
 libraries) automatically, and - on the three platforms above - ROOT too, as a prebuilt binary
-downloaded directly by Bazel the first time you build. There's nothing to install for ROOT
-specifically: no `brew install root`, no manual download, no `PATH`/`thisroot.sh` setup.
+downloaded directly by Bazel the first time you build.
 
 Boost, FFTW, and MatIO are still installed the normal way for your operating system.
 
@@ -62,7 +60,7 @@ Boost, FFTW, and MatIO are still installed the normal way for your operating sys
 brew install boost fftw libmatio
 ```
 
-That's it — nothing else to configure. Bazel will find these automatically.
+Bazel will find these automatically.
 
 ### Ubuntu 24.04
 
