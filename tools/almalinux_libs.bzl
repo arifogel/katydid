@@ -217,7 +217,7 @@ def check_is_elf_or_fail(repository_ctx, path, pkg_name, source_path):
 # Starlark disallows nested defs, so this builds one cc_import's worth of BUILD.bazel text
 # (the aggregating target plus one component cc_import per .so) as a standalone helper rather
 # than a closure inside _almalinux_libs_repo_impl.
-def cc_import_snippet(name, so_names, hdrs_glob = [], includes = []):
+def cc_import_snippet(name, so_names, hdrs_glob = [], includes = [], defines = []):
     parts = []
     component_labels = []
     for so_name in so_names:
@@ -234,12 +234,14 @@ cc_import(
     name = "{name}",
     hdrs = glob({hdrs_glob}, allow_empty = True),
     includes = {includes},
+    defines = {defines},
     deps = {component_labels},
 )
 """.format(
         name = name,
         hdrs_glob = repr(hdrs_glob),
         includes = repr(includes),
+        defines = repr(defines),
         component_labels = repr(component_labels),
     ))
     return parts
@@ -279,6 +281,11 @@ def _almalinux_libs_repo_impl(repository_ctx):
         so_names = ["libfftw3.so.3"],
         hdrs_glob = ["fftw-devel_extracted/usr/include/fftw3.h"],
         includes = ["fftw-devel_extracted/usr/include"],
+        # Katydid's code checks #ifdef FFTW_FOUND (e.g. Data/Time/KTPhysicalArrayFFTW.hh) to
+        # decide whether real FFTW is available, matching the CMake build's
+        # add_definitions(-DFFTW_FOUND) - see tools/macos_libs.bzl/tools/ubuntu_libs.bzl for
+        # the same define on the other two platforms.
+        defines = ["FFTW_FOUND"],
     ))
     build_file_parts.extend(cc_import_snippet(
         name = "matio",
