@@ -2,6 +2,36 @@
 BUILD.bazel snippets.
 """
 
+# Katydid's Boost/FFTW/MatIO Homebrew formulae: {exposed name: {libs, defines, brew_formula}}.
+# brew_formula defaults to the exposed name; set only where Homebrew's formula name differs
+# (e.g. "libmatio" for MatIO - Homebrew's own formula name doesn't always match Katydid's
+# target name).
+MAC_BREW_FORMULAE = {
+    "boost": {
+        # Nymph/Scarab/Katydid link these specific components, not just Boost's header-only
+        # parts. boost_system deliberately omitted: header-only since 1.69, and Boost 1.89
+        # removed the compiled stub library entirely - linking -lboost_system fails on any
+        # current Homebrew Boost.
+        "libs": [
+            "boost_filesystem",
+            "boost_thread",
+            "boost_date_time",
+            "boost_program_options",
+        ],
+    },
+    "fftw": {
+        "libs": ["fftw3"],
+        # Katydid's code checks #ifdef FFTW_FOUND (e.g. Data/Time/KTPhysicalArrayFFTW.hh) to
+        # choose between real fftw3.h and a bundled stand-in header - matches CMake's
+        # add_definitions(-DFFTW_FOUND).
+        "defines": ["FFTW_FOUND"],
+    },
+    "matio": {
+        "brew_formula": "libmatio",
+        "libs": ["matio"],
+    },
+}
+
 def brew_require(repository_ctx):
     """Returns the `brew` binary's path, failing with an install hint if it's not on PATH.
 

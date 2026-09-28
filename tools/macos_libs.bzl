@@ -9,35 +9,7 @@ Nothing should reference this repo directly - resolution to whichever platform r
 actually live on the current host happens with no select()/config_setting/flag anywhere.
 """
 
-load(":brew.bzl", "brew_cc_import_snippet", "brew_require")
-
-_FORMULAE = {
-    "boost": {
-        # Nymph/Scarab/Katydid link these specific components, not just Boost's header-only
-        # parts. boost_system deliberately omitted: header-only since 1.69, and Boost 1.89
-        # removed the compiled stub library entirely - linking -lboost_system fails on any
-        # current Homebrew Boost.
-        "libs": [
-            "boost_filesystem",
-            "boost_thread",
-            "boost_date_time",
-            "boost_program_options",
-        ],
-    },
-    "fftw": {
-        "libs": ["fftw3"],
-        # Katydid's code checks #ifdef FFTW_FOUND (e.g. Data/Time/KTPhysicalArrayFFTW.hh) to
-        # choose between real fftw3.h and a bundled stand-in header - matches CMake's
-        # add_definitions(-DFFTW_FOUND).
-        "defines": ["FFTW_FOUND"],
-    },
-    # Homebrew's formula for MatIO is "libmatio", not "matio" - keep the exposed target name
-    # ("matio") matching what Katydid's CMake calls it, separate from the brew formula name.
-    "matio": {
-        "brew_formula": "libmatio",
-        "libs": ["matio"],
-    },
-}
+load(":brew.bzl", "MAC_BREW_FORMULAE", "brew_cc_import_snippet", "brew_require")
 
 def _macos_libs_repo_impl(repository_ctx):
     brew = brew_require(repository_ctx)
@@ -46,7 +18,7 @@ def _macos_libs_repo_impl(repository_ctx):
         'load("@rules_cc//cc:cc_import.bzl", "cc_import")',
         'package(default_visibility = ["//visibility:public"])',
     ]
-    for formula, info in _FORMULAE.items():
+    for formula, info in MAC_BREW_FORMULAE.items():
         parts, _lib_dir = brew_cc_import_snippet(
             repository_ctx,
             brew = brew,

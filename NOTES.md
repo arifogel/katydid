@@ -125,9 +125,9 @@ directly. This is a three-layer design:
    `alias()` to `@almalinux_libs`'s version on AlmaLinux, an empty `filegroup` elsewhere), so
    root `BUILD.bazel` can reference it unconditionally with no `select()` of its own.
    `@binary_deps//:lib_dirs.bzl`'s `LIB_DIRS` (macOS Homebrew formula directories, needed for
-   RPATH patching in the release archive) is computed the same way, directly via
-   `tools/brew.bzl` rather than loading `@macos_libs`'s own output, to avoid forcing that fetch
-   on non-macOS hosts.
+   RPATH patching in the release archive) is computed the same way, from `tools/brew.bzl`'s
+   `MAC_BREW_FORMULAE` table - the same table `tools/macos_libs.bzl` builds its `cc_import`s
+   from.
 3. **RPATH modification** at release-packaging time (`Source/Executables/Main/harvest_runtime_libs.bzl`,
    `release_binary.bzl`) - unchanged by which retrieval repo actually backed `@binary_deps` on a
    given host.

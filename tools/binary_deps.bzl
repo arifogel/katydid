@@ -6,7 +6,7 @@ tools/ubuntu_libs.bzl, and tools/almalinux_libs.bzl are retrieval-only and nothi
 file should reference them directly.
 """
 
-load(":brew.bzl", "brew_prefix", "brew_require")
+load(":brew.bzl", "MAC_BREW_FORMULAE", "brew_prefix", "brew_require")
 load(":repo_utils.bzl", "is_macos", "linux_distro_id")
 
 # {dependency: {host_key: underlying label}} - see tools/macos_libs.bzl, tools/ubuntu_libs.bzl,
@@ -28,12 +28,6 @@ _LIBS = {
         "almalinux": "@almalinux_libs//:matio",
     },
 }
-
-# Homebrew formula names for the LIB_DIRS/RPATH computation below. @macos_libs computes an
-# equivalent list, but loading it here would fetch @macos_libs on every platform this file runs
-# on, defeating this file's per-host fetch laziness (see the module docstring) - so this list is
-# kept in sync with it by hand instead.
-_MAC_BREW_FORMULAE = ["boost", "fftw", "libmatio"]
 
 def _host_key(repository_ctx):
     if is_macos(repository_ctx):
@@ -68,14 +62,13 @@ def _binary_deps_repo_impl(repository_ctx):
     repository_ctx.file("BUILD.bazel", "\n".join(build_file_parts))
 
     # Extra RPATH directories to bake in at release-packaging time on macOS, where Homebrew
-    # keeps formulae off the default library search path. Empty everywhere else. Computed
-    # directly via tools/brew.bzl rather than a shared generated source (see _MAC_BREW_FORMULAE
-    # above for why).
+    # keeps formulae off the default library search path. Empty everywhere else.
     lib_dirs = []
     if key == "mac":
         brew = brew_require(repository_ctx)
-        for formula in _MAC_BREW_FORMULAE:
-            lib_dirs.append(brew_prefix(repository_ctx, brew, formula) + "/lib")
+        for formula, info in MAC_BREW_FORMULAE.items():
+            brew_formula = info.get("brew_formula", formula)
+            lib_dirs.append(brew_prefix(repository_ctx, brew, brew_formula) + "/lib")
 
     # One '-add_rpath <dir>' per entry in lib_dirs, ready to splice into an install_name_tool
     # command line.
