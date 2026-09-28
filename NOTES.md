@@ -29,6 +29,8 @@ and with C/C++ build and link mechanics generally.
   (see "Known pre-existing issues" below).
 - `tools/root.bzl` — fetches a prebuilt ROOT binary from root.cern for the current platform,
   exposed as `@root`.
+- `tools/repo_utils.bzl` — `repository_ctx` helpers (`is_macos`, `linux_distro_id`) shared
+  between `tools/root.bzl` and `tools/system_deps.bzl`.
 - `tools/system_deps.bzl` — locates Boost, FFTW, and MatIO on the host machine and exposes
   them as `cc_library`/`cc_import` targets under the repository name `@system_libs`.
 - `tools/root_dictionary.bzl` — a Bazel rule wrapping `rootcling`, replacing CMake's
@@ -51,39 +53,38 @@ linking assumptions carry over unchanged.
 
 ## How ROOT, Boost, FFTW, and MatIO are located
 
-`tools/system_deps.bzl` implements a single repository rule, exposed as `@system_libs`, that
-branches on the host platform:
+**ROOT** (`tools/root.bzl`) is fetched directly as a prebuilt binary from root.cern, one exact,
+baked-in URL per supported platform (Ubuntu 24.04, AlmaLinux 9.x, macOS on arm64), pinned to one
+`_ROOT_VERSION`, exposed as `@root`. ROOT's prebuilt binaries are versioned per exact OS release
+and toolchain, not just "linux" or "macos", so this reads `/etc/os-release`'s `ID` field on
+Linux rather than just checking which package manager is on `PATH`. After extracting the
+tarball, the rule still queries the now-locally-extracted `root-config --libs` (rather than
+hardcoding the libs list), and adds `-lGui -lSpectrum -lTMVA` on top, matching Katydid's
+`find_package(ROOT 6.00 COMPONENTS Gui Spectrum TMVA)` in the original CMake build. `rootcling`
+is symlinked to the repository root and exposed as `@root//:rootcling`. No installation step,
+and no `root-config` needs to already be on `PATH` beforehand.
 
-- **ROOT** is fetched directly as a prebuilt binary from root.cern, one exact, baked-in URL per
-  supported platform (Ubuntu 24.04, AlmaLinux 9.x, macOS on arm64 - the three this repository's
-  CI supports), pinned to one `_ROOT_VERSION`. Unlike Boost/FFTW/MatIO below, ROOT's prebuilt
-  binaries are versioned per exact OS release and toolchain, not just "linux" or "macos", so
-  this reads `/etc/os-release`'s `ID` field on Linux rather than just checking which package
-  manager is on `PATH`. After extracting the tarball, the rule still queries the
-  now-locally-extracted `root-config --libs`/`--libdir` (rather than hardcoding the libs list),
-  and adds `-lGui -lSpectrum -lTMVA` on top, matching Katydid's
-  `find_package(ROOT 6.00 COMPONENTS Gui Spectrum TMVA)` in the original CMake build.
-  `rootcling` is symlinked to the repository root and exposed as `@system_libs//:rootcling`.
-  No installation step, and no `root-config` needs to already be on `PATH` beforehand.
-- **Boost, FFTW, and MatIO** are located differently depending on the package manager:
-  - On **macOS**, via Homebrew (`brew --prefix <formula>`), since Homebrew deliberately installs
-    outside the compiler's default search paths.
-  - On **Linux**, via whichever of `apt-get` or `dnf` is found on `PATH` — not by checking the
-    OS release name, so this doesn't need updating for other Linux distributions using the same
-    package managers. Neither `apt` nor `dnf` need explicit include/library paths, since both
-    install into the compiler and linker's default search locations.
-  - Correctness is checked by looking for a representative header file for each library
-    (`boost/version.hpp`, `fftw3.h`, `matio.h`), not by asking the package manager whether a
-    specific package name is installed. This matters in practice: some Linux package managers
-    use "transitional" wrapper packages for versioned libraries (e.g. Ubuntu's
-    `libboost-filesystem-dev` simply depends on the real `libboost-filesystem1.83-dev`), and
-    certain caching mechanisms used in CI do not reliably register these wrapper packages even
-    though the underlying files are present and working. Checking for the actual header
-    sidesteps this entirely.
+**Boost, FFTW, and MatIO** (`tools/system_deps.bzl`) are located differently depending on the
+package manager, exposed as `@system_libs`:
+
+- On **macOS**, via Homebrew (`brew --prefix <formula>`), since Homebrew deliberately installs
+  outside the compiler's default search paths.
+- On **Linux**, via whichever of `apt-get` or `dnf` is found on `PATH` — not by checking the OS
+  release name, so this doesn't need updating for other Linux distributions using the same
+  package managers. Neither `apt` nor `dnf` need explicit include/library paths, since both
+  install into the compiler and linker's default search locations.
+- Correctness is checked by looking for a representative header file for each library
+  (`boost/version.hpp`, `fftw3.h`, `matio.h`), not by asking the package manager whether a
+  specific package name is installed. This matters in practice: some Linux package managers use
+  "transitional" wrapper packages for versioned libraries (e.g. Ubuntu's
+  `libboost-filesystem-dev` simply depends on the real `libboost-filesystem1.83-dev`), and
+  certain caching mechanisms used in CI do not reliably register these wrapper packages even
+  though the underlying files are present and working. Checking for the actual header sidesteps
+  this entirely.
 
 `FFTW_FOUND` and `ROOT_FOUND` — preprocessor defines Katydid's own source checks with `#ifdef`
-— are set as `defines` directly on the `@system_libs//:fftw` and `@system_libs//:root` targets,
-so they propagate automatically to every target that depends on them, matching what
+— are set as `defines` directly on the `@system_libs//:fftw` and `@root//:root` targets, so
+they propagate automatically to every target that depends on them, matching what
 `add_definitions(-DFFTW_FOUND)` did project-wide in the CMake build.
 
 `boost_system` is deliberately not linked: `Boost.System` has been header-only since Boost
@@ -214,9 +215,8 @@ In library code:
 - `Source/Utility/KTSpline.hh` declares `Implement()` returning
   `std::shared_ptr<Implementation>`. `KTSpline.cc` matches this under `#ifdef ROOT_FOUND` — the
   only configuration this build ever compiles — but not in the `#else` branch, which returns a
-  raw `KTPhysicalArray<1,double>*` instead. `KTSpline.cc` was originally excluded from the
-  build over this mismatch, based on a reading of the file that didn't separate the two
-  branches; it is now included, since the branch this build actually uses is correct.
+  raw `KTPhysicalArray<1,double>*` instead. Since the branch this build actually compiles is
+  correct, `KTSpline.cc` is included in the build.
 
 In `Source/Executables/Validation` test files:
 
@@ -263,10 +263,9 @@ modules each tier's programs depend on), with two exceptions:
 
 - `TestDataDisplay` is excluded entirely: it launches an interactive ROOT GUI and cannot run
   unattended.
-- `Test2DDiscrim` is excluded: it directly constructs a `KTSpline` object, whose constructor
-  was undefined at the time this tier was ported (see `KTSpline` above). `KTSpline.cc` has
-  since been re-included in the build; this test has not been revisited since and may now be
-  portable without further work.
+- `Test2DDiscrim` is excluded: it directly constructs a `KTSpline` object (see `KTSpline`
+  above). Whether it's portable given `KTSpline.cc`'s current inclusion in the build hasn't
+  been checked.
 
 Most of these tests are smoke tests only — they run a processing pipeline on synthetic data and
 check that nothing crashes, without asserting on specific output values. A few do check for a
@@ -312,9 +311,8 @@ without Boost/FFTW/MatIO/ROOT actually present.
 
 ## Known limitations / possible future work
 
-- `Test2DDiscrim` (see "The Validation test suite" above) is excluded for a reason that no
-  longer holds now that `KTSpline.cc` is back in the build; revisiting it just hasn't happened
-  yet.
+- `Test2DDiscrim` (see "The Validation test suite" above) has not been checked for portability
+  given `KTSpline.cc`'s current inclusion in the build.
 - ROOT, Boost, FFTW, and MatIO are not built hermetically; the exact versions used depend on
   what is installed on the host. `MODULE.bazel.lock` only pins the Bazel Central Registry
   dependencies (`rules_cc`, `platforms`).
@@ -342,9 +340,7 @@ without Boost/FFTW/MatIO/ROOT actually present.
   plain system linker paths at archive-build time, not bundled into the archive itself, so the
   target machine still needs them installed; every other Katydid/Nymph/Scarab header isn't
   bundled or flattened into a single `include/Katydid/` the way the CMake install does, so the
-  archive isn't yet usable as a build-against dependency for downstream code; and the
-  RPATH-patching step (`Source/Executables/Main/release_binary.bzl`,
-  `Source/Executables/Main/harvest_runtime_libs.bzl`) only implements the Linux path
-  (`patchelf`) — the macOS equivalent (`install_name_tool`, which needs existing `LC_RPATH`
-  entries deleted before new ones are added, unlike `patchelf`'s single `--set-rpath`) is
-  unwritten and untested.
+  archive isn't yet usable as a build-against dependency for downstream code; and while
+  `bazel build //...` builds `//:katydid_release` (RPATH-patching included) on all three CI
+  platforms, nothing extracts the resulting archive and actually runs the binary from it, on
+  either Linux or macOS - so the patched RPATHs' correctness is never verified end-to-end.
