@@ -106,20 +106,23 @@ RPM_DOWNLOADS = {
     # real compiled library is in the plain "matio" runtime package below. Comes from EPEL
     # (dl.fedoraproject.org), not AlmaLinux's own vault - see the module docstring.
     #
-    # TODO(you): sha256 not yet verified from a real download - run, from a machine that can
-    # actually reach dl.fedoraproject.org (this repo's sandbox can't):
-    #   tools/pin_rpm.sh matio-devel https://dl.fedoraproject.org/pub/archive/epel/9/Everything/x86_64/Packages/m/matio-devel-1.5.27-1.el9.x86_64.rpm
-    # and paste the sha256 it prints in below. If that archive URL 404s (Fedora's archival sync
-    # can lag a freshly-released build briefly), see tools/pin_rpm.sh's own comment for how to
-    # confirm the sha256 against the live mirror in the meantime.
+    # dl.fedoraproject.org/pub/archive/epel/ is NOT indexed by a bare major version ("9") the
+    # way vault.almalinux.org is - it's dated/point snapshots (9.0, 9.1, ...). Pinned to 9.7 to
+    # match _ALMALINUX_VAULT_RELEASE above (confirmed present there via tools/find_epel_snapshot.sh,
+    # run from a machine that can actually reach dl.fedoraproject.org - this repo's sandbox
+    # can't).
+    #
+    # TODO(you): sha256 not yet verified from a real download - run:
+    #   tools/pin_rpm.sh matio-devel https://dl.fedoraproject.org/pub/archive/epel/9.7/Everything/x86_64/Packages/m/matio-devel-1.5.27-1.el9.x86_64.rpm
+    # and paste the sha256 it prints in below.
     "matio-devel": {
-        "url": "https://dl.fedoraproject.org/pub/archive/epel/9/Everything/x86_64/Packages/m/matio-devel-1.5.27-1.el9.x86_64.rpm",
+        "url": "https://dl.fedoraproject.org/pub/archive/epel/9.7/Everything/x86_64/Packages/m/matio-devel-1.5.27-1.el9.x86_64.rpm",
         "sha256": "TODO_RUN_tools/pin_rpm.sh",
     },
     # TODO(you): same as matio-devel above - run:
-    #   tools/pin_rpm.sh matio https://dl.fedoraproject.org/pub/archive/epel/9/Everything/x86_64/Packages/m/matio-1.5.27-1.el9.x86_64.rpm
+    #   tools/pin_rpm.sh matio https://dl.fedoraproject.org/pub/archive/epel/9.7/Everything/x86_64/Packages/m/matio-1.5.27-1.el9.x86_64.rpm
     "matio": {
-        "url": "https://dl.fedoraproject.org/pub/archive/epel/9/Everything/x86_64/Packages/m/matio-1.5.27-1.el9.x86_64.rpm",
+        "url": "https://dl.fedoraproject.org/pub/archive/epel/9.7/Everything/x86_64/Packages/m/matio-1.5.27-1.el9.x86_64.rpm",
         "sha256": "TODO_RUN_tools/pin_rpm.sh",
     },
     # tbb-devel's own usr/lib64/libtbb.so is the same kind of broken unversioned symlink

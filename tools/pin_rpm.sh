@@ -13,16 +13,16 @@
 #
 # Example (the two matio packages tools/almalinux_libs.bzl currently has as placeholders):
 #   tools/pin_rpm.sh matio-devel \
-#     https://dl.fedoraproject.org/pub/archive/epel/9/Everything/x86_64/Packages/m/matio-devel-1.5.27-1.el9.x86_64.rpm
+#     https://dl.fedoraproject.org/pub/archive/epel/9.7/Everything/x86_64/Packages/m/matio-devel-1.5.27-1.el9.x86_64.rpm
 #   tools/pin_rpm.sh matio \
-#     https://dl.fedoraproject.org/pub/archive/epel/9/Everything/x86_64/Packages/m/matio-1.5.27-1.el9.x86_64.rpm
+#     https://dl.fedoraproject.org/pub/archive/epel/9.7/Everything/x86_64/Packages/m/matio-1.5.27-1.el9.x86_64.rpm
 #
-# If the archive 404s (Fedora's archival sync can lag a freshly-released build by a bit),
-# retry against the live mirror instead - swap dl.fedoraproject.org/pub/archive/epel for
-# dl.fedoraproject.org/pub/epel, or vault.almalinux.org's release path for
-# repo.almalinux.org/almalinux - to at least confirm the sha256 now, then re-fetch from the
-# real archive URL once it's synced (the sha256 must come from the URL you actually pin, not
-# a substitute mirror - a matching sha256 doesn't guarantee the archive path is live yet).
+# dl.fedoraproject.org/pub/archive/epel/ is NOT indexed by a bare major version ("9") the way
+# vault.almalinux.org is indexed by AlmaLinux's own release numbers - it's dated/point
+# snapshots (9.0, 9.1, 9.2, ...), and not every snapshot has every package. If a URL 404s,
+# use tools/find_epel_snapshot.sh to find which snapshot(s) actually have the file before
+# retrying this script - don't substitute the live (non-archived) mirror just to get a sha256,
+# since that mirror is exactly the rolling, prunable source this pinning exists to avoid.
 set -euo pipefail
 
 if [ "$#" -ne 2 ]; then
