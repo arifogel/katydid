@@ -120,9 +120,7 @@ jobs:
 
       - name: Test everything
         run: bazel test -c ${{ matrix.compilation_mode }} //...
-  # A separate job, not a third value in the matrix above: GitHub Actions can fail workflow
-  # validation when an empty `container:` value means "run natively" for only some matrix
-  # combinations (https://github.com/actions/runner/issues/265).
+  # Container-based jobs:
   build-and-test-almalinux:
     name: Bazel Build (almalinux-9)
     runs-on: ubuntu-latest
