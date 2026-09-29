@@ -1,0 +1,42 @@
+# Exposes a portable, runnable Katydid to consumers outside this repo, without depending on
+# //:katydid_release's tarball directly and without @katydid//Source/Executables/Main:Katydid,
+# whose ROOT runtime dependency (etc/, include/, cint/) is never a declared Bazel dependency -
+# it only works today because Bazel's solib-farm symlinks happen to resolve into a live,
+# complete external-repo checkout, a property that breaks the moment anything (a release
+# archive, a py_image_layer/pkg_tar step) has to dereference those symlinks into standalone
+# files.
+#
+# :katydid_release_extracted and :katydid_wrapper_gen land as ordinary sibling data files
+# wherever :katydid is consumed, with no solib-farm indirection anywhere in the chain, so
+# bin/Katydid's own $(dirname "$0")-relative lookups for ../lib and ../root keep resolving
+# correctly even after a release/packaging step materializes a standalone copy of the
+# consumer's own runfiles.
+
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+load("//tools:katydid_release_extract.bzl", "katydid_release_extract")
+
+package(default_visibility = ["//visibility:private"])
+
+katydid_release_extract(
+    name = "katydid_release_extracted",
+)
+
+genrule(
+    name = "katydid_wrapper_gen",
+    outs = ["katydid.sh"],
+    cmd = """cat > $@ << 'WRAPPER_EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+DIR="$$(cd "$$(dirname "$${BASH_SOURCE[0]}")" && pwd)"
+exec "$$DIR/katydid_release_extracted/bin/Katydid" "$$@"
+WRAPPER_EOF
+chmod +x $@
+""",
+)
+
+sh_binary(
+    name = "katydid",
+    srcs = [":katydid_wrapper_gen"],
+    data = [":katydid_release_extracted"],
+    visibility = ["//visibility:public"],
+)
