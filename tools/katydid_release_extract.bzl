@@ -1,8 +1,5 @@
 """katydid_release_extract(): extracts //:katydid_release's own tarball into a tree artifact at
 ordinary build time.
-
-Repository rules can only resolve source files or another repo's own already-fetched content,
-never another target's build output in the same build.
 """
 
 def _katydid_release_extract_impl(ctx):
