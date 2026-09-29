@@ -1,9 +1,12 @@
-# Exposes a portable, runnable Katydid to consumers outside this repo, without depending on
-# //:katydid_release's tarball directly. A cc_binary linking ROOT has no declared Bazel
-# dependency on ROOT's own runtime data (etc/, include/, cint/) - it only works today because
-# Bazel's solib-farm symlinks happen to resolve into a live, complete external-repo checkout, a
-# property that breaks the moment anything (a release archive, a py_image_layer/pkg_tar step)
-# has to dereference those symlinks into standalone files.
+# Exposes a portable, runnable Katydid to consumers outside this repo: an ordinary build-time
+# extraction of //:katydid_release's tarball (see //tools:katydid_release_extract.bzl), wrapped
+# in a plain sh_binary.
+#
+# A cc_binary linking ROOT has no declared Bazel dependency on ROOT's own runtime data (etc/,
+# include/, cint/) - it only works today because Bazel's solib-farm symlinks happen to resolve
+# into a live, complete external-repo checkout, a property that breaks the moment anything (a
+# release archive, a py_image_layer/pkg_tar step) has to dereference those symlinks into
+# standalone files.
 #
 # :katydid_release_extracted and :katydid_wrapper_gen land as ordinary sibling data files
 # wherever :katydid is consumed, with no solib-farm indirection anywhere in the chain, so
