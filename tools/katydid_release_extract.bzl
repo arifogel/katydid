@@ -2,10 +2,8 @@
 ordinary build time.
 
 Repository rules can only resolve source files or another repo's own already-fetched content,
-never another target's build output in the same build - so a generated repo can't consume
-//:katydid_release's pkg_tar output directly. This is an ordinary action instead, dependency-
-ordered the usual way, so //release:katydid (see //release:BUILD.bazel) can depend on it
-directly.
+never another target's build output in the same build, so consuming //:katydid_release's pkg_tar
+output as a dependency requires an ordinary action rather than a repository rule.
 """
 
 def _katydid_release_extract_impl(ctx):
