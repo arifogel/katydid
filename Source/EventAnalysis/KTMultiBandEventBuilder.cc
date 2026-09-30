@@ -65,7 +65,7 @@ namespace Katydid
             fLogEventSizePrior[k] = std::log(fLogEventSizePrior[k]);
             KTINFO(tclog,"Event Prior log-likelihood("<<k<<")= "<<fLogEventSizePrior[k]);
 
-            fLogTrackFrequencyBandwidths[k] = -std::log(fTrackFrequencyBandwidths[std::min(k, nTrackFrequencyBandwidths)]);
+            fLogTrackFrequencyBandwidths[k] = -std::log(fTrackFrequencyBandwidths[std::min(k, nTrackFrequencyBandwidths - 1)]);
             //KTINFO(tclog,"Event Prior log-likelihood("<<k<<")= "<<fLogEventSizePrior[k]);
         }
 
@@ -224,7 +224,7 @@ namespace Katydid
         //key function that given a vector of track objects, evalautes the logLikelihood of the data being consistent with the proposed event clustering
         // return pair for the event class label (which we need for len(3) events) and the LLH
         const unsigned nTracks = tracks.size();
-        double logL = fLogTrackFrequencyBandwidths[0];
+        double logL = fLogTrackFrequencyBandwidths[nTracks];
         unsigned label = nTracks;
         const double neg_inf = -std::numeric_limits<double>::infinity();
         std::pair<unsigned, double> outputInfo = {label, logL};
