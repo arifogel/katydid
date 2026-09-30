@@ -2,8 +2,9 @@
 	path = Source/Time/Monarch
 	url = https://github.com/project8/monarch.git
 [submodule "Nymph"]
-	path = Nymph
-	url = https://github.com/project8/nymph
+  path = Nymph
+  # for runtime log-level configuration
+	url = https://github.com/arifogel/nymph
 [submodule "Cicada"]
 	path = Cicada
 	url = https://github.com/Helium6CRES/cicada
