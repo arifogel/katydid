@@ -1,4 +1,4 @@
-load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@katydid//tools:katydid_cc.bzl", "katydid_cc_library")
 load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
 
 # BUILD file for @nymph (github.com/project8/nymph), the processing-framework library that
@@ -9,7 +9,7 @@ load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
 
 package(default_visibility = ["//visibility:public"])
 
-cc_library(
+katydid_cc_library(
     name = "nymph_headers",
     hdrs = glob([
         "Library/Utility/*.hh",
@@ -32,7 +32,7 @@ cc_library(
     ],
 )
 
-cc_library(
+katydid_cc_library(
     name = "nymph_lib",
     srcs = [
         "Library/Application/KTApplication.cc",

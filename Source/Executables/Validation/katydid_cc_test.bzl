@@ -1,7 +1,7 @@
 """Defines katydid_cc_test, the rule to use for a Katydid C++ test in this package."""
 
-load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 load("//Source/Executables/Main:root_include_path_launcher.bzl", "root_include_path_test_launcher")
+load("//tools:katydid_cc.bzl", "katydid_cc_binary")
 
 # Relative labels here resolve against whichever package actually calls this macro (Validation's),
 # not this .bzl file's package - the genrules they name are defined in that BUILD file.
@@ -21,7 +21,7 @@ def katydid_cc_test(name, srcs, deps, dynamic_deps, data = []):
         data: runtime data files for the test.
     """
     bin_name = name + "_bin"
-    cc_binary(
+    katydid_cc_binary(
         name = bin_name,
         testonly = True,
         srcs = srcs,

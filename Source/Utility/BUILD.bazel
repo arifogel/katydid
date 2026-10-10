@@ -3,13 +3,13 @@
 # application/GUI loop), plus the ROOT dictionary for the one class here (KTRootGuiLoop) that
 # needs to be usable interactively from the ROOT prompt.
 
-load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
+load("//tools:katydid_cc.bzl", "katydid_cc_library")
 load("//tools:root_dictionary.bzl", "root_dictionary")
 
 package(default_visibility = ["//Source:__subpackages__"])
 
-cc_library(
+katydid_cc_library(
     name = "katydid_utility_headers",
     hdrs = glob([
         "*.hh",
@@ -33,7 +33,7 @@ root_dictionary(
     deps = [":katydid_utility_headers"],
 )
 
-cc_library(
+katydid_cc_library(
     name = "katydid_utility_lib",
     srcs = [
         "KTAxisProperties.cc",

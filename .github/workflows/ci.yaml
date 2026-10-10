@@ -16,8 +16,9 @@ jobs:
         os: [ubuntu-24.04, macos-26]
         compilation_mode: [fastbuild]
         include:
-          # dbg and opt get special-cased handling in the Bazel build (see .bazelrc's
-          # STANDARD define and KTLogger's own NDEBUG/STANDARD-gated verbosity floor) that
+          # dbg and opt get special-cased handling in the Bazel build (see
+          # tools/katydid_cc.bzl's STANDARD define and KTLogger's own NDEBUG/STANDARD-gated
+          # verbosity floor) that
           # fastbuild alone never exercises - dbg is also specifically the mode CLion's
           # Bazel plugin uses when debugging, and opt is what actual production runs use.
           # One OS is enough to catch a regression in either; this logic is not
