@@ -1,4 +1,4 @@
-"""rpath_patched_copies copies each src into <name>/ with its RPATH replaced (Linux, patchelf)."""
+"""rpath_patched_copies yields copies of its srcs with their RPATH replaced by rpath. Linux only."""
 
 def _rpath_patched_copies_impl(ctx):
     outputs = []
@@ -27,5 +27,4 @@ rpath_patched_copies = rule(
         "rpath": attr.string(mandatory = True, doc = "RPATH to set, verbatim."),
         "_patchelf": attr.label(default = Label("@patchelf//:patchelf"), executable = True, cfg = "exec"),
     },
-    doc = "Copies srcs with their RPATH replaced.",
 )
