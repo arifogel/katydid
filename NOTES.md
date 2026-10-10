@@ -106,7 +106,11 @@ directly. This is a three-layer design:
      mirror prunes superseded builds outright, unlike `apt`'s or Homebrew's. Also fetches the
      four extra libraries (TBB, xxhash, FreeType, GSL) ROOT's own prebuilt AlmaLinux binaries
      dynamically depend on but don't bundle, exposed as
-     `@almalinux_libs//:root_runtime_extra_libs`.
+     `@almalinux_libs//:root_runtime_extra_libs`. Also fetches the gcc 11 C++ compiler and its
+     glibc, kernel, and libstdc++ headers, merged into a relocatable `usr/` tree exposed as
+     `@almalinux_libs//:compiler_{bin,cc1plus,files}`. Cling's startup probe runs `c++ -E -v` and
+     needs the compiler's header search paths. The RPMs' license files ship under
+     `compiler/usr/share/licenses`.
    - On macOS and Ubuntu, correctness is checked by looking for a representative header file for
      each library (`boost/version.hpp`, `fftw3.h`, `matio.h`), not by asking the package manager
      whether a specific package name is installed - some Linux package managers use
@@ -374,7 +378,7 @@ it fetches ROOT directly from root.cern regardless of what's on the runner.
   and the TBB/xxhash/FreeType/GSL ROOT-runtime extras, since those are fetched hermetically
   there), `root/` (ROOT's tarball, bundled wholesale and kept separate from `lib/`, since ROOT's
   runtime needs a real, intact install layout to find `etc/gitinfo.txt` and `dlopen()`-load
-  `libCling.so`), and `include/` (currently just the six Cicada headers `CicadaDict`'s
+  `libCling.so`), and `compiler/` (AlmaLinux only: `usr/bin/c++`, `usr/libexec/gcc/.../cc1plus` with its RPATH reaching `usr/lib64/libmpc.so.3`, and `usr/include`; the `bin/` wrappers prepend `compiler/usr/bin` to `PATH` and append `compiler/usr/include` to `ROOT_INCLUDE_PATH`), and `include/` (currently just the six Cicada headers `CicadaDict`'s
   dictionary payload `#include`s by bare filename — the specific set needed for Cling's
   autoparse to succeed rather than fail outright on a TClonesArray-backed write). Not yet done:
   on macOS/Ubuntu, Boost/FFTW are still resolved via plain system linker paths at archive-build

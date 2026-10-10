@@ -110,6 +110,12 @@ else
   export ROOT_INCLUDE_PATH="$$DIR/../include"
 fi
 
+# Cling shells out to c++ and needs the standard headers; compiler/ supplies both when present.
+if [[ -d "$$DIR/../compiler" ]]; then
+  export PATH="$$DIR/../compiler/usr/bin:$$PATH"
+  export ROOT_INCLUDE_PATH="$${ROOT_INCLUDE_PATH}:$$DIR/../compiler/usr/include"
+fi
+
 exec "$$DIR/""" + final_bin_name + """" "$$@"
 WRAPPER_EOF
 chmod +x $@

@@ -59,6 +59,16 @@ def _binary_deps_repo_impl(repository_ctx):
     else:
         build_file_parts.append('filegroup(name = "root_runtime_extra_libs", srcs = [])')
 
+    # The C++ compiler tree cling needs. Empty except on AlmaLinux.
+    for target in ("compiler_bin", "compiler_cc1plus", "compiler_files"):
+        if key == "almalinux":
+            build_file_parts.append('alias(name = "{0}", actual = "@almalinux_libs//:{0}")'.format(target))
+            # TODO: Empty stand-ins let //:katydid_release reference these labels without a select().
+            # Drop them once the compiler pieces are added to the archive per platform.
+
+        else:
+            build_file_parts.append('filegroup(name = "{}", srcs = [])'.format(target))
+
     repository_ctx.file("BUILD.bazel", "\n".join(build_file_parts))
 
     # Extra RPATH directories to bake in at release-packaging time on macOS, where Homebrew

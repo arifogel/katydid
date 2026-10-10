@@ -1,6 +1,6 @@
-"""Provides Boost, FFTW, MatIO, TBB, xxhash, FreeType, GSL, brotli, harfbuzz, libpng, and
-graphite2 for AlmaLinux 9, exposed as @almalinux_libs, fetched hermetically from pinned,
-permalinked package snapshots.
+"""Provides Boost, FFTW, MatIO, TBB, xxhash, FreeType, GSL, brotli, harfbuzz, libpng, graphite2,
+and the C++ compiler tree cling shells out to, for AlmaLinux 9, exposed as @almalinux_libs,
+fetched hermetically from pinned, permalinked package snapshots.
 
 AlmaLinux's live dnf repos (repo.almalinux.org) are rolling and prune a package once a newer
 build supersedes it, so building against whatever dnf currently has installed isn't reproducible
@@ -136,6 +136,49 @@ RPM_DOWNLOADS = {
         "filename": "graphite2-1.3.14-9.el9.x86_64.rpm",
         "sha256": "1b8a5d4ebbeaa60dadefdb7b4c386809d349304dd658e57158f0fff36868e5e9",
     },
+    # Cling's startup probe runs `c++ -E -v` and needs the compiler's include search path plus the
+    # libstdc++, glibc, and kernel headers. Filenames containing "+" are URL-encoded.
+    "gcc": {
+        "repo": "AppStream",
+        "filename": "gcc-11.5.0-11.el9.alma.1.x86_64.rpm",
+        "sha256": "dd3d8d4b428fac7ccc763cb6fb16284b26468aed1c0e5cf7698c348b29a057eb",
+    },
+    "gcc-c++": {
+        "repo": "AppStream",
+        "filename": "gcc-c%2B%2B-11.5.0-11.el9.alma.1.x86_64.rpm",
+        "sha256": "30ffedecbb7dffcda0a36906a985e3e91f257a436ddc55002b8c7a3fc40a5d50",
+    },
+    "cpp": {
+        "repo": "AppStream",
+        "filename": "cpp-11.5.0-11.el9.alma.1.x86_64.rpm",
+        "sha256": "157eea5d235bfba3840fdb85c980213506985a1be71bc49de7bb526cd94eb22b",
+    },
+    "libstdc++-devel": {
+        "repo": "AppStream",
+        "filename": "libstdc%2B%2B-devel-11.5.0-11.el9.alma.1.x86_64.rpm",
+        "sha256": "f090e3c79085b7fc85a32d38433e7efb7ed1ba7c390377caf01b1ce3eba5b53a",
+    },
+    "glibc-headers": {
+        "repo": "AppStream",
+        "filename": "glibc-headers-2.34-231.el9_7.10.x86_64.rpm",
+        "sha256": "b2eee05ad43c5a61e0369f45c2c128e3253a433f98e4f31a43bf492e868b1445",
+    },
+    "glibc-devel": {
+        "repo": "AppStream",
+        "filename": "glibc-devel-2.34-231.el9_7.10.x86_64.rpm",
+        "sha256": "68966d06daf50316fd65cc4dae32881ecfe001ad7b2ef3924b2b8269e17a943d",
+    },
+    "kernel-headers": {
+        "repo": "AppStream",
+        "filename": "kernel-headers-5.14.0-611.55.1.el9_7.x86_64.rpm",
+        "sha256": "e55b28d3f26c29b8c49878f90956f316d3a59b5cfacb1ff7d0e7e9b84ad4fe2a",
+    },
+    # cc1plus links it.
+    "libmpc": {
+        "repo": "AppStream",
+        "filename": "libmpc-1.2.1-4.el9.x86_64.rpm",
+        "sha256": "6e474b9022a2bf4dded76c3d5b53c871f3923f95f8b50537377fe756a78a95ab",
+    },
 }
 
 # Every compiled library this repository exposes: (package, path inside the package, runtime
@@ -165,6 +208,45 @@ EXTRACTED_LIBS = [
     ("libpng", "usr/lib64/libpng16.so.16.37.0", "libpng16.so.16"),
     ("graphite2", "usr/lib64/libgraphite2.so.3.2.1", "libgraphite2.so.3"),
 ]
+
+COMPILER_PACKAGES = [
+    "gcc",
+    "gcc-c++",
+    "cpp",
+    "libstdc++-devel",
+    "glibc-headers",
+    "glibc-devel",
+    "kernel-headers",
+    "libmpc",
+]
+
+COMPILER_BIN = "compiler/usr/bin/c++"
+COMPILER_CC1PLUS = "compiler/usr/libexec/gcc/x86_64-redhat-linux/11/cc1plus"
+
+# Merges COMPILER_PACKAGES into compiler/usr/, the layout c++ derives its include and program
+# search paths from.
+_COMPILER_ASSEMBLE_SCRIPT = """
+set -e
+gccdir=usr/lib/gcc/x86_64-redhat-linux/11
+mkdir -p compiler/usr/bin compiler/usr/include compiler/usr/lib64 compiler/usr/share/licenses \\
+    compiler/usr/libexec/gcc/x86_64-redhat-linux/11 compiler/$gccdir/include
+for pkg in glibc-headers glibc-devel kernel-headers libstdc++-devel; do
+    cp -aL "$pkg"_extracted/usr/include/. compiler/usr/include/
+done
+for pkg in gcc cpp gcc-c++ libstdc++-devel; do
+    if [ -d "$pkg"_extracted/$gccdir/include ]; then
+        cp -aL "$pkg"_extracted/$gccdir/include/. compiler/$gccdir/include/
+    fi
+done
+cp -L gcc-c++_extracted/usr/bin/c++ compiler/usr/bin/
+cp -L gcc-c++_extracted/usr/libexec/gcc/x86_64-redhat-linux/11/cc1plus compiler/usr/libexec/gcc/x86_64-redhat-linux/11/
+cp -L libmpc_extracted/usr/lib64/libmpc.so.3 compiler/usr/lib64/
+for pkg in {packages}; do
+    if [ -d "$pkg"_extracted/usr/share/licenses ]; then
+        cp -a "$pkg"_extracted/usr/share/licenses/. compiler/usr/share/licenses/
+    fi
+done
+"""
 
 def _rpm_url(info):
     if "url" in info:
@@ -318,6 +400,30 @@ filegroup(
     srcs = {srcs},
 )
 """.format(srcs = repr(ROOT_RUNTIME_EXTRA_LIBS)))
+
+    result = repository_ctx.execute([
+        "sh",
+        "-c",
+        _COMPILER_ASSEMBLE_SCRIPT.format(packages = " ".join(COMPILER_PACKAGES)),
+    ])
+    if result.return_code != 0:
+        fail("Failed to assemble the compiler tree: {}".format(result.stderr))
+    build_file_parts.append("""
+filegroup(
+    name = "compiler_bin",
+    srcs = ["{bin}"],
+)
+
+filegroup(
+    name = "compiler_cc1plus",
+    srcs = ["{cc1plus}"],
+)
+
+filegroup(
+    name = "compiler_files",
+    srcs = glob(["compiler/**"], exclude = ["{bin}", "{cc1plus}"]),
+)
+""".format(bin = COMPILER_BIN, cc1plus = COMPILER_CC1PLUS))
 
     repository_ctx.file("BUILD.bazel", "\n".join(build_file_parts))
 
