@@ -1,4 +1,4 @@
-load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@katydid//tools:katydid_cc.bzl", "katydid_cc_library")
 load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
 
 # BUILD file for @yaml_cpp (github.com/jbeder/yaml-cpp), used by Scarab to read Katydid's YAML
@@ -6,14 +6,14 @@ load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
 
 package(default_visibility = ["//visibility:public"])
 
-cc_library(
+katydid_cc_library(
     name = "yaml_cpp_headers",
     hdrs = glob(["include/yaml-cpp/**/*.h"]),
     includes = ["include"],
 )
 
 # Compiled from source, since yaml-cpp isn't provided as a system package here.
-cc_library(
+katydid_cc_library(
     name = "yaml_cpp_lib",
     srcs = glob([
         "src/*.cpp",

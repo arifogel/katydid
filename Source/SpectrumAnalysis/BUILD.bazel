@@ -5,12 +5,12 @@
 # Excluded here: KTBiasedACM and KTRQProcessor, which depend on the Eigen linear algebra
 # library, not part of Katydid's default configuration.
 
-load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("//tools:katydid_cc.bzl", "katydid_cc_library")
 load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
 
 package(default_visibility = ["//Source:__subpackages__"])
 
-cc_library(
+katydid_cc_library(
     name = "katydid_spectrum_analysis_headers",
     hdrs = glob(["*.hh"]),
     includes = ["."],
@@ -22,7 +22,7 @@ cc_library(
     ],
 )
 
-cc_library(
+katydid_cc_library(
     name = "katydid_spectrum_analysis_lib",
     srcs = [
         "KTAggregatedChannelOptimizer.cc",

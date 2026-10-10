@@ -1,5 +1,5 @@
+load("@katydid//tools:katydid_cc.bzl", "katydid_cc_library")
 load("@katydid//tools:root_dictionary.bzl", "root_dictionary")
-load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
 
 # BUILD file for @cicada (github.com/Helium6CRES/cicada), Katydid's classifier-results data
@@ -32,7 +32,7 @@ exports_files([
     "Library/CROOTData.hh",
 ])
 
-cc_library(
+katydid_cc_library(
     name = "cicada_headers",
     hdrs = glob(["Library/*.hh"]) + [
         # CROOTData.cc includes _CROOTData.cc directly, an older C++ idiom for splitting a
@@ -62,7 +62,7 @@ root_dictionary(
     deps = [":cicada_headers"],
 )
 
-cc_library(
+katydid_cc_library(
     name = "cicada_lib",
     srcs = [
         "Library/CClassifierResultsData.cc",
