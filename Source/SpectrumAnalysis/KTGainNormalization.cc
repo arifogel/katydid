@@ -16,10 +16,6 @@
 #include "KTPowerSpectrum.hh"
 #include "KTPowerSpectrumData.hh"
 
-#ifdef USE_OPENMP
-#include <omp.h>
-#endif
-
 using std::string;
 
 
@@ -226,25 +222,19 @@ namespace Katydid
 
         // First directly copy data that's outside the scaling range
         unsigned iBin;
-#pragma omp parallel default(shared)
+        for (iBin=0; iBin < fMinBin; ++iBin)
         {
-#pragma omp for private(iBin)
-            for (iBin=0; iBin < fMinBin; ++iBin)
-            {
-                (*newSpectrum)(iBin).set_polar((*frequencySpectrum)(iBin).abs(), (*frequencySpectrum)(iBin).arg());
-            }
-#pragma omp for private(iBin)
-            for (iBin=fMaxBin+1; iBin < nSpectrumBins; ++iBin)
-            {
-                (*newSpectrum)(iBin).set_polar((*frequencySpectrum)(iBin).abs(), (*frequencySpectrum)(iBin).arg());
-            }
+            (*newSpectrum)(iBin).set_polar((*frequencySpectrum)(iBin).abs(), (*frequencySpectrum)(iBin).arg());
+        }
+        for (iBin=fMaxBin+1; iBin < nSpectrumBins; ++iBin)
+        {
+            (*newSpectrum)(iBin).set_polar((*frequencySpectrum)(iBin).abs(), (*frequencySpectrum)(iBin).arg());
+        }
 
-            // Then scale the bins within the scaling range
-#pragma omp for private(iBin)
-            for (iBin=fMinBin; iBin < fMaxBin+1; ++iBin)
-            {
-                (*newSpectrum)(iBin).set_polar(normalizedMean + ((*frequencySpectrum)(iBin).abs() - (*splineImp)(iBin - fMinBin)) * sqrt(normalizedVariance / (*varSplineImp)(iBin - fMinBin)), (*frequencySpectrum)(iBin).arg());
-            }
+        // Then scale the bins within the scaling range
+        for (iBin=fMinBin; iBin < fMaxBin+1; ++iBin)
+        {
+            (*newSpectrum)(iBin).set_polar(normalizedMean + ((*frequencySpectrum)(iBin).abs() - (*splineImp)(iBin - fMinBin)) * sqrt(normalizedVariance / (*varSplineImp)(iBin - fMinBin)), (*frequencySpectrum)(iBin).arg());
         }
 
         return newSpectrum;
@@ -279,31 +269,25 @@ namespace Katydid
 
         // First directly copy data that's outside the scaling range
         unsigned iBin;
-#pragma omp parallel default(shared)
+        for (iBin=0; iBin < fMinBin; ++iBin)
         {
-#pragma omp for private(iBin)
-            for (iBin=0; iBin < fMinBin; ++iBin)
-            {
-                (*newSpectrum)(iBin)[0] = (*frequencySpectrum)(iBin)[0];
-                (*newSpectrum)(iBin)[1] = (*frequencySpectrum)(iBin)[1];
-            }
-#pragma omp for private(iBin)
-            for (iBin=fMaxBin+1; iBin < nSpectrumBins; ++iBin)
-            {
-                (*newSpectrum)(iBin)[0] = (*frequencySpectrum)(iBin)[0];
-                (*newSpectrum)(iBin)[1] = (*frequencySpectrum)(iBin)[1];
-            }
+            (*newSpectrum)(iBin)[0] = (*frequencySpectrum)(iBin)[0];
+            (*newSpectrum)(iBin)[1] = (*frequencySpectrum)(iBin)[1];
+        }
+        for (iBin=fMaxBin+1; iBin < nSpectrumBins; ++iBin)
+        {
+            (*newSpectrum)(iBin)[0] = (*frequencySpectrum)(iBin)[0];
+            (*newSpectrum)(iBin)[1] = (*frequencySpectrum)(iBin)[1];
+        }
 
-            // Then scale the bins within the scaling range
-            complexpolar<double> value;
-#pragma omp for private(iBin)
-            for (iBin=fMinBin; iBin < fMaxBin+1; ++iBin)
-            {
-                value.set_rect((*frequencySpectrum)(iBin)[0], (*frequencySpectrum)(iBin)[1]);
-                value.set_polar(normalizedMean + (value.abs() - (*splineImp)(iBin - fMinBin)) * sqrt(normalizedVariance / (*varSplineImp)(iBin - fMinBin)), value.arg());
-                (*newSpectrum)(iBin)[0] = real(value);
-                (*newSpectrum)(iBin)[1] = imag(value);
-            }
+        // Then scale the bins within the scaling range
+        complexpolar<double> value;
+        for (iBin=fMinBin; iBin < fMaxBin+1; ++iBin)
+        {
+            value.set_rect((*frequencySpectrum)(iBin)[0], (*frequencySpectrum)(iBin)[1]);
+            value.set_polar(normalizedMean + (value.abs() - (*splineImp)(iBin - fMinBin)) * sqrt(normalizedVariance / (*varSplineImp)(iBin - fMinBin)), value.arg());
+            (*newSpectrum)(iBin)[0] = real(value);
+            (*newSpectrum)(iBin)[1] = imag(value);
         }
 
         return newSpectrum;
@@ -335,25 +319,19 @@ namespace Katydid
 
         // First directly copy data that's outside the scaling range
         unsigned iBin;
-#pragma omp parallel default(shared)
+        for (iBin=0; iBin < fMinBin; ++iBin)
         {
-#pragma omp for private(iBin)
-            for (iBin=0; iBin < fMinBin; ++iBin)
-            {
-                (*newSpectrum)(iBin) = (*powerSpectrum)(iBin);
-            }
-#pragma omp for private(iBin)
-            for (iBin=fMaxBin+1; iBin < nSpectrumBins; ++iBin)
-            {
-                (*newSpectrum)(iBin) = (*powerSpectrum)(iBin);
-            }
+            (*newSpectrum)(iBin) = (*powerSpectrum)(iBin);
+        }
+        for (iBin=fMaxBin+1; iBin < nSpectrumBins; ++iBin)
+        {
+            (*newSpectrum)(iBin) = (*powerSpectrum)(iBin);
+        }
 
-            // Then scale the bins within the scaling range
-#pragma omp for private(iBin)
-            for (iBin=fMinBin; iBin < fMaxBin+1; ++iBin)
-            {
-                (*newSpectrum)(iBin) = normalizedMean + ((*powerSpectrum)(iBin) - (*splineImp)(iBin - fMinBin)) * sqrt(normalizedVariance / (*varSplineImp)(iBin - fMinBin));
-            }
+        // Then scale the bins within the scaling range
+        for (iBin=fMinBin; iBin < fMaxBin+1; ++iBin)
+        {
+            (*newSpectrum)(iBin) = normalizedMean + ((*powerSpectrum)(iBin) - (*splineImp)(iBin - fMinBin)) * sqrt(normalizedVariance / (*varSplineImp)(iBin - fMinBin));
         }
 
         return newSpectrum;

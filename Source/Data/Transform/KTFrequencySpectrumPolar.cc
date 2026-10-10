@@ -16,10 +16,6 @@
 
 #include <sstream>
 
-#ifdef USE_OPENMP
-#include <omp.h>
-#endif
-
 using std::stringstream;
 
 namespace Katydid
@@ -80,7 +76,6 @@ namespace Katydid
     KTFrequencySpectrumPolar& KTFrequencySpectrumPolar::CConjugate()
     {
         unsigned nBins = size();
-#pragma omp parallel for
         for (unsigned iBin=0; iBin<nBins; ++iBin)
         {
             (*this)(iBin).conj();
@@ -134,13 +129,11 @@ namespace Katydid
         double scaling = 1. / KTPowerSpectrum::GetResistance() / (double)GetNTimeBins();
 
         double value;
-#pragma omp parallel for private(value)
         for (unsigned iBin = firstPosFreqBin; iBin < lastPosFreqBin; ++iBin)
         {
             value = (*this)(iBin).abs();
             (*newPS)(iBin) = value * value * scaling;
         }
-#pragma omp parallel for private(value)
         for (unsigned iBin = firstNegFreqBin; iBin < lastNegFreqBin; ++iBin)
         {
             value = (*this)(iBin).abs();

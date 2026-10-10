@@ -210,16 +210,6 @@ else (DLIB_FOUND)
     remove_definitions(-DUSE_DLIB)
 endif (DLIB_FOUND)
 
-# OpenMP
-#find_package (OpenMP)
-if (OPENMP_FOUND AND NOT Katydid_SINGLETHREADED)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-    add_definitions(-DUSE_OPENMP)
-else (OPENMP_FOUND AND NOT Katydid_SINGLETHREADED)
-    remove_definitions(-DUSE_OPENMP)
-endif (OPENMP_FOUND AND NOT Katydid_SINGLETHREADED)
-
 # External packages distributed with Katydid
 include_directories (BEFORE ${PROJECT_SOURCE_DIR}/External/nanoflann)
 include_directories (BEFORE ${PROJECT_SOURCE_DIR}/External/RapidXML)

@@ -13,10 +13,6 @@
 
 #include <sstream>
 
-#ifdef USE_OPENMP
-#include <omp.h>
-#endif
-
 using std::stringstream;
 
 namespace Katydid
@@ -114,7 +110,6 @@ namespace Katydid
     KTFrequencySpectrumFFTW& KTFrequencySpectrumFFTW::CConjugate()
     {
         unsigned nBins = size();
-#pragma omp parallel for
         for (unsigned iBin=0; iBin<nBins; ++iBin)
         {
             // order doesn't matter, so use fData[] to access values
@@ -132,13 +127,11 @@ namespace Katydid
         // Positive frequency bins are multiplied by 2 (from array position 1 to size/2).
         unsigned nBins = size();
         unsigned nyquistPos = nBins / 2; // either the sole nyquist bin (if even # of bins) or the first of the two (if odd # of bins; bins are sequential in the array).
-#pragma omp parallel for
         for (unsigned arrayPos=1; arrayPos<nyquistPos; arrayPos++)
         {
             fData[arrayPos][0] = fData[arrayPos][0] * 2.;
             fData[arrayPos][1] = fData[arrayPos][1] * 2.;
         }
-#pragma omp parallel for
         for (unsigned arrayPos=nyquistPos; arrayPos<nBins; arrayPos++)
         {
             fData[arrayPos][0] = 0.;
@@ -150,7 +143,6 @@ namespace Katydid
     KTFrequencySpectrumFFTW& KTFrequencySpectrumFFTW::Scale(double scale)
     {
         unsigned nBins = size();
-#pragma omp parallel for
         for (unsigned iBin=0; iBin<nBins; ++iBin)
         {
             // order doesn't matter, so use fData[] to access values
@@ -166,7 +158,6 @@ namespace Katydid
         unsigned nBins = size();
         KTFrequencySpectrumPolar* newFS = new KTFrequencySpectrumPolar(nBins, GetRangeMin(), GetRangeMax());
         newFS->SetNTimeBins(fNTimeBins);
-#pragma omp parallel for
         for (unsigned iBin=0; iBin<nBins; ++iBin)
         {
            (*newFS)(iBin).set_rect((*this)(iBin)[0], (*this)(iBin)[1]);
@@ -215,14 +206,12 @@ namespace Katydid
         double scaling = 1. / KTPowerSpectrum::GetResistance() / (double)GetNTimeBins();
 
         double valueImag, valueReal;
-#pragma omp parallel for private(valueReal, valueImag)
         for (unsigned iBin = firstPosFreqBin; iBin < lastPosFreqBin; ++iBin)
         {
             valueReal = (*this)(iBin)[0];
             valueImag = (*this)(iBin)[1];
             (*newPS)(iBin) = (valueReal * valueReal + valueImag * valueImag) * scaling;
         }
-#pragma omp parallel for private(valueReal, valueImag)
         for (unsigned iBin = firstNegFreqBin; iBin < lastNegFreqBin; ++iBin)
         {
             valueReal = (*this)(iBin)[0];

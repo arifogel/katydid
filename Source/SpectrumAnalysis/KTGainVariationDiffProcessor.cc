@@ -13,10 +13,6 @@
 #include <cmath>
 #include <vector>
 
-#ifdef USE_OPENMP
-#include <omp.h>
-#endif
-
 using std::string;
 using std::vector;
 
@@ -137,7 +133,6 @@ namespace Katydid
 
             KTDEBUG(gvlog, "Subtracting two splines. ");
             // loop over bins, subtract implementations
-    #pragma omp parallel for private(value)
                 for (unsigned iBin=0; iBin<nBins; ++iBin)
                 {
                     double mean1 = (*meanspline1Imp)(iBin);

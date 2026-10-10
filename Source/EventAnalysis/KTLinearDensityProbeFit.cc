@@ -23,10 +23,6 @@
 #include <vector>
 #include <algorithm>
 
-#ifdef USE_OPENMP
-#include <omp.h>
-#endif
-
 #include "TH1.h"
 #include "TF1.h"
 #include "KT2ROOT.hh"
