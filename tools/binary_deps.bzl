@@ -63,8 +63,9 @@ def _binary_deps_repo_impl(repository_ctx):
     for target in ("compiler_bin", "compiler_cc1plus", "compiler_files"):
         if key == "almalinux":
             build_file_parts.append('alias(name = "{0}", actual = "@almalinux_libs//:{0}")'.format(target))
-        # TODO: Empty stand-ins let //:katydid_release reference these labels without a select().
-        # Drop them once the compiler pieces are added to the archive per platform.
+            # TODO: Empty stand-ins let //:katydid_release reference these labels without a select().
+            # Drop them once the compiler pieces are added to the archive per platform.
+
         else:
             build_file_parts.append('filegroup(name = "{}", srcs = [])'.format(target))
 
