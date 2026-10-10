@@ -206,8 +206,7 @@ jobs:
       - name: Test everything
         run: bazel test //...
 
-      # Runs the extracted release with every compiler package removed, so cling can only use the
-      # archive's compiler/ tree. The archive is never uploaded.
+      # With every compiler package removed, cling can only use the archive's compiler/ tree.
       - name: Run the release archive without a system compiler
         run: |
           bazel build //:katydid_release

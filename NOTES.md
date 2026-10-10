@@ -108,9 +108,9 @@ directly. This is a three-layer design:
      dynamically depend on but don't bundle, exposed as
      `@almalinux_libs//:root_runtime_extra_libs`. Also fetches the gcc 11 C++ compiler and its
      glibc, kernel, and libstdc++ headers, merged into a relocatable `usr/` tree exposed as
-     `@almalinux_libs//:compiler_{bin,cc1plus,files}`. Cling's startup probe runs `c++ -E -v`,
-     which compute nodes without a system compiler cannot answer. The RPMs' license files ship
-     under `compiler/usr/share/licenses`.
+     `@almalinux_libs//:compiler_{bin,cc1plus,files}`. Cling's startup probe runs `c++ -E -v` and
+     needs the compiler's header search paths. The RPMs' license files ship under
+     `compiler/usr/share/licenses`.
    - On macOS and Ubuntu, correctness is checked by looking for a representative header file for
      each library (`boost/version.hpp`, `fftw3.h`, `matio.h`), not by asking the package manager
      whether a specific package name is installed - some Linux package managers use

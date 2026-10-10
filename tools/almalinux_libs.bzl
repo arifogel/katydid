@@ -173,7 +173,7 @@ RPM_DOWNLOADS = {
         "filename": "kernel-headers-5.14.0-611.55.1.el9_7.x86_64.rpm",
         "sha256": "e55b28d3f26c29b8c49878f90956f316d3a59b5cfacb1ff7d0e7e9b84ad4fe2a",
     },
-    # cc1plus links it; the compiler tree's cc1plus RPATH points at its copy.
+    # cc1plus links it.
     "libmpc": {
         "repo": "AppStream",
         "filename": "libmpc-1.2.1-4.el9.x86_64.rpm",
@@ -209,7 +209,6 @@ EXTRACTED_LIBS = [
     ("graphite2", "usr/lib64/libgraphite2.so.3.2.1", "libgraphite2.so.3"),
 ]
 
-# Packages whose contents make up the compiler tree.
 COMPILER_PACKAGES = [
     "gcc",
     "gcc-c++",
@@ -221,12 +220,11 @@ COMPILER_PACKAGES = [
     "libmpc",
 ]
 
-# Where the compiler tree's files sit relative to its root.
 COMPILER_BIN = "compiler/usr/bin/c++"
 COMPILER_CC1PLUS = "compiler/usr/libexec/gcc/x86_64-redhat-linux/11/cc1plus"
 
-# Merges COMPILER_PACKAGES into compiler/usr/. The directory layout is what c++ derives its
-# include and program search paths from.
+# Merges COMPILER_PACKAGES into compiler/usr/, the layout c++ derives its include and program
+# search paths from.
 _COMPILER_ASSEMBLE_SCRIPT = """
 set -e
 gccdir=usr/lib/gcc/x86_64-redhat-linux/11
