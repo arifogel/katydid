@@ -21,10 +21,6 @@
 #include <cmath>
 #include <vector>
 
-#ifdef USE_OPENMP
-#include <omp.h>
-#endif
-
 using std::string;
 using std::vector;
 
@@ -220,7 +216,6 @@ namespace Katydid
             }
             else
             {
-#pragma omp parallel for reduction(+:mean)
                 for (unsigned iBin=fMinBin; iBin<=fMaxBin; ++iBin)
                 {
                     magnitude[iBin] = sqrt((*spectrum)(iBin)[0] * (*spectrum)(iBin)[0] + (*spectrum)(iBin)[1] * (*spectrum)(iBin)[1]);
@@ -251,7 +246,6 @@ namespace Katydid
             }
 
             // loop over bins, checking against the threshold
-#pragma omp parallel for private(value)
             for (unsigned iBin=fMinBin; iBin<=fMaxBin; ++iBin)
             {
                 double value = magnitude[iBin];
@@ -407,7 +401,6 @@ namespace Katydid
             }
             else
             {
-#pragma omp parallel for reduction(+:mean)
                 for (unsigned iBin=fMinBin; iBin<=fMaxBin; ++iBin)
                 {
                     mean += (*spectrum)(iBin);
@@ -438,7 +431,6 @@ namespace Katydid
 
             // loop over bins, checking against the threshold
 
-#pragma omp parallel for private(value)
             for (unsigned iBin=fMinBin; iBin<=fMaxBin; ++iBin)
             {
                 double value = (*spectrum)(iBin);

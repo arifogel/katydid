@@ -26,10 +26,6 @@
 #include <vector>
 #include <algorithm>
 
-#ifdef USE_OPENMP
-#include <omp.h>
-#endif
-
 using std::string;
 using std::vector;
 
@@ -464,7 +460,6 @@ namespace Katydid
             }
 
             // loop over bins, checking against the threshold
-#pragma omp parallel for private(value)
             for (unsigned iBin=fMinBin; iBin<=fMaxBin; ++iBin)
             {
                 double value = (*spectrum)(iBin).abs();
@@ -498,7 +493,6 @@ namespace Katydid
         //**************
         else if (fThresholdMode == eSigma)
         {
-#pragma omp parallel for private(value)
             for (unsigned iBin=fMinBin; iBin<=fMaxBin; ++iBin)
             {
                 double mean = (*splineImp)(iBin - fMinBin);
@@ -570,7 +564,6 @@ namespace Katydid
             }
 
             // loop over bins, checking against the threshold
-#pragma omp parallel for private(value)
             for (unsigned iBin=fMinBin; iBin<=fMaxBin; ++iBin)
             {
                 double value = sqrt((*spectrum)(iBin)[0] * (*spectrum)(iBin)[0] + (*spectrum)(iBin)[1] * (*spectrum)(iBin)[1]);
@@ -604,7 +597,6 @@ namespace Katydid
         //**************
         else if (fThresholdMode == eSigma)
         {
-#pragma omp parallel for private(value)
             for (unsigned iBin=fMinBin; iBin<=fMaxBin; ++iBin)
             {
                 double mean = (*splineImp)(iBin - fMinBin);
@@ -680,7 +672,6 @@ namespace Katydid
             }
 
             // loop over bins, checking against the threshold
-#pragma omp parallel for private(value)
             for (unsigned iBin=fMinBin; iBin<=fMaxBin; ++iBin)
             {
                 double mod = 0.;
@@ -726,7 +717,6 @@ namespace Katydid
         else if (fThresholdMode == eSigma)
         //If sigma mode was selected
         {
-#pragma omp parallel for private(value)
             for (unsigned iBin=fMinBin; iBin<=fMaxBin; ++iBin)
             {
                 double mean = (*splineImp)(iBin - fMinBin);

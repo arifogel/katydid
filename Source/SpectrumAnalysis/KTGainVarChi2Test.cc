@@ -17,10 +17,6 @@
 #include <cmath>
 #include <vector>
 
-#ifdef USE_OPENMP
-#include <omp.h>
-#endif
-
 using std::string;
 using std::vector;
 

@@ -20,10 +20,6 @@
 #include <complex>
 #include <vector>
 
-#ifdef USE_OPENMP
-#include <omp.h>
-#endif
-
 using std::string;
 using std::vector;
 
@@ -363,7 +359,6 @@ namespace Katydid
             double* yVals = new double[fNFitPoints];
 
             // Calculate fit points
-#pragma omp parallel for default(shared)
             for (unsigned iFitPoint=0; iFitPoint < fNFitPoints; ++iFitPoint)
             {
                 unsigned fitPointStartBin = iFitPoint * nBinsPerFitPoint + fMinBin;
@@ -449,7 +444,6 @@ namespace Katydid
             double* yVals = new double[fNFitPoints];
 
             // Calculate fit points
-#pragma omp parallel for default(shared)
             for (unsigned iFitPoint=0; iFitPoint < fNFitPoints; ++iFitPoint)
             {
                 unsigned fitPointStartBin = iFitPoint * nBinsPerFitPoint + fMinBin;
@@ -534,7 +528,6 @@ namespace Katydid
             double* yVals = new double[fNFitPoints];
 
             // Calculate fit points
-#pragma omp parallel for default(shared)
             for (unsigned iFitPoint=0; iFitPoint < fNFitPoints; ++iFitPoint)
             {
                 unsigned fitPointStartBin = iFitPoint * nBinsPerFitPoint + fMinBin;
@@ -619,7 +612,6 @@ namespace Katydid
             double* yVals = new double[fNFitPoints];
 
             // Calculate fit points
-#pragma omp parallel for default(shared)
             for (unsigned iFitPoint=0; iFitPoint < fNFitPoints; ++iFitPoint)
             {
                 unsigned fitPointStartBin = iFitPoint * nBinsPerFitPoint + fMinBin;
