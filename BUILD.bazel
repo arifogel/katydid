@@ -126,7 +126,7 @@ pkg_files(
 rpath_patched_copies(
     name = "katydid_release_cc1plus_patched",
     srcs = ["@binary_deps//:compiler_cc1plus"],
-    rpath = "$ORIGIN/../../../../../lib64",
+    rpath = "$ORIGIN/../../../../lib64",
 )
 
 pkg_files(
