@@ -4,8 +4,8 @@
 # EggScanner and RSAMatToEgg are not built here: both require Monarch (Katydid's raw egg-file
 # reading library), which is off by Katydid's default configuration.
 
-load("//tools:katydid_cc.bzl", "katydid_cc_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//tools:katydid_cc.bzl", "katydid_cc_binary")
 load(":harvest_runtime_libs.bzl", "harvest_runtime_libs")
 load(":release_binary.bzl", "release_binary")
 load(":root_include_path_launcher.bzl", "root_include_path_launcher")

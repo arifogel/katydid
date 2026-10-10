@@ -77,8 +77,8 @@
 # directly is never valid, so it's not a cc_test) - `bazel test` and `bazel run` should always
 # use the plain name, never the "_bin" target directly.
 
-load("//tools:katydid_cc.bzl", "katydid_cc_binary")
 load("//Source/Executables/Main:root_include_path_launcher.bzl", "root_include_path_launcher")
+load("//tools:katydid_cc.bzl", "katydid_cc_binary")
 load(":katydid_cc_test.bzl", "katydid_cc_test")
 
 package(default_visibility = ["//visibility:private"])

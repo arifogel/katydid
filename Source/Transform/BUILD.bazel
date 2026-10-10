@@ -1,8 +1,8 @@
 # Builds Katydid's Transform module: window functions and forward/reverse FFTs for converting
 # time series data into frequency-domain spectra.
 
-load("//tools:katydid_cc.bzl", "katydid_cc_library")
 load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
+load("//tools:katydid_cc.bzl", "katydid_cc_library")
 
 package(default_visibility = ["//Source:__subpackages__"])
 
