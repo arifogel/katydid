@@ -206,6 +206,23 @@ jobs:
       - name: Test everything
         run: bazel test //...
 
+      # Runs the extracted release with every compiler package removed, so cling can only use the
+      # archive's compiler/ tree. The archive is never uploaded.
+      - name: Run the release archive without a system compiler
+        run: |
+          bazel build //:katydid_release
+          mkdir /tmp/release
+          tar -xzf bazel-bin/katydid_release.tar.gz -C /tmp/release
+          dnf remove -y gcc-c++ gcc cpp libstdc++-devel glibc-devel glibc-headers kernel-headers libmpc
+          if command -v c++ || [ -e /usr/include/assert.h ] || [ -e /usr/include/c++ ]; then
+            echo "A system compiler or its headers are still present"
+            exit 1
+          fi
+          OUT=$(/tmp/release/bin/Katydid 2>&1 || true)
+          if grep -E 'cling::CIFactory|fatal error:' <<< "$OUT"; then
+            exit 1
+          fi
+
   lint-and-format:
     runs-on: ubuntu-latest
     steps:

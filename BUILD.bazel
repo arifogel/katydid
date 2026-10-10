@@ -10,6 +10,9 @@
 # separate from lib/: ROOT's runtime needs a real, complete install layout (bin/, lib/, etc/,
 # include/) to find things like etc/gitinfo.txt and dlopen()-load libCling.so.
 #
+# On AlmaLinux, compiler/ also holds the C++ compiler and headers cling needs (see
+# tools/almalinux_libs.bzl).
+#
 # On AlmaLinux, Boost/FFTW/MatIO/TBB/xxhash/FreeType/GSL are all bundled into lib/ too
 # (Boost/FFTW via the harvest above, since they're a real Bazel dependency there; the other
 # four - never anything's dependency, just ROOT's own runtime need - via
@@ -20,6 +23,7 @@
 
 load("@rules_pkg//pkg:mappings.bzl", "pkg_attributes", "pkg_files", "strip_prefix")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
+load("//tools:rpath_patched_copies.bzl", "rpath_patched_copies")
 
 package(default_visibility = ["//visibility:private"])
 
@@ -116,10 +120,43 @@ pkg_files(
     prefix = "lib",
 )
 
+# compiler/ - the C++ compiler tree cling shells out to, in a usr/ layout c++ locates its headers
+# and cc1plus from. Empty except on AlmaLinux (see tools/almalinux_libs.bzl). cc1plus's RPATH
+# reaches usr/lib64, where libmpc sits.
+rpath_patched_copies(
+    name = "katydid_release_cc1plus_patched",
+    srcs = ["@binary_deps//:compiler_cc1plus"],
+    rpath = "$ORIGIN/../../../../../lib64",
+)
+
+pkg_files(
+    name = "katydid_release_compiler_cc1plus",
+    srcs = [":katydid_release_cc1plus_patched"],
+    attributes = pkg_attributes(mode = "0755"),
+    prefix = "compiler/usr/libexec/gcc/x86_64-redhat-linux/11",
+)
+
+pkg_files(
+    name = "katydid_release_compiler_bin",
+    srcs = ["@binary_deps//:compiler_bin"],
+    attributes = pkg_attributes(mode = "0755"),
+    prefix = "compiler/usr/bin",
+)
+
+pkg_files(
+    name = "katydid_release_compiler",
+    srcs = ["@binary_deps//:compiler_files"],
+    prefix = "compiler",
+    strip_prefix = strip_prefix.from_pkg("compiler"),
+)
+
 pkg_tar(
     name = "katydid_release",
     srcs = [
         ":katydid_release_bin",
+        ":katydid_release_compiler",
+        ":katydid_release_compiler_bin",
+        ":katydid_release_compiler_cc1plus",
         ":katydid_release_include",
         ":katydid_release_lib",
         ":katydid_release_notices",
